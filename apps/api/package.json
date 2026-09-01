@@ -1,0 +1,28 @@
+{
+  "name": "@provide/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "deploy:preview": "wrangler deploy",
+    "dev": "wrangler dev",
+    "lint": "eslint .",
+    "test": "vitest run src",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@provide/contracts": "workspace:*",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260901.1",
+    "@types/node": "26.4.0",
+    "@types/pg": "8.23.1",
+    "eslint": "10.9.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11",
+    "wrangler": "4.128.0"
+  }
+}

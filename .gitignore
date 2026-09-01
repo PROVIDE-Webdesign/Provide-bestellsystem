@@ -2,6 +2,9 @@ node_modules/
 .turbo/
 dist/
 .next/
+.vinext/
+.output/
+/output/
 coverage/
 
 .env

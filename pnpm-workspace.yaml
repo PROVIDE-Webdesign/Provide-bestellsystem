@@ -2,6 +2,10 @@ packages:
   - apps/*
   - packages/*
 
+allowBuilds:
+  esbuild: true
+  workerd: true
+
 catalogMode: strict
 
 minimumReleaseAgeExclude:
@@ -16,5 +20,7 @@ minimumReleaseAgeExclude:
   - "@typescript-eslint/utils@8.69.0"
   - "@typescript-eslint/visitor-keys@8.69.0"
   - typescript-eslint@8.69.0
-
-onlyBuiltDependencies: []
+  - "@cloudflare/vite-plugin@1.54.3"
+  - "@cloudflare/workers-types@5.20260901.1"
+  - miniflare@5.20260831.0-alpha
+  - wrangler@4.128.0

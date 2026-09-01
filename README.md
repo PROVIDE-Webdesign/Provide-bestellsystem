@@ -7,7 +7,7 @@ Staging-Pilot.
 
 - Architektur-SoT: `PROVIDE Bestellsystem - Architektur und Arbeitsplan A2`
 - Organisatorische SoT: `PROVIDE Bestellsystem Projektprotokoll V2`
-- Aktiver Arbeitsblock: `1.2 - Umgebungen und sichere Konfiguration`
+- Aktiver Arbeitsblock: `1.3 - Cloudflare-/PostgreSQL-Technik-Spike`
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 
 ## Geplante Anwendungen

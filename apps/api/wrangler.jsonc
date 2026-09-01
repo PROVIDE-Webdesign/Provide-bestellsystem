@@ -1,0 +1,19 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "provide-bs-api-preview",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "APP_ENV": "preview",
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "00000000-0000-0000-0000-000000000000",
+    },
+  ],
+  "observability": {
+    "enabled": true,
+  },
+}
