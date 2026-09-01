@@ -7,7 +7,7 @@ Staging-Pilot.
 
 - Architektur-SoT: `PROVIDE Bestellsystem - Architektur und Arbeitsplan A2`
 - Organisatorische SoT: `PROVIDE Bestellsystem Projektprotokoll V2`
-- Aktiver Arbeitsblock: `1.1 - Repository und Monorepo-Grundstruktur`
+- Aktiver Arbeitsblock: `1.2 - Umgebungen und sichere Konfiguration`
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 
 ## Geplante Anwendungen
@@ -28,8 +28,19 @@ Voraussetzungen:
 
 ```bash
 pnpm install --frozen-lockfile
+cp .env.example .env.local
 pnpm check
 ```
+
+Unter Windows PowerShell lautet der Kopierbefehl:
+
+```powershell
+Copy-Item .env.example .env.local
+```
+
+Die Beispielwerte sind nur für die lokale Entwicklung bestimmt. Vorschau- und
+Produktionskonfigurationen werden getrennt in der jeweiligen Plattform hinterlegt. Details stehen im
+[Umgebungs- und Secret-Runbook](docs/runbooks/environments-and-secrets.md).
 
 ## Sicherheit
 
