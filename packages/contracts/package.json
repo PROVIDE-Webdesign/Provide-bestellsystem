@@ -1,0 +1,24 @@
+{
+  "name": "@provide/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
+    "test": "vitest run src",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "eslint": "10.9.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
+  }
+}

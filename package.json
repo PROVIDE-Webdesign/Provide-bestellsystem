@@ -1,0 +1,32 @@
+{
+  "name": "provide-bestellsystem",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Mandantenfähige Bestellplattform von PROVIDE Webdesign",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": ">=11 <12"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "dev": "turbo run dev --parallel",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.4.0",
+    "eslint": "10.9.1",
+    "prettier": "3.9.6",
+    "turbo": "2.10.12",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.69.0",
+    "vitest": "4.1.11"
+  }
+}
