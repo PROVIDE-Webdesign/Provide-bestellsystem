@@ -73,3 +73,14 @@ Mandantengrenzen und Rechte sind in der
 [Datenbank-Mandantengrenze](../decisions/0005-database-tenant-boundary.md) dokumentiert. Jede
 spätere mandanteneigene Tabelle benötigt eine `restaurant_id`, aktivierte und erzwungene Row Level
 Security sowie positive und negative Datenbanktests.
+
+## Transaktionale Integrationsereignisse
+
+Fachliche Änderungen, die später eine externe Reaktion auslösen, schreiben ihr versioniertes
+Ereignis innerhalb derselben Datenbanktransaktion in `public.outbox_events`. Die Tabelle ist keine
+allgemeine Protokollablage: Nutzdaten bleiben auf den für den Adapter notwendigen Umfang begrenzt
+und enthalten weder Zugangsdaten noch unnötige personenbezogene Daten.
+
+Browserrollen besitzen keine Outbox-Rechte. Nur der serverseitige Dienst darf Ereignisse anlegen und
+ihren Verarbeitungszustand ändern. Direktes Löschen bleibt gesperrt, bis eine kontrollierte
+Aufbewahrungs- und Bereinigungsregel beschlossen ist.
