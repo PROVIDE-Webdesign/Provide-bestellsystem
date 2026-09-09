@@ -236,7 +236,7 @@ select throws_ok(
     where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'
   $$,
   '23514',
-  'a location cannot be reassigned across the tenant boundary',
+  'a location cannot be reassigned to another restaurant',
   'a location remains permanently attached to its restaurant'
 );
 
