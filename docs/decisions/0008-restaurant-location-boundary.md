@@ -18,11 +18,12 @@ Standort-ID eines anderen Mandanten verbinden.
 ## Sicherheitsregeln
 
 1. Row Level Security ist für Standorte aktiviert und erzwungen.
-2. Angemeldete Restaurantmitglieder sehen zunächst alle Standorte ihres Restaurants.
+2. Owner sehen alle Standorte ihres Restaurants. Andere Personalrollen sehen nur ausdrücklich
+   zugewiesene Standorte.
 3. Anonyme Nutzer erhalten keine direkten Standortrechte.
 4. Browsernutzer besitzen keine direkten Schreibrechte; Standortänderungen erfolgen später über
    autorisierte Serverabläufe.
-5. Die feinere Einschränkung auf einzelne Personalstandorte wird in Arbeitsblock 2.2 ergänzt.
+5. Die Einschränkung auf einzelne Personalstandorte ist ab Arbeitsblock 2.2 verbindlich.
 6. Unvollständige Adressdaten bleiben während der Einrichtung zulässig. Die spätere Go-live-Prüfung
    verlangt einen vollständigen, nachgewiesenen Standort.
 7. `setup`, `active` und `suspended` beschreiben ausschließlich den Betriebszustand des Standorts.

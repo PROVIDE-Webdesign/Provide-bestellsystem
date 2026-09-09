@@ -14,3 +14,4 @@ Aktueller technischer Nachweis:
 - [Transaktionale Outbox](../decisions/0006-transactional-outbox.md)
 - [Mandantenfähige Feature-Flags](../decisions/0007-restaurant-feature-flags.md)
 - [Restaurant- und Standortgrenze](../decisions/0008-restaurant-location-boundary.md)
+- [Personalrollen und Standortzugriff](../decisions/0009-personnel-roles-and-location-access.md)

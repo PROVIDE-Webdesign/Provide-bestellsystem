@@ -76,8 +76,12 @@ Security sowie positive und negative Datenbanktests.
 
 Standortbezogene Tabellen referenzieren `public.locations` immer gemeinsam über `restaurant_id` und
 `location_id`. Der zusammengesetzte Fremdschlüssel verhindert, dass eine Restaurant-ID mit einem
-Standort eines anderen Mandanten kombiniert wird. Bis Arbeitsblock 2.2 sehen Mitglieder alle
-Standorte ihres Restaurants; danach begrenzen zusätzliche Personalzuweisungen den Standortzugriff.
+Standort eines anderen Mandanten kombiniert wird. Owner sehen alle Standorte ihres Restaurants;
+Manager, Küchenpersonal und Fahrer benötigen eine ausdrückliche Standortzuweisung.
+
+Personalzuweisungen stehen in `public.restaurant_membership_locations`. Rollen- und
+Zuweisungsänderungen werden nicht direkt aus dem Browser geschrieben. Vor einer Rollenverschärfung
+müssen vorhandene Datensätze mit veralteten oder mehrdeutigen Rollen bewusst eingeordnet werden.
 
 ## Transaktionale Integrationsereignisse
 

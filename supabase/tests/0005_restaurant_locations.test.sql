@@ -163,6 +163,13 @@ values
     'DE'
   );
 
+insert into public.restaurant_membership_locations (restaurant_id, user_id, location_id)
+values (
+  'dddddddd-dddd-dddd-dddd-dddddddddddd',
+  '44444444-4444-4444-4444-444444444444',
+  'ffffffff-ffff-ffff-ffff-ffffffffffff'
+);
+
 select is(
   (select count(*)::integer from public.locations where slug = 'hauptstandort'),
   2,

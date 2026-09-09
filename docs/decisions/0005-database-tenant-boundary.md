@@ -20,7 +20,7 @@ geschützten Service-Rolle und müssen dort autorisiert sowie protokolliert werd
 1. Row Level Security ist auf allen mandantenbezogenen Tabellen aktiviert und erzwungen.
 2. Ohne gültige Mitgliedschaft liefert eine Abfrage keine Restaurantdaten.
 3. Angemeldete Benutzer sehen nur ihre eigenen Mitgliedschaftszeilen.
-4. Rollenwerte sind auf `owner`, `manager` und `staff` begrenzt.
+4. Rollenwerte sind ab Arbeitsblock 2.2 auf `owner`, `manager`, `kitchen` und `driver` begrenzt.
 5. Hilfsfunktionen liegen im nicht öffentlichen Schema `private`, verwenden einen leeren
    `search_path` und werden nur gezielt freigegeben.
 6. Service-Zugangsdaten dürfen ausschließlich in einer serverseitigen Laufzeit existieren.
