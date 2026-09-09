@@ -2,7 +2,7 @@
 
 ## Status
 
-Vorläufig angenommen; externer Preview-Nachweis ausstehend.
+Angenommen am 8. September 2026.
 
 ## Kontext
 
@@ -13,16 +13,18 @@ verworfen werden.
 
 ## Entscheidung
 
-Die folgende technische Linie bleibt Kandidat für die Produktlaufzeit:
+Die folgende technische Linie wird als Grundlage für die Produktlaufzeit angenommen:
 
 - Storefront: Next.js über vinext auf Cloudflare Workers,
 - API: eigenständiger Cloudflare Worker,
 - Datenbank: Supabase PostgreSQL in Frankfurt (`eu-central-1`),
 - Verbindung: Cloudflare Hyperdrive mit minimal berechtigtem Datenbankbenutzer.
 
-Die endgültige Bestätigung erfolgt erst nach einem reproduzierbaren Cloudflare-Preview-Deployment
-und einem erfolgreichen `SELECT 1` über Hyperdrive. Bis dahin wird kein produktiver Fachcode auf die
-Laufzeit festgelegt.
+Die Entscheidung wurde durch reproduzierbare Cloudflare-Preview-Deployments, erfolgreiche
+Statusaufrufe für Storefront und API sowie ein erfolgreiches `SELECT 1` über Hyperdrive bestätigt.
+GitHub-CI-Lauf 6 für den bestätigenden Commit `b858486` wurde erfolgreich abgeschlossen. Die
+vollständigen Nachweise und Preview-Adressen stehen im Spike-Protokoll
+`docs/spikes/0001-cloudflare-postgres.md`.
 
 ## Verwerfungsregeln
 
@@ -41,4 +43,5 @@ eigenständige API- und PostgreSQL-Architektur bleibt davon unberührt.
 - vinext-Versionen bleiben für den Spike exakt festgeschrieben.
 - Beta-Auffälligkeiten werden im Spike-Protokoll dokumentiert.
 - Es werden ausschließlich Preview-Ressourcen und synthetische Daten verwendet.
-- Ein grüner lokaler Build allein schließt Arbeitsblock 1.3 nicht ab.
+- Änderungen an der Laufzeitlinie müssen die lokalen Prüfungen und einen reproduzierbaren
+  Preview-Nachweis bestehen.

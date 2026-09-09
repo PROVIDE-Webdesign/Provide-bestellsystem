@@ -2,7 +2,8 @@
 
 ## Status
 
-Lokaler Nachweis bestanden; externer Preview-Nachweis ausstehend.
+Bestanden. Lokaler und externer Preview-Nachweis wurden am 8. September 2026 erfolgreich
+abgeschlossen.
 
 ## Ziel
 
@@ -59,16 +60,24 @@ bestimmbare Routenklassifikation. Der Build selbst ist erfolgreich. Diese Punkte
 Preview-Test beobachtet; sie reichen noch nicht aus, den vorgesehenen React-Router-Fallback
 auszulösen.
 
-## Noch ausstehender Nachweis
+## Externes Preview-Ergebnis
 
-Arbeitsblock 1.3 ist erst abgeschlossen, wenn alle folgenden Punkte reproduzierbar bestanden sind:
+Der externe Nachweis wurde mit ausschließlich synthetischer Infrastruktur erfolgreich erbracht:
 
-1. Storefront-Preview ist auf Cloudflare Workers erreichbar.
-2. `GET /api/health` der Storefront antwortet mit HTTP 200.
-3. API-Preview ist auf Cloudflare Workers erreichbar.
-4. `GET /health` der API antwortet mit HTTP 200.
-5. Ein Hyperdrive-Tunnel zur Supabase-Testdatenbank in Frankfurt ist eingerichtet.
-6. `GET /health/database` antwortet nach erfolgreichem `SELECT 1` mit HTTP 200.
-7. Die GitHub-CI bleibt nach dem Push grün.
+1. Die Storefront-Preview ist unter `https://provide-bs-storefront-preview.alpaysey.workers.dev/`
+   erreichbar.
+2. `GET /api/health` der Storefront antwortet mit HTTP 200 und `status: "ok"`.
+3. Die API-Preview ist unter `https://provide-bs-api-preview.alpaysey.workers.dev/` erreichbar.
+4. `GET /health` der API antwortet mit HTTP 200, `database: "configured"` und `status: "ok"`.
+5. Hyperdrive ist über die Konfiguration `provide-bs-postgres-preview` mit der
+   Supabase-Testdatenbank in Frankfurt verbunden.
+6. `GET /health/database` antwortet nach erfolgreichem `SELECT 1` mit HTTP 200,
+   `database: "reachable"` und `status: "ok"`.
+7. GitHub-CI-Lauf 6 für Commit `b858486` ist nach 45 Sekunden erfolgreich abgeschlossen.
 
-Bis dahin bleibt die Laufzeitentscheidung vorläufig.
+Der Datenbankzugang verwendet den separaten, minimal berechtigten Preview-Benutzer. Zugangsdaten
+liegen weder im Repository noch in den öffentlich ausgegebenen Statusantworten. Der kontrollierte
+HTTP-503-Fehlerpfad wird durch die automatisierten Tests abgedeckt.
+
+Damit ist Arbeitsblock 1.3 abgeschlossen und die in ADR 0004 beschriebene Laufzeitentscheidung
+angenommen.
