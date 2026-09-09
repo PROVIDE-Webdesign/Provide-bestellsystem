@@ -10,3 +10,4 @@ Aktueller technischer Nachweis:
 - [Vorläufige Laufzeitentscheidung](../decisions/0004-cloudflare-vinext-postgres-spike.md)
 - [Preview-Runbook](../runbooks/cloudflare-postgres-preview.md)
 - [Datenbankmigrations-Runbook](../runbooks/database-migrations.md)
+- [Datenbank-Mandantengrenze](../decisions/0005-database-tenant-boundary.md)

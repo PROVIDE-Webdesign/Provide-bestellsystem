@@ -1,7 +1,7 @@
 # Datenbankmigrationen
 
 Dieses Verzeichnis enthält ausschließlich aufsteigend versionierte SQL-Migrationen. Die erste
-fachliche Migration wird in Arbeitsblock 1.4.2 ergänzt.
+fachliche Migration legt die sichere Mandantengrenze aus Restaurants und Mitgliedschaften an.
 
 Bereits angewendete Migrationen werden nicht nachträglich verändert. Korrekturen erfolgen immer in
 einer neuen Migration.

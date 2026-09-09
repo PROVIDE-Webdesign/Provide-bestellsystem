@@ -65,3 +65,11 @@ eigenen Freigabe. Der geplante Ablauf lautet:
 5. Migrationsstatus und ausschließlich synthetische Prüfdaten kontrollieren.
 
 Die konkreten Zugangsbefehle werden nicht in Logs, Screenshots oder dieses Repository kopiert.
+
+## Mandantensicherheit
+
+Die erste fachliche Migration legt Restaurants und Benutzerzuordnungen an. Die verbindlichen
+Mandantengrenzen und Rechte sind in der
+[Datenbank-Mandantengrenze](../decisions/0005-database-tenant-boundary.md) dokumentiert. Jede
+spätere mandanteneigene Tabelle benötigt eine `restaurant_id`, aktivierte und erzwungene Row Level
+Security sowie positive und negative Datenbanktests.

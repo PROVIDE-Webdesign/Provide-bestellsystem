@@ -41,6 +41,8 @@ jobs:
 
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v3
+        with:
+          version: 2.117.0
 
       - name: Start isolated test database
         run: supabase db start
