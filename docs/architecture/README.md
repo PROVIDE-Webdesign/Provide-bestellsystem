@@ -13,3 +13,4 @@ Aktueller technischer Nachweis:
 - [Datenbank-Mandantengrenze](../decisions/0005-database-tenant-boundary.md)
 - [Transaktionale Outbox](../decisions/0006-transactional-outbox.md)
 - [Mandantenfähige Feature-Flags](../decisions/0007-restaurant-feature-flags.md)
+- [Restaurant- und Standortgrenze](../decisions/0008-restaurant-location-boundary.md)

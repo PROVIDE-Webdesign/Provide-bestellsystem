@@ -74,6 +74,11 @@ Mandantengrenzen und Rechte sind in der
 spätere mandanteneigene Tabelle benötigt eine `restaurant_id`, aktivierte und erzwungene Row Level
 Security sowie positive und negative Datenbanktests.
 
+Standortbezogene Tabellen referenzieren `public.locations` immer gemeinsam über `restaurant_id` und
+`location_id`. Der zusammengesetzte Fremdschlüssel verhindert, dass eine Restaurant-ID mit einem
+Standort eines anderen Mandanten kombiniert wird. Bis Arbeitsblock 2.2 sehen Mitglieder alle
+Standorte ihres Restaurants; danach begrenzen zusätzliche Personalzuweisungen den Standortzugriff.
+
 ## Transaktionale Integrationsereignisse
 
 Fachliche Änderungen, die später eine externe Reaktion auslösen, schreiben ihr versioniertes
