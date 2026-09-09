@@ -9,3 +9,4 @@ Aktueller technischer Nachweis:
 - [Cloudflare-/PostgreSQL-Technik-Spike](../spikes/0001-cloudflare-postgres.md)
 - [Vorläufige Laufzeitentscheidung](../decisions/0004-cloudflare-vinext-postgres-spike.md)
 - [Preview-Runbook](../runbooks/cloudflare-postgres-preview.md)
+- [Datenbankmigrations-Runbook](../runbooks/database-migrations.md)

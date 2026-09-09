@@ -12,6 +12,10 @@
   "scripts": {
     "build": "turbo run build",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "db:reset": "supabase db reset",
+    "db:start": "supabase db start",
+    "db:stop": "supabase stop",
+    "db:test": "supabase test db",
     "dev": "turbo run dev --parallel",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -24,6 +28,7 @@
     "@types/node": "26.4.0",
     "eslint": "10.9.1",
     "prettier": "3.9.6",
+    "supabase": "catalog:",
     "turbo": "2.10.12",
     "typescript": "6.0.3",
     "typescript-eslint": "8.69.0",

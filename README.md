@@ -7,7 +7,7 @@ Staging-Pilot.
 
 - Architektur-SoT: `PROVIDE Bestellsystem - Architektur und Arbeitsplan A2`
 - Organisatorische SoT: `PROVIDE Bestellsystem Projektprotokoll V2`
-- Aktiver Arbeitsblock: `1.3 - Cloudflare-/PostgreSQL-Technik-Spike`
+- Aktiver Arbeitsblock: `1.4 - Datenbankmigrationen, Outbox-Basis und Feature-Flags`
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 
 ## Geplante Anwendungen
@@ -41,6 +41,10 @@ Copy-Item .env.example .env.local
 Die Beispielwerte sind nur für die lokale Entwicklung bestimmt. Vorschau- und
 Produktionskonfigurationen werden getrennt in der jeweiligen Plattform hinterlegt. Details stehen im
 [Umgebungs- und Secret-Runbook](docs/runbooks/environments-and-secrets.md).
+
+Die versionierte Datenbankstruktur wird mit der Supabase CLI verwaltet. Der Einstieg und die Regeln
+für lokale sowie entfernte Migrationen stehen im
+[Datenbankmigrations-Runbook](docs/runbooks/database-migrations.md).
 
 ## Sicherheit
 

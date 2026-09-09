@@ -1,0 +1,13 @@
+# Lokale, synthetische Supabase-Testumgebung. Keine entfernten Projektkennungen oder Secrets
+# eintragen. Die PostgreSQL-Hauptversion wird vor dem ersten Preview-Push mit dem entfernten Projekt
+# abgeglichen.
+project_id = "provide-bestellsystem-local"
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.seed]
+enabled = false
+sql_paths = []

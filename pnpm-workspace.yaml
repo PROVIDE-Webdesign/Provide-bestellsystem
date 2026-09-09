@@ -2,6 +2,9 @@ packages:
   - apps/*
   - packages/*
 
+catalog:
+  supabase: 2.117.0
+
 allowBuilds:
   esbuild: true
   workerd: true

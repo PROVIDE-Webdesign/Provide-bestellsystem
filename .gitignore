@@ -14,6 +14,8 @@ coverage/
 .wrangler/
 .dev.vars
 .dev.vars.*
+supabase/.branches/
+supabase/.temp/
 *.pem
 *.key
 *.p12

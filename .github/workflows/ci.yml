@@ -31,3 +31,19 @@ jobs:
 
       - name: Run checks
         run: pnpm check
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v3
+
+      - name: Start isolated test database
+        run: supabase db start
+
+      - name: Run database tests
+        run: supabase test db
