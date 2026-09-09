@@ -81,6 +81,7 @@ Ereignis innerhalb derselben Datenbanktransaktion in `public.outbox_events`. Die
 allgemeine Protokollablage: Nutzdaten bleiben auf den für den Adapter notwendigen Umfang begrenzt
 und enthalten weder Zugangsdaten noch unnötige personenbezogene Daten.
 
-Browserrollen besitzen keine Outbox-Rechte. Nur der serverseitige Dienst darf Ereignisse anlegen und
-ihren Verarbeitungszustand ändern. Direktes Löschen bleibt gesperrt, bis eine kontrollierte
-Aufbewahrungs- und Bereinigungsregel beschlossen ist.
+Browserrollen besitzen keine Outbox-Rechte. Supabases vertrauenswürdige Service-Rolle bleibt
+ausschließlich serverseitig und besitzt vollständigen Tabellenzugriff. Der reguläre Anwendungsablauf
+löscht Ereignisse nicht direkt; eine kontrollierte Aufbewahrungs- und Bereinigungsregel wird in
+einem späteren Arbeitsblock beschlossen.

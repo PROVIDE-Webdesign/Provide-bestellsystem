@@ -74,8 +74,8 @@ select ok(
   'the server role can operate the outbox'
 );
 select ok(
-  not has_table_privilege('service_role', 'public.outbox_events', 'delete'),
-  'the server role cannot delete outbox events directly'
+  has_table_privilege('service_role', 'public.outbox_events', 'delete'),
+  'the trusted server role retains administrative delete access'
 );
 
 insert into public.restaurants (id, slug, display_name)

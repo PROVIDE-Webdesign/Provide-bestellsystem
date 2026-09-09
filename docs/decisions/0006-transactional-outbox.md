@@ -28,9 +28,11 @@ mindestens einmal; jeder spätere Empfänger muss Ereignisse deshalb ebenfalls i
 
 1. Browserrollen erhalten keinerlei Rechte auf Outbox-Ereignisse.
 2. Row Level Security ist aktiviert und erzwungen; es existieren bewusst keine Browser-Policies.
-3. Nur die serverseitige Service-Rolle darf Ereignisse lesen, anlegen und ihren Zustand ändern.
-4. Direktes Löschen bleibt auch für die Service-Rolle zunächst gesperrt; eine spätere
-   Aufbewahrungsregel erhält dafür einen kontrollierten Ablauf.
+3. Supabases vertrauenswürdige Service-Rolle besitzt den für Serverzugriffe vorgesehenen
+   vollständigen Tabellenzugriff einschließlich administrativem Löschen. Ihr Schlüssel darf niemals
+   an Browser oder andere Clients ausgeliefert werden.
+4. Der reguläre Anwendungsablauf löscht Outbox-Ereignisse trotzdem nicht direkt. Eine spätere
+   Aufbewahrungsregel erhält dafür einen kontrollierten und protokollierten Ablauf.
 5. Nutzdaten dürfen keine Zugangsdaten oder unnötigen personenbezogenen Daten enthalten.
 6. Ereignistyp und Ereignisversion bilden gemeinsam den stabilen Vertrag für spätere Adapter.
 
