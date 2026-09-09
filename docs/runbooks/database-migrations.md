@@ -85,3 +85,15 @@ Browserrollen besitzen keine Outbox-Rechte. Supabases vertrauenswürdige Service
 ausschließlich serverseitig und besitzt vollständigen Tabellenzugriff. Der reguläre Anwendungsablauf
 löscht Ereignisse nicht direkt; eine kontrollierte Aufbewahrungs- und Bereinigungsregel wird in
 einem späteren Arbeitsblock beschlossen.
+
+## Feature-Flags
+
+Bekannte Features werden in `public.feature_definitions` registriert. Optionale Einträge in
+`public.restaurant_feature_flags` überschreiben den Standardwert für genau ein Restaurant. Eine
+fehlende Überschreibung übernimmt den registrierten Standard; unbekannte Feature-Schlüssel gelten
+immer als deaktiviert.
+
+Alle neuen Features starten deaktiviert. Browserrollen besitzen keine direkten Rechte auf die
+Tabellen oder die interne Auflösungsfunktion. Änderungen erfolgen später ausschließlich über einen
+freigegebenen serverseitigen Administrationsablauf. Feature-Flags steuern die Einführung einer
+Funktion, ersetzen aber niemals deren Autorisierung oder fachliche Validierung.

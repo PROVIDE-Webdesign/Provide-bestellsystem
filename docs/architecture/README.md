@@ -12,3 +12,4 @@ Aktueller technischer Nachweis:
 - [Datenbankmigrations-Runbook](../runbooks/database-migrations.md)
 - [Datenbank-Mandantengrenze](../decisions/0005-database-tenant-boundary.md)
 - [Transaktionale Outbox](../decisions/0006-transactional-outbox.md)
+- [Mandantenfähige Feature-Flags](../decisions/0007-restaurant-feature-flags.md)
