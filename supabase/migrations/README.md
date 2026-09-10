@@ -7,6 +7,8 @@ Feature-Definitionen und Restaurant-Überschreibungen ermöglichen eine standard
 kontrollierte Einführung neuer Funktionen. Die Standortmigration ergänzt unterhalb jedes Restaurants
 eine eigene, zusammengesichert referenzierbare Betriebsgrenze. Die Personal- und Rollenmigration
 begrenzt nicht verantwortliche Rollen zusätzlich auf ausdrücklich zugewiesene Restaurantstandorte.
+Die Einladungs- und Lebenszyklusmigration ergänzt serververwaltete, ablaufende Personaleinladungen
+und entzieht suspendierten Mitgliedschaften sofort sämtliche Mandanten- und Standortrechte.
 
 Bereits angewendete Migrationen werden nicht nachträglich verändert. Korrekturen erfolgen immer in
 einer neuen Migration.

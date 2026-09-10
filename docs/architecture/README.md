@@ -15,3 +15,4 @@ Aktueller technischer Nachweis:
 - [Mandantenfähige Feature-Flags](../decisions/0007-restaurant-feature-flags.md)
 - [Restaurant- und Standortgrenze](../decisions/0008-restaurant-location-boundary.md)
 - [Personalrollen und Standortzugriff](../decisions/0009-personnel-roles-and-location-access.md)
+- [Personaleinladungen und Mitgliedschaftslebenszyklus](../decisions/0010-personnel-invitations-and-lifecycle.md)

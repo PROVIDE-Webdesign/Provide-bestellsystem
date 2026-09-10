@@ -7,7 +7,7 @@ Staging-Pilot.
 
 - Architektur-SoT: `PROVIDE Bestellsystem - Architektur und Arbeitsplan A2`
 - Organisatorische SoT: `PROVIDE Bestellsystem Projektprotokoll V2`
-- Aktiver Arbeitsblock: `2.2 - Personal, Rollen und Standortrechte`
+- Aktiver Arbeitsblock: `2.3 - Personaleinladungen und Mitgliedschaftslebenszyklus`
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 
 ## Geplante Anwendungen

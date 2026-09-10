@@ -15,6 +15,10 @@ nur über ausdrückliche Einträge in `public.restaurant_membership_locations`. 
 Restaurant, Benutzer und Standort. Zwei zusammengesetzte Fremdschlüssel stellen sicher, dass sowohl
 Mitgliedschaft als auch Standort zum gleichen Restaurant gehören.
 
+Arbeitsblock 2.3 ergänzt den Mitgliedschaftsstatus. Sämtliche hier beschriebenen Rollen- und
+Standortrechte gelten ausschließlich für aktive Mitgliedschaften. Suspendierte Mitgliedschaften
+bleiben zur kontrollierten Reaktivierung erhalten, gewähren aber keinen fachlichen Zugriff.
+
 ## Rollenmodell
 
 | Rolle     | Standortumfang                         | Spätere fachliche Verantwortung                 |

@@ -83,6 +83,28 @@ Personalzuweisungen stehen in `public.restaurant_membership_locations`. Rollen- 
 Zuweisungsänderungen werden nicht direkt aus dem Browser geschrieben. Vor einer Rollenverschärfung
 müssen vorhandene Datensätze mit veralteten oder mehrdeutigen Rollen bewusst eingeordnet werden.
 
+## Personaleinladungen
+
+Personaleinladungen werden dreistufig angelegt:
+
+1. Der API-Server erzeugt oder lädt den Zielbenutzer über Supabase Auth und erhält dessen stabile
+   Benutzer-ID. Ein erzeugter Provider-Link bleibt dabei nur im Arbeitsspeicher des Servers.
+2. Danach speichert der Server die fachliche Einladung mit derselben Auth-Benutzer-ID in
+   `restaurant_invitations` und ergänzt bei Nicht-Ownern mindestens einen zulässigen Standort.
+3. Erst nach erfolgreichem Datenbankabschluss versendet der Server den Provider-Link. Schlägt der
+   Versand fehl, bleibt die Einladung wiederholbar; ein neuer Provider-Link wird erzeugt, ohne ein
+   Geheimnis in der PROVIDE-Datenbank abzulegen.
+
+Der Provider-Link und sein Token werden nicht in der PROVIDE-Datenbank, in Logs oder im Repository
+gespeichert. Nur der Server darf `private.accept_restaurant_invitation` ausführen. Vor dem Aufruf
+muss der Server den angemeldeten Benutzer über Supabase Auth verifiziert haben und genau dessen ID
+als `target_user_id` übergeben.
+
+Beim Suspendieren einer Mitgliedschaft bleiben die Datensätze bestehen. Die RLS-Hilfsfunktionen
+gewähren ausschließlich Mitgliedschaften mit `status = 'active'` Zugriff. Dadurch wirkt eine
+Suspendierung sofort auf Restaurant-, Rollen- und Standortabfragen. Das zusätzliche Widerrufen
+aktiver Supabase-Sessions wird mit der Auth-/API-Integration ergänzt.
+
 ## Transaktionale Integrationsereignisse
 
 Fachliche Änderungen, die später eine externe Reaktion auslösen, schreiben ihr versioniertes
