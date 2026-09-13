@@ -608,6 +608,9 @@ select throws_ok(
   'published menu content is immutable',
   'published item prices cannot be rewritten'
 );
+
+reset role;
+
 select throws_ok(
   $$
     update public.menu_versions
@@ -618,6 +621,8 @@ select throws_ok(
   'published menu versions are immutable',
   'published versions cannot return to draft'
 );
+
+set local role service_role;
 
 select lives_ok(
   $$
@@ -728,6 +733,9 @@ select is(
   'a5000000-0000-0000-0000-000000000001'::uuid,
   'rollback restores the earlier immutable price version'
 );
+
+reset role;
+
 select throws_ok(
   $$
     update public.menu_publications
@@ -738,6 +746,9 @@ select throws_ok(
   'menu history is append-only',
   'publication history cannot be rewritten'
 );
+
+set local role service_role;
+
 select is(
   (
     select count(*)::integer
