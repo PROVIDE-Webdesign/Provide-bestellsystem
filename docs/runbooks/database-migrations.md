@@ -190,6 +190,38 @@ sind mindestens diese Fälle mit synthetischen Daten zu prüfen:
 `catalog.public_menu` abhängig. Die Aktivierung dieses Flags oder die Nutzung echter Speisekarten
 benötigt eine gesonderte Freigabe.
 
+## Bestellbarkeit und Kapazität
+
+Öffnungszeiten für Bestellungen werden als Standortversionen gepflegt. Ein Entwurf darf über die
+serverseitigen Verwaltungsfunktionen und die draft-geschützten Inhaltszeilen bearbeitet werden.
+`private.publish_availability_schedule` friert die Version ein und ergänzt einen wirksamen Eintrag
+in `availability_publications`. Korrekturen beginnen danach mit
+`private.create_availability_schedule_draft`; veröffentlichte Versionen und Historien werden nicht
+überschrieben.
+
+Der Resolver `private.resolve_ordering_availability` entscheidet fail-closed. Vor einer positiven
+Antwort prüft er Standort- und Restaurant-Go-live, `ordering.accept_orders`, das passende
+`fulfillment.*`-Flag, eine veröffentlichte Speisekarte, eine wirksame Zeitplanversion, Vorlauf und
+Bestellhorizont, die lokale Wochenzeit oder Datumsabweichung, eine mögliche Betriebspause und die
+noch freie Slot-Kapazität. Die Standortzeitzone wird aus `locations.timezone` gelesen; ungültige
+oder fehlende Zeitzonen schließen die Bestellung.
+
+Wochenfenster dürfen über Mitternacht laufen. Datumsabweichungen ersetzen für den betroffenen
+lokalen Kalendertag die Wochenregel und bilden vollständige Schließungen oder abweichende Zeiten ab.
+Abholung und Lieferung werden getrennt konfiguriert und zusätzlich durch ihre Feature-Flags
+gesperrt.
+
+Kapazität wird ausschließlich mit `private.reserve_ordering_capacity` beansprucht. Die Funktion
+serialisiert konkurrierende Zugriffe je Standort, Erfüllungsart und Slot, prüft die Kapazität unter
+der Sperre erneut und speichert eine idempotente Referenz ohne Kunden- oder Zahlungsdaten.
+`private.release_ordering_capacity` ergänzt eine einmalige Gegenbuchung. Reservierungs- und
+Freigabezeilen bleiben append-only; ein späterer Bestellblock verbindet die Referenz mit seinem
+eigenen Bestell-Snapshot.
+
+Temporäre Stopps laufen über `private.set_ordering_pause`. Ein Ende in der Vergangenheit wird
+abgewiesen. Pause und Wiederaufnahme bleiben als geordnete Ereignisse erhalten und erzeugen wie
+Publikationen und Kapazitätsänderungen in derselben Transaktion ein Outbox-Ereignis.
+
 ## Feature-Flags
 
 Bekannte Features werden in `public.feature_definitions` registriert. Optionale Einträge in

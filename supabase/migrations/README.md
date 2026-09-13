@@ -15,7 +15,10 @@ Einladungsannahme. Die Onboarding- und Go-live-Migration ergänzt getrennte, ser
 Zustandsmaschinen, verpflichtende Freigabeprüfungen und eine fail-closed Kundenfreigabe für
 Restaurants und Standorte. Die Katalogmigration ergänzt stabile Speisekarten- und
 Artikelidentitäten, unveränderliche veröffentlichte Versionen, zeitgesteuerte standortbezogene
-Veröffentlichungen und eine getrennte operative Artikelverfügbarkeit.
+Veröffentlichungen und eine getrennte operative Artikelverfügbarkeit. Die Bestellbarkeitsmigration
+ergänzt versionierte Wochenzeiten und Kalendertagsausnahmen, getrennte Abhol- und Lieferfenster,
+zeitlich begrenzte Betriebspausen sowie atomare, idempotente Kapazitätsreservierungen je
+Zeitfenster.
 
 Bereits angewendete Migrationen werden nicht nachträglich verändert. Korrekturen erfolgen immer in
 einer neuen Migration.

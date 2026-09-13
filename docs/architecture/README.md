@@ -19,3 +19,4 @@ Aktueller technischer Nachweis:
 - [Authentifizierung, Sitzungen und MFA-Schutz](../decisions/0011-authentication-sessions-and-mfa.md)
 - [Restaurant-Onboarding und kontrolliertes Go-live](../decisions/0012-onboarding-and-go-live-gate.md)
 - [Versionierter Speisekarten- und Produktkatalog](../decisions/0013-versioned-menu-catalog.md)
+- [Bestellbarkeit, Zeitfenster und Kapazitätssteuerung](../decisions/0014-ordering-availability-and-capacity.md)
