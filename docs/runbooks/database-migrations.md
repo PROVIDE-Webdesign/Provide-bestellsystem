@@ -222,6 +222,40 @@ Temporäre Stopps laufen über `private.set_ordering_pause`. Ein Ende in der Ver
 abgewiesen. Pause und Wiederaufnahme bleiben als geordnete Ereignisse erhalten und erzeugen wie
 Publikationen und Kapazitätsänderungen in derselben Transaktion ein Outbox-Ereignis.
 
+## Bestell-Snapshots und Statuswechsel
+
+Eine technische Bestellung wird nur mit `private.submit_order` angelegt. Der API-Server übergibt
+Restaurant, Standort, die zuvor ausgelieferte Speisekarte und Version, Erfüllungsart,
+Wunschzeitpunkt, Positionen und einen pro Standort stabilen Einreichungsschlüssel. Einzelpreise,
+Währung, Summen, wirksamer Zeitplan und Kapazitätsreferenz ermittelt die Datenbank selbst. Der
+Aufruf enthält keine Kunden-, Adress- oder Zahlungsdaten.
+
+Bei Netzwerk-Wiederholungen muss derselbe Einreichungsschlüssel mit denselben fachlichen Daten
+verwendet werden. Eine identische Wiederholung liefert dieselbe Bestell-ID. Derselbe Schlüssel mit
+abweichender Position, Menge, Speisekartenversion, Erfüllungsart oder Wunschzeit wird abgewiesen.
+Der Schlüssel darf deshalb nicht zwischen Warenkörben oder Standorten wiederverwendet werden.
+
+Statusänderungen erfolgen ausschließlich mit `private.transition_order_status`. Der Server leitet
+Benutzer-ID und Authentifizierungsstufe aus einem verifizierten Supabase-Token ab. Owner und Manager
+benötigen `aal2`; Kitchen darf innerhalb der eigenen Standortzuweisung mit `aal1` oder `aal2`
+arbeiten. Driver und unzugewiesenes Personal dürfen den Küchenlebenszyklus nicht verändern.
+
+Vor einem späteren Preview-Rollout sind mit synthetischen Daten mindestens diese Fälle zu prüfen:
+
+1. Gültige Einreichung erzeugt Kopf, Positions-Snapshot, Kapazitätsreservierung, Startstatus und
+   Outbox-Ereignis atomar.
+2. Identische Wiederholung erzeugt weder eine zweite Bestellung noch eine zweite Reservierung.
+3. Geänderte Wiederholung, veraltete Speisekartenversion und nicht verfügbare Artikel schlagen
+   geschlossen fehl.
+4. Der vollständige erlaubte Statuspfad bleibt geordnet; Statussprünge werden abgewiesen.
+5. Ablehnung oder Stornierung erzeugt genau eine Kapazitätsfreigabe.
+6. Direkte Änderungen und Löschungen an Snapshot und Verlauf werden auch für die Service-Rolle
+   verweigert.
+7. RLS blendet fremde Restaurants, nicht zugewiesene Standorte und unzureichende AAL-Stufen aus.
+
+Echte Bestellungen und personenbezogene Daten bleiben bis zu einem gesondert freigegebenen
+Checkout-, Datenschutz- und Aufbewahrungsblock verboten.
+
 ## Feature-Flags
 
 Bekannte Features werden in `public.feature_definitions` registriert. Optionale Einträge in

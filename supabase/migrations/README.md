@@ -20,7 +20,12 @@ ergänzt versionierte Wochenzeiten und Kalendertagsausnahmen, getrennte Abhol- u
 zeitlich begrenzte Betriebspausen sowie atomare, idempotente Kapazitätsreservierungen je
 Zeitfenster. Eine nachgelagerte Berechtigungskorrektur entzieht der Service-Rolle direkte
 Lebenszyklus-, Verlaufs-, Pausen- und Kapazitätsschreibrechte und erhält ausschließlich die dafür
-vorgesehenen kontrollierten Funktionen als Schreibweg.
+vorgesehenen kontrollierten Funktionen als Schreibweg. Die Bestellmigration verbindet die
+veröffentlichte Speisekartenversion atomar mit der reservierten Slot-Kapazität, speichert
+unveränderliche Positions- und Preissnapshots und erzwingt einen kontrollierten, append-only
+protokollierten Bestellstatus. Direkte Bestellschreibrechte bleiben auch für die Service-Rolle
+gesperrt; Einreichung und Statuswechsel erfolgen ausschließlich über die dafür vorgesehenen
+Funktionen.
 
 Bereits angewendete Migrationen werden nicht nachträglich verändert. Korrekturen erfolgen immer in
 einer neuen Migration.
