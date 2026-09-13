@@ -1076,9 +1076,9 @@ select is(
 select is(
   (
     select count(*)::integer
-    from public.availability_windows as window
+    from public.availability_windows as availability_window
     join public.availability_schedule_versions as version
-      on version.id = window.schedule_version_id
+      on version.id = availability_window.schedule_version_id
     where version.restaurant_id = 'b2000000-0000-0000-0000-000000000001'
       and version.location_id = 'b3000000-0000-0000-0000-000000000001'
       and version.version_number = 2

@@ -763,10 +763,10 @@ begin
 
   if not exists (
     select 1
-    from public.availability_windows as window
-    where window.restaurant_id = target_restaurant_id
-      and window.location_id = target_location_id
-      and window.schedule_version_id = target_schedule_version_id
+    from public.availability_windows as availability_window
+    where availability_window.restaurant_id = target_restaurant_id
+      and availability_window.location_id = target_location_id
+      and availability_window.schedule_version_id = target_schedule_version_id
   ) then
     raise exception using errcode = 'P0001', message = 'availability schedule has no weekly windows';
   end if;
@@ -774,16 +774,16 @@ begin
   if exists (
     with normalized_windows as (
       select
-        window.id,
-        window.fulfillment_type,
-        window.weekday * 86400 + extract(epoch from window.opens_at) as starts_at_second,
-        window.weekday * 86400 + extract(epoch from window.closes_at)
-          + case when window.closes_at <= window.opens_at then 86400 else 0 end
+        availability_window.id,
+        availability_window.fulfillment_type,
+        availability_window.weekday * 86400 + extract(epoch from availability_window.opens_at) as starts_at_second,
+        availability_window.weekday * 86400 + extract(epoch from availability_window.closes_at)
+          + case when availability_window.closes_at <= availability_window.opens_at then 86400 else 0 end
           as ends_at_second
-      from public.availability_windows as window
-      where window.restaurant_id = target_restaurant_id
-        and window.location_id = target_location_id
-        and window.schedule_version_id = target_schedule_version_id
+      from public.availability_windows as availability_window
+      where availability_window.restaurant_id = target_restaurant_id
+        and availability_window.location_id = target_location_id
+        and availability_window.schedule_version_id = target_schedule_version_id
     )
     select 1
     from normalized_windows as first_window
@@ -1030,45 +1030,45 @@ begin
   return query
   select
     case
-      when window.opens_at < window.closes_at then target_date + window.opens_at
-      when target_time >= window.opens_at then target_date + window.opens_at
-      else (target_date - 1) + window.opens_at
+      when availability_window.opens_at < availability_window.closes_at then target_date + availability_window.opens_at
+      when target_time >= availability_window.opens_at then target_date + availability_window.opens_at
+      else (target_date - 1) + availability_window.opens_at
     end,
     case
-      when window.opens_at < window.closes_at then target_date + window.closes_at
-      when target_time >= window.opens_at then (target_date + 1) + window.closes_at
-      else target_date + window.closes_at
+      when availability_window.opens_at < availability_window.closes_at then target_date + availability_window.closes_at
+      when target_time >= availability_window.opens_at then (target_date + 1) + availability_window.closes_at
+      else target_date + availability_window.closes_at
     end,
-    coalesce(window.order_capacity, schedule.default_order_capacity),
-    coalesce(window.item_capacity, schedule.default_item_capacity),
+    coalesce(availability_window.order_capacity, schedule.default_order_capacity),
+    coalesce(availability_window.item_capacity, schedule.default_item_capacity),
     'weekly'::text
-  from public.availability_windows as window
-  where window.restaurant_id = schedule.restaurant_id
-    and window.location_id = schedule.location_id
-    and window.schedule_version_id = schedule.id
-    and window.fulfillment_type = target_fulfillment_type
+  from public.availability_windows as availability_window
+  where availability_window.restaurant_id = schedule.restaurant_id
+    and availability_window.location_id = schedule.location_id
+    and availability_window.schedule_version_id = schedule.id
+    and availability_window.fulfillment_type = target_fulfillment_type
     and (
       (
-        window.opens_at < window.closes_at
-        and window.weekday = extract(dow from target_date)::smallint
-        and target_time >= window.opens_at
-        and target_time < window.closes_at
+        availability_window.opens_at < availability_window.closes_at
+        and availability_window.weekday = extract(dow from target_date)::smallint
+        and target_time >= availability_window.opens_at
+        and target_time < availability_window.closes_at
       )
       or (
-        window.opens_at > window.closes_at
+        availability_window.opens_at > availability_window.closes_at
         and (
           (
-            window.weekday = extract(dow from target_date)::smallint
-            and target_time >= window.opens_at
+            availability_window.weekday = extract(dow from target_date)::smallint
+            and target_time >= availability_window.opens_at
           )
           or (
-            window.weekday = extract(dow from target_date - 1)::smallint
-            and target_time < window.closes_at
+            availability_window.weekday = extract(dow from target_date - 1)::smallint
+            and target_time < availability_window.closes_at
           )
         )
       )
     )
-  order by window.opens_at
+  order by availability_window.opens_at
   limit 1;
 end;
 $$;
@@ -1227,13 +1227,13 @@ begin
 
   local_requested_at := target_requested_for at time zone location_timezone;
 
-  select window.*
+  select availability_result.*
   into resolved_window
   from private.resolve_availability_window(
     resolved_schedule_id,
     target_fulfillment_type,
     local_requested_at
-  ) as window;
+  ) as availability_result;
 
   if resolved_window.window_start_local is null then
     return query select false, 'outside_window'::text, resolved_schedule_id, null::timestamptz,
