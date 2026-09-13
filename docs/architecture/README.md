@@ -16,3 +16,4 @@ Aktueller technischer Nachweis:
 - [Restaurant- und Standortgrenze](../decisions/0008-restaurant-location-boundary.md)
 - [Personalrollen und Standortzugriff](../decisions/0009-personnel-roles-and-location-access.md)
 - [Personaleinladungen und Mitgliedschaftslebenszyklus](../decisions/0010-personnel-invitations-and-lifecycle.md)
+- [Authentifizierung, Sitzungen und MFA-Schutz](../decisions/0011-authentication-sessions-and-mfa.md)

@@ -258,6 +258,7 @@ select throws_ok(
 
 set local role authenticated;
 set local request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
+set local request.jwt.claims = '{"sub":"33333333-3333-3333-3333-333333333333","aal":"aal2"}';
 
 select results_eq(
   $$select display_name from public.locations order by display_name$$,
@@ -281,6 +282,7 @@ select throws_ok(
 );
 
 set local request.jwt.claim.sub = '44444444-4444-4444-4444-444444444444';
+set local request.jwt.claims = '{"sub":"44444444-4444-4444-4444-444444444444","aal":"aal2"}';
 
 select results_eq(
   $$select display_name from public.locations order by display_name$$,
@@ -289,6 +291,7 @@ select results_eq(
 );
 
 set local request.jwt.claim.sub = '55555555-5555-5555-5555-555555555555';
+set local request.jwt.claims = '{"sub":"55555555-5555-5555-5555-555555555555","aal":"aal2"}';
 
 select is_empty(
   $$select id from public.locations$$,

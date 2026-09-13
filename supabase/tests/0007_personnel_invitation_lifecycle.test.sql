@@ -195,7 +195,7 @@ select ok(
 select ok(
   has_function_privilege(
     'service_role',
-    'private.accept_restaurant_invitation(uuid,uuid)',
+    'private.accept_restaurant_invitation(uuid,uuid,text)',
     'execute'
   ),
   'the server role may accept a validated invitation atomically'
@@ -203,7 +203,7 @@ select ok(
 select ok(
   not has_function_privilege(
     'authenticated',
-    'private.accept_restaurant_invitation(uuid,uuid)',
+    'private.accept_restaurant_invitation(uuid,uuid,text)',
     'execute'
   ),
   'authenticated browser users cannot call the acceptance function directly'
@@ -211,7 +211,7 @@ select ok(
 select ok(
   not has_function_privilege(
     'anon',
-    'private.accept_restaurant_invitation(uuid,uuid)',
+    'private.accept_restaurant_invitation(uuid,uuid,text)',
     'execute'
   ),
   'anonymous users cannot call the acceptance function'
@@ -702,6 +702,7 @@ select throws_ok(
 
 set local role authenticated;
 set local request.jwt.claim.sub = '71000000-0000-0000-0000-000000000004';
+set local request.jwt.claims = '{"sub":"71000000-0000-0000-0000-000000000004","aal":"aal1"}';
 
 select throws_ok(
   $$select * from public.restaurant_invitations$$,
@@ -713,7 +714,8 @@ select throws_ok(
   $$
     select private.accept_restaurant_invitation(
       '74000000-0000-0000-0000-000000000001',
-      '71000000-0000-0000-0000-000000000004'
+      '71000000-0000-0000-0000-000000000004',
+      'aal1'
     )
   $$,
   '42501',
@@ -728,7 +730,8 @@ select throws_ok(
   $$
     select private.accept_restaurant_invitation(
       '74000000-0000-0000-0000-000000000001',
-      '71000000-0000-0000-0000-000000000010'
+      '71000000-0000-0000-0000-000000000010',
+      'aal1'
     )
   $$,
   'P0001',
@@ -739,7 +742,8 @@ select throws_ok(
   $$
     select private.accept_restaurant_invitation(
       '74000000-0000-0000-0000-000000000004',
-      '71000000-0000-0000-0000-000000000007'
+      '71000000-0000-0000-0000-000000000007',
+      'aal1'
     )
   $$,
   'P0001',
@@ -750,7 +754,8 @@ select throws_ok(
   $$
     select private.accept_restaurant_invitation(
       '74000000-0000-0000-0000-000000000005',
-      '71000000-0000-0000-0000-000000000008'
+      '71000000-0000-0000-0000-000000000008',
+      'aal1'
     )
   $$,
   'P0001',
@@ -762,7 +767,8 @@ select lives_ok(
   $$
     select private.accept_restaurant_invitation(
       '74000000-0000-0000-0000-000000000001',
-      '71000000-0000-0000-0000-000000000004'
+      '71000000-0000-0000-0000-000000000004',
+      'aal1'
     )
   $$,
   'the server accepts a valid owner-created invitation atomically'
@@ -810,7 +816,8 @@ select throws_ok(
   $$
     select private.accept_restaurant_invitation(
       '74000000-0000-0000-0000-000000000001',
-      '71000000-0000-0000-0000-000000000004'
+      '71000000-0000-0000-0000-000000000004',
+      'aal1'
     )
   $$,
   'P0001',
@@ -822,7 +829,8 @@ select lives_ok(
   $$
     select private.accept_restaurant_invitation(
       '74000000-0000-0000-0000-000000000002',
-      '71000000-0000-0000-0000-000000000005'
+      '71000000-0000-0000-0000-000000000005',
+      'aal1'
     )
   $$,
   'a manager invitation works inside the manager location scope'
@@ -841,7 +849,8 @@ select lives_ok(
   $$
     select private.accept_restaurant_invitation(
       '74000000-0000-0000-0000-000000000003',
-      '71000000-0000-0000-0000-000000000006'
+      '71000000-0000-0000-0000-000000000006',
+      'aal2'
     )
   $$,
   'an owner invitation needs no individual location assignment'
@@ -872,7 +881,8 @@ select throws_ok(
   $$
     select private.accept_restaurant_invitation(
       '74000000-0000-0000-0000-000000000006',
-      '71000000-0000-0000-0000-000000000009'
+      '71000000-0000-0000-0000-000000000009',
+      'aal1'
     )
   $$,
   'P0001',
@@ -895,6 +905,7 @@ select throws_ok(
 
 set local role authenticated;
 set local request.jwt.claim.sub = '71000000-0000-0000-0000-000000000002';
+set local request.jwt.claims = '{"sub":"71000000-0000-0000-0000-000000000002","aal":"aal2"}';
 
 select ok(
   private.is_restaurant_member('72000000-0000-0000-0000-000000000001'),
@@ -927,6 +938,7 @@ select ok(
 
 set local role authenticated;
 set local request.jwt.claim.sub = '71000000-0000-0000-0000-000000000002';
+set local request.jwt.claims = '{"sub":"71000000-0000-0000-0000-000000000002","aal":"aal2"}';
 
 select ok(
   not private.is_restaurant_member('72000000-0000-0000-0000-000000000001'),
@@ -983,6 +995,7 @@ select ok(
 
 set local role authenticated;
 set local request.jwt.claim.sub = '71000000-0000-0000-0000-000000000002';
+set local request.jwt.claims = '{"sub":"71000000-0000-0000-0000-000000000002","aal":"aal2"}';
 
 select ok(
   private.can_access_location(

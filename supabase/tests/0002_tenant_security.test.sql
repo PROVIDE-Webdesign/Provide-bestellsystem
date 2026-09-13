@@ -160,6 +160,7 @@ select throws_ok(
 
 set local role authenticated;
 set local request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","aal":"aal2"}';
 
 select results_eq(
   $$select slug from public.restaurants order by slug$$,
@@ -173,6 +174,7 @@ select results_eq(
 );
 
 set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","aal":"aal2"}';
 
 select is_empty(
   $$select id from public.restaurants$$,

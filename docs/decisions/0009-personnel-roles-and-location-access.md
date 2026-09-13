@@ -18,6 +18,9 @@ Mitgliedschaft als auch Standort zum gleichen Restaurant gehören.
 Arbeitsblock 2.3 ergänzt den Mitgliedschaftsstatus. Sämtliche hier beschriebenen Rollen- und
 Standortrechte gelten ausschließlich für aktive Mitgliedschaften. Suspendierte Mitgliedschaften
 bleiben zur kontrollierten Reaktivierung erhalten, gewähren aber keinen fachlichen Zugriff.
+Arbeitsblock 2.4 ergänzt die Authentifizierungsstufe: Owner und Manager benötigen zusätzlich ein
+verifiziertes `aal2`; Kitchen und Driver dürfen mit `aal1` oder `aal2` in ihrem Standortumfang
+arbeiten.
 
 ## Rollenmodell
 
@@ -40,8 +43,8 @@ Rollen werden in den jeweiligen späteren Fachblöcken zusätzlich serverseitig 
    nie direkt verändern.
 5. Rollen- und Zuweisungsänderungen erfolgen später über autorisierte, auditierte Serverabläufe.
 6. Die privilegierte PROVIDE-Administration ist keine Restaurantrolle und wird getrennt modelliert.
-7. Auth-Lebenszyklus, Einladungen, Deaktivierung und MFA werden in den folgenden Teilblöcken
-   ergänzt.
+7. Ein gültiges Auth-Token allein gewährt keine Fachrechte; Mitgliedschaft, Rolle, Standort und MFA
+   werden gemeinsam ausgewertet.
 
 ## Migrationsregel
 

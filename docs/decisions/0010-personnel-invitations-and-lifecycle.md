@@ -24,9 +24,9 @@ verwalten. Für Nicht-Owner wird der Standortumfang vor der Annahme in
 sie selbst aktuell Zugriff besitzen.
 
 Die serverexklusive Funktion `private.accept_restaurant_invitation` prüft Zielbenutzer, Status,
-Ablauf, Erstellerrolle und Standortumfang. Danach erstellt sie Mitgliedschaft und Standortrechte und
-schließt die Einladung in derselben Datenbanktransaktion ab. Tabellenzugriffe und diese Funktion
-bleiben den Browserrollen entzogen.
+Ablauf, Erstellerrolle, Standortumfang und die vom API-Server verifizierte Authentifizierungsstufe.
+Danach erstellt sie Mitgliedschaft und Standortrechte und schließt die Einladung in derselben
+Datenbanktransaktion ab. Tabellenzugriffe und diese Funktion bleiben den Browserrollen entzogen.
 
 Restaurantmitgliedschaften erhalten den Zustand `active` oder `suspended`. Eine Suspendierung löscht
 weder Mitgliedschaft noch Standortzuweisungen, nimmt die Person aber unmittelbar aus allen
@@ -39,7 +39,7 @@ Standortumfang wieder her.
 2. Die zurückgegebene Auth-Benutzer-ID wird in der fachlichen Einladung referenziert.
 3. PROVIDE speichert weder den Einladungslink noch dessen Token.
 4. Nach erfolgreicher Provider-Anmeldung darf nur der API-Server die atomare Annahmefunktion
-   ausführen.
+   ausführen. Owner- und Manager-Einladungen benötigen dabei `aal2`.
 5. Kundenkonten gehören nicht zu diesem Arbeitsblock; der MVP-Checkout bleibt ein Gast-Checkout.
 
 ## Folgen
@@ -49,10 +49,11 @@ Standortumfang wieder her.
 - Abgelaufene oder widerrufene Einladungen können keine Mitgliedschaft erzeugen.
 - Die sofortige Datenzugriffssperre ist unabhängig von der verbleibenden Lebensdauer einer
   Supabase-Session.
-- Das aktive Beenden vorhandener Supabase-Sessions wird in der späteren Auth-/API-Integration
-  ergänzt; bis dahin blockiert die Datenbank jede fachliche Abfrage einer suspendierten Person.
-- MFA wird für privilegierte Rollen separat in Arbeitsblock 2.4 anhand des Supabase-Claims `aal2`
-  durchgesetzt.
+- Eine restaurantbezogene Suspendierung beendet nicht global alle Supabase-Sitzungen, weil eine
+  Person in weiteren Restaurants aktiv sein kann. Die Datenbank blockiert das betroffene Restaurant
+  dennoch sofort.
+- Arbeitsblock 2.4 verlangt für Owner und Manager `aal2` und dokumentiert die bei der Annahme
+  verifizierte Stufe als `accepted_at_aal`.
 
 ## Nicht Bestandteil
 

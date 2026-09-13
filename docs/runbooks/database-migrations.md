@@ -102,8 +102,34 @@ als `target_user_id` übergeben.
 
 Beim Suspendieren einer Mitgliedschaft bleiben die Datensätze bestehen. Die RLS-Hilfsfunktionen
 gewähren ausschließlich Mitgliedschaften mit `status = 'active'` Zugriff. Dadurch wirkt eine
-Suspendierung sofort auf Restaurant-, Rollen- und Standortabfragen. Das zusätzliche Widerrufen
-aktiver Supabase-Sessions wird mit der Auth-/API-Integration ergänzt.
+Suspendierung sofort auf Restaurant-, Rollen- und Standortabfragen. Die Supabase-Sitzung wird dabei
+nicht global beendet, weil dieselbe Auth-Identität in einem anderen Restaurant weiterhin aktiv sein
+kann.
+
+## Authentifizierungsniveau und MFA
+
+Supabase Auth bleibt die Identitäts- und Sitzungsquelle. Die Restaurantrolle wird immer aktuell aus
+`restaurant_memberships` gelesen und nicht aus JWT-Benutzermetadaten übernommen. Für fachliche
+Abfragen gelten zusätzlich diese Grenzen:
+
+1. Owner und Manager benötigen ein verifiziertes Zugriffstoken mit `aal2`.
+2. Kitchen und Driver dürfen mit `aal1` oder `aal2` ausschließlich innerhalb ihrer zugewiesenen
+   Standorte arbeiten.
+3. Ein fehlender `aal`-Claim gilt als `aal1`; unbekannte Werte gewähren keinen Zugriff.
+4. `aal2` ersetzt weder eine aktive Mitgliedschaft noch die Restaurant- und Standortprüfung.
+5. Die eigene Mitgliedschaft bleibt minimal lesbar, damit das Dashboard den MFA- oder
+   Suspendierungszustand erklären kann.
+
+Vor `private.accept_restaurant_invitation` verifiziert der API-Server Signatur, Aussteller, Ablauf,
+Benutzer-ID und `aal` des Supabase-Zugriffstokens. Der verifizierte AAL-Wert wird als drittes
+Argument übergeben. Owner- und Manager-Einladungen werden nur mit `aal2` angenommen; Kitchen- und
+Driver-Einladungen akzeptieren `aal1` oder `aal2`. Browserparameter dürfen niemals ungeprüft als
+Authentifizierungsnachweis weitergereicht werden.
+
+Die späteren SSR- und API-Antworten mit Auth-Cookies oder benutzerspezifischen Daten verwenden
+`Cache-Control: private, no-store`. Authentifizierte Routen dürfen nicht über einen gemeinsamen CDN-
+Cache ausgeliefert werden. Produktive MFA-, Inaktivitäts- und Sitzungswerte werden erst am
+Preview-/Go-live-Gate in der getrennten Supabase-Umgebung gesetzt.
 
 ## Transaktionale Integrationsereignisse
 

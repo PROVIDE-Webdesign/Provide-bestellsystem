@@ -365,6 +365,7 @@ select throws_ok(
 
 set local role authenticated;
 set local request.jwt.claim.sub = '61000000-0000-0000-0000-000000000001';
+set local request.jwt.claims = '{"sub":"61000000-0000-0000-0000-000000000001","aal":"aal2"}';
 
 select ok(
   private.has_restaurant_role(
@@ -423,6 +424,7 @@ select ok(
 );
 
 set local request.jwt.claim.sub = '61000000-0000-0000-0000-000000000002';
+set local request.jwt.claims = '{"sub":"61000000-0000-0000-0000-000000000002","aal":"aal2"}';
 
 select ok(
   private.has_restaurant_role(
@@ -461,6 +463,7 @@ select ok(
 );
 
 set local request.jwt.claim.sub = '61000000-0000-0000-0000-000000000003';
+set local request.jwt.claims = '{"sub":"61000000-0000-0000-0000-000000000003","aal":"aal2"}';
 
 select results_eq(
   $$select display_name from public.locations order by display_name$$,
@@ -474,6 +477,7 @@ select results_eq(
 );
 
 set local request.jwt.claim.sub = '61000000-0000-0000-0000-000000000004';
+set local request.jwt.claims = '{"sub":"61000000-0000-0000-0000-000000000004","aal":"aal2"}';
 
 select results_eq(
   $$select display_name from public.locations order by display_name$$,
@@ -487,6 +491,7 @@ select results_eq(
 );
 
 set local request.jwt.claim.sub = '61000000-0000-0000-0000-000000000005';
+set local request.jwt.claims = '{"sub":"61000000-0000-0000-0000-000000000005","aal":"aal2"}';
 
 select results_eq(
   $$select display_name from public.locations order by display_name$$,
@@ -495,6 +500,7 @@ select results_eq(
 );
 
 set local request.jwt.claim.sub = '61000000-0000-0000-0000-000000000006';
+set local request.jwt.claims = '{"sub":"61000000-0000-0000-0000-000000000006","aal":"aal2"}';
 
 select is_empty(
   $$select id from public.locations$$,
