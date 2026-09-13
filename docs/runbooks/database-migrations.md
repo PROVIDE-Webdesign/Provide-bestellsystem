@@ -161,6 +161,35 @@ ausschließlich serverseitig und besitzt vollständigen Tabellenzugriff. Der reg
 löscht Ereignisse nicht direkt; eine kontrollierte Aufbewahrungs- und Bereinigungsregel wird in
 einem späteren Arbeitsblock beschlossen.
 
+## Versionierter Speisekartenkatalog
+
+Speisekarteninhalte werden ausschließlich in einer `draft`-Version bearbeitet. Vor einer
+Veröffentlichung sind mindestens ein aktiver Artikel, nichtnegative Preise in kleinster
+Währungseinheit und die zum Restaurant passende Währung zu prüfen. Eine veröffentlichte Version wird
+niemals nachträglich geändert; Korrekturen beginnen mit `private.create_menu_draft` und einer neuen
+Versionsnummer.
+
+Veröffentlichungen und Rollbacks erfolgen serverseitig mit `private.publish_menu_version` bzw.
+`private.rollback_menu_version`. Der Server übergibt nur die aus einem verifizierten Token
+abgeleitete Benutzer-ID und Authentifizierungsstufe. Ein zukünftiger Wirksamkeitszeitpunkt plant die
+Version ein. Ein Rollback fügt einen neuen Verlaufseintrag hinzu und löscht keine frühere
+Veröffentlichung.
+
+Die aktuelle Artikelverfügbarkeit wird getrennt über `private.set_menu_item_availability` gepflegt.
+Sie darf keine veröffentlichte Beschreibung oder Preisangabe verändern. Vor einem Preview-Rollout
+sind mindestens diese Fälle mit synthetischen Daten zu prüfen:
+
+1. Entwurf erstellen, Inhalt ergänzen und veröffentlichen.
+2. Eine neue Preisversion für die Zukunft einplanen und vor sowie nach dem Stichtag auflösen.
+3. Zu einer früher veröffentlichten Version zurückrollen.
+4. Artikel an einem zugewiesenen Standort auf `sold_out` setzen.
+5. Mandanten-, Standort-, Rollen- und AAL2-Grenzen negativ testen.
+6. Audit- und Outbox-Einträge auf genau eine erfolgreiche Änderung kontrollieren.
+
+`private.resolve_public_menu_version` bleibt zusätzlich von Restaurant- und Standort-Go-live sowie
+`catalog.public_menu` abhängig. Die Aktivierung dieses Flags oder die Nutzung echter Speisekarten
+benötigt eine gesonderte Freigabe.
+
 ## Feature-Flags
 
 Bekannte Features werden in `public.feature_definitions` registriert. Optionale Einträge in

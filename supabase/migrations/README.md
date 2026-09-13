@@ -13,7 +13,9 @@ Auth-Assurance-Migration verlangt für Owner und Manager zusätzlich `aal2`, lä
 mit `aal1` in ihrem Standortumfang arbeiten und protokolliert die verifizierte Stufe bei der
 Einladungsannahme. Die Onboarding- und Go-live-Migration ergänzt getrennte, serververwaltete
 Zustandsmaschinen, verpflichtende Freigabeprüfungen und eine fail-closed Kundenfreigabe für
-Restaurants und Standorte.
+Restaurants und Standorte. Die Katalogmigration ergänzt stabile Speisekarten- und
+Artikelidentitäten, unveränderliche veröffentlichte Versionen, zeitgesteuerte standortbezogene
+Veröffentlichungen und eine getrennte operative Artikelverfügbarkeit.
 
 Bereits angewendete Migrationen werden nicht nachträglich verändert. Korrekturen erfolgen immer in
 einer neuen Migration.

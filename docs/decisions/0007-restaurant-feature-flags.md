@@ -27,9 +27,11 @@ fachlichen Tabellen zu speichern.
 - `fulfillment.pickup`
 - `fulfillment.delivery`
 - `payment.online`
+- `catalog.public_menu`
 
-Alle vier Features starten deaktiviert. Ihre fachliche Implementierung und Aktivierung sind nicht
-Teil dieses Arbeitsblocks.
+Alle Features starten deaktiviert. Ihre fachliche Implementierung und Aktivierung sind nicht Teil
+dieses Arbeitsblocks. Arbeitsblock 2.6 registriert `catalog.public_menu` für die spätere, zusätzlich
+durch Go-live und eine wirksame Veröffentlichung abgesicherte Speisekartenfreigabe.
 
 ## Sicherheitsregeln
 
