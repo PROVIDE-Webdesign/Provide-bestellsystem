@@ -68,6 +68,8 @@ PROVIDE-Administration.
 - Eine suspendierte Mitgliedschaft bleibt auch mit `aal2` gesperrt.
 - Ein Benutzer mit verschiedenen Rollen kann je Restaurant unterschiedliche MFA-Anforderungen haben.
 - Die API muss Auth-Claims verifizieren, bevor sie privilegierte Datenbankfunktionen aufruft.
+- Onboarding- und Go-live-Änderungen benötigen eine serverseitig verifizierte aktive Owner- oder
+  Manager-Mitgliedschaft mit `aal2`; Manager bleiben auf zugewiesene Standorte begrenzt.
 - Änderungen der Supabase-Projektkonfiguration bleiben ein gesondertes externes Freigabe-Gate.
 
 ## Nicht Bestandteil

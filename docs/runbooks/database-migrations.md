@@ -131,6 +131,24 @@ Die späteren SSR- und API-Antworten mit Auth-Cookies oder benutzerspezifischen 
 Cache ausgeliefert werden. Produktive MFA-, Inaktivitäts- und Sitzungswerte werden erst am
 Preview-/Go-live-Gate in der getrennten Supabase-Umgebung gesetzt.
 
+## Onboarding und Go-live
+
+Restaurants und Standorte besitzen getrennte Onboarding- und Go-live-Zustände. Ein operatives
+`active` allein öffnet keinen Kundenzugriff. Die serverseitigen Übergangsfunktionen verlangen eine
+aktive Owner- oder Manager-Mitgliedschaft mit `aal2`; Manager bleiben auf ihre zugewiesenen
+Standorte begrenzt.
+
+Vor einer Freigabe müssen alle verpflichtenden Prüfpunkte bestanden sein. Standortfreigaben
+benötigen außerdem eine vollständige Adresse. Restaurant und Standort werden in der Reihenfolge
+`blocked` → `ready` → `live` freigegeben. Ein pausierter Zustand kann nur über `ready` wieder live
+werden. Jede erfolgreiche Änderung erzeugt einen Audit-Eintrag und ein Outbox-Ereignis in derselben
+Transaktion.
+
+Die Prüffunktionen `private.is_restaurant_go_live` und `private.is_location_go_live` bewerten die
+Voraussetzungen bei jeder Abfrage erneut. Eine Suspendierung schließt den Zugriff deshalb sofort.
+Feature-Flags bleiben zusätzlich erforderlich und werden durch den Go-live-Wechsel niemals
+automatisch aktiviert.
+
 ## Transaktionale Integrationsereignisse
 
 Fachliche Änderungen, die später eine externe Reaktion auslösen, schreiben ihr versioniertes

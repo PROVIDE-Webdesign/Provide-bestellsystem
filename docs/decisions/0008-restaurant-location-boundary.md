@@ -27,11 +27,12 @@ Standort-ID eines anderen Mandanten verbinden.
 6. Unvollständige Adressdaten bleiben während der Einrichtung zulässig. Die spätere Go-live-Prüfung
    verlangt einen vollständigen, nachgewiesenen Standort.
 7. `setup`, `active` und `suspended` beschreiben ausschließlich den Betriebszustand des Standorts.
-   Der separate Onboarding- und Go-live-Status folgt in Arbeitsblock 2.5.
+   Der separate Onboarding- und Go-live-Status wird durch die serverseitige Zustandsmaschine aus
+   Arbeitsblock 2.5 verwaltet.
 
 ## Folgen
 
 Das Schema unterstützt bereits mehrere Standorte pro Restaurant, ohne den MVP zur Nutzung mehrerer
 Standorte zu zwingen. Fachliche Tabellen aus späteren Arbeitsblöcken erhalten eine überprüfbare
-Mandanten- und Standortzuordnung. Rollen, Einladungen, MFA und produktive Freigaben werden bewusst
-nicht in dieser Migration vermischt.
+Mandanten- und Standortzuordnung. Rollen, Einladungen und MFA werden bewusst nicht in dieser
+Migration vermischt. Die Kundenfreigabe erfolgt getrennt über den Onboarding- und Go-live-Zustand.

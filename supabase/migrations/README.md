@@ -11,7 +11,9 @@ Die Einladungs- und Lebenszyklusmigration ergänzt serververwaltete, ablaufende 
 und entzieht suspendierten Mitgliedschaften sofort sämtliche Mandanten- und Standortrechte. Die
 Auth-Assurance-Migration verlangt für Owner und Manager zusätzlich `aal2`, lässt Kitchen und Driver
 mit `aal1` in ihrem Standortumfang arbeiten und protokolliert die verifizierte Stufe bei der
-Einladungsannahme.
+Einladungsannahme. Die Onboarding- und Go-live-Migration ergänzt getrennte, serververwaltete
+Zustandsmaschinen, verpflichtende Freigabeprüfungen und eine fail-closed Kundenfreigabe für
+Restaurants und Standorte.
 
 Bereits angewendete Migrationen werden nicht nachträglich verändert. Korrekturen erfolgen immer in
 einer neuen Migration.

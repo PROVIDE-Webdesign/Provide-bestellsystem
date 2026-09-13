@@ -17,3 +17,4 @@ Aktueller technischer Nachweis:
 - [Personalrollen und Standortzugriff](../decisions/0009-personnel-roles-and-location-access.md)
 - [Personaleinladungen und Mitgliedschaftslebenszyklus](../decisions/0010-personnel-invitations-and-lifecycle.md)
 - [Authentifizierung, Sitzungen und MFA-Schutz](../decisions/0011-authentication-sessions-and-mfa.md)
+- [Restaurant-Onboarding und kontrolliertes Go-live](../decisions/0012-onboarding-and-go-live-gate.md)
