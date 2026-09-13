@@ -1226,8 +1226,8 @@ select is(
     from public.availability_schedule_versions
     where restaurant_id = 'b2000000-0000-0000-0000-000000000001'
   ),
-  1,
-  'an authenticated owner can read its location schedule'
+  2,
+  'an authenticated owner can read all versions of its location schedule'
 );
 select is(
   (
