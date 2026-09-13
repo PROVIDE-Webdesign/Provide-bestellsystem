@@ -167,9 +167,18 @@ select ok(
 );
 
 select is(
-  (select count(*)::integer from public.feature_definitions),
+  (
+    select count(*)::integer
+    from public.feature_definitions
+    where key in (
+      'ordering.accept_orders',
+      'fulfillment.pickup',
+      'fulfillment.delivery',
+      'payment.online'
+    )
+  ),
   4,
-  'the initial controlled feature registry is present'
+  'the original controlled feature registry entries remain present'
 );
 select ok(
   (select bool_and(not default_enabled) from public.feature_definitions),

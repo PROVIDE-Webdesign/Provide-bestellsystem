@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public;
 
-select plan(71);
+select plan(77);
 
 select has_table('public', 'menus', 'menus table exists');
 select has_table('public', 'menu_versions', 'menu versions table exists');
@@ -123,6 +123,38 @@ select ok(
 select ok(
   not has_table_privilege('service_role', 'public.menu_versions', 'insert,update,delete'),
   'service role must use controlled functions for menu version lifecycle'
+);
+select ok(
+  not has_table_privilege('service_role', 'public.menus', 'insert,update,delete'),
+  'service role must use controlled functions for menu identity writes'
+);
+select ok(
+  has_table_privilege('service_role', 'public.menu_items', 'insert'),
+  'service role may create stable menu item identities'
+);
+select ok(
+  not has_table_privilege('service_role', 'public.menu_items', 'update,delete'),
+  'service role cannot rewrite stable menu item identities'
+);
+select ok(
+  not has_table_privilege(
+    'service_role',
+    'public.menu_item_location_availability',
+    'insert,update,delete'
+  ),
+  'service role must use the controlled availability function'
+);
+select ok(
+  not has_table_privilege('service_role', 'public.menu_publications', 'insert,update,delete'),
+  'service role must use controlled publication functions'
+);
+select ok(
+  not has_table_privilege(
+    'service_role',
+    'public.menu_item_availability_transitions',
+    'insert,update,delete'
+  ),
+  'service role cannot write availability audit history directly'
 );
 
 insert into auth.users (id, email)
