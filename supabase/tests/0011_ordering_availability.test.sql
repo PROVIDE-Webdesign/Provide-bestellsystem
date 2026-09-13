@@ -1217,8 +1217,8 @@ select throws_ok(
 );
 
 set local role authenticated;
-select set_config('request.jwt.claim.sub', 'b1000000-0000-0000-0000-000000000001', true);
-select set_config('request.jwt.claim.aal', 'aal2', true);
+set local request.jwt.claim.sub = 'b1000000-0000-0000-0000-000000000001';
+set local request.jwt.claims = '{"sub":"b1000000-0000-0000-0000-000000000001","aal":"aal2"}';
 
 select is(
   (

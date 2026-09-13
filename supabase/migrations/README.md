@@ -18,7 +18,9 @@ Artikelidentitäten, unveränderliche veröffentlichte Versionen, zeitgesteuerte
 Veröffentlichungen und eine getrennte operative Artikelverfügbarkeit. Die Bestellbarkeitsmigration
 ergänzt versionierte Wochenzeiten und Kalendertagsausnahmen, getrennte Abhol- und Lieferfenster,
 zeitlich begrenzte Betriebspausen sowie atomare, idempotente Kapazitätsreservierungen je
-Zeitfenster.
+Zeitfenster. Eine nachgelagerte Berechtigungskorrektur entzieht der Service-Rolle direkte
+Lebenszyklus-, Verlaufs-, Pausen- und Kapazitätsschreibrechte und erhält ausschließlich die dafür
+vorgesehenen kontrollierten Funktionen als Schreibweg.
 
 Bereits angewendete Migrationen werden nicht nachträglich verändert. Korrekturen erfolgen immer in
 einer neuen Migration.
