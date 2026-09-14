@@ -802,8 +802,8 @@ select throws_ok(
       'c3000000-0000-0000-0000-000000000001',
       (select id from public.orders where submission_key = 'order-submit-0001'),
       'completed',
-      'c1000000-0000-0000-0000-000000000003',
-      'aal1'
+      'c1000000-0000-0000-0000-000000000002',
+      'aal2'
     )
   $$,
   'P0001',
