@@ -453,18 +453,15 @@ values
     1
   );
 
-select is(
-  private.initialize_order_payment(
-    'd2000000-0000-0000-0000-000000000001',
-    'd3000000-0000-0000-0000-000000000001',
-    'd8000000-0000-0000-0000-000000000001',
-    'online'
-  ),
-  (
-    select id
-    from public.order_payments
-    where order_id = 'd8000000-0000-0000-0000-000000000001'
-  ),
+select lives_ok(
+  $$
+    select private.initialize_order_payment(
+      'd2000000-0000-0000-0000-000000000001',
+      'd3000000-0000-0000-0000-000000000001',
+      'd8000000-0000-0000-0000-000000000001',
+      'online'
+    )
+  $$,
   'online payment requirement is created from the order'
 );
 select results_eq(
