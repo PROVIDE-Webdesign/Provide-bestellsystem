@@ -32,5 +32,11 @@ aus dem Bestell-Snapshot. Der bisherige Bestelleingang ist für die Service-Roll
 Einstieg erstellt Bestellung und Zahlungsanforderung atomar. Onlinezahlungen bleiben durch
 `payment.online` standardmäßig deaktiviert.
 
+Die Gast-Checkout-Migration trennt den allgemeinen Bestellkontakt von den ausschließlich für eine
+Lieferübergabe benötigten Daten. Beide Bereiche sind mandanten- und standortgebunden,
+unveränderlich, rollenbegrenzt und über einen kontrollierten, fristgebundenen Löschlauf bereinigbar.
+Personenbezogene Werte gelangen weder in Bestell- oder Zahlungstabellen noch in die Outbox. Echte
+Kundendaten bleiben weiterhin gesperrt.
+
 Bereits angewendete Migrationen werden nicht nachträglich verändert. Korrekturen erfolgen immer in
 einer neuen Migration.

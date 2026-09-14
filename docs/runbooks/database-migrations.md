@@ -301,6 +301,40 @@ synthetischen Daten zusätzlich zu den Datenbanktests mindestens diese Fälle na
 Echte Zahlungen, Anbieter-Secrets, automatische Erstattungen und die Aktivierung von
 `payment.online` bleiben bis zu einem eigenen Provider-, Datenschutz- und Preview-Gate gesperrt.
 
+## Gast-Checkout und Löschung personenbezogener Bestelldaten
+
+Der zukünftige API-Adapter legt Gastbestellungen ausschließlich mit `private.submit_guest_order` an.
+Der Aufruf kombiniert Bestellsnapshot, Zahlungsanforderung und personenbezogenen Checkout-Snapshot
+in einer Transaktion. Browserrollen erhalten keine direkte Ausführungsfreigabe.
+
+Für lokale oder CI-Tests dürfen ausschließlich synthetische `.invalid`-Kontakte und erfundene
+Adressen verwendet werden. Echte Namen, Telefonnummern, E-Mail-Adressen oder Lieferanschriften
+gehören weder in Migrationen noch in Test-Fixtures, Logs, Screenshots oder GitHub-Artefakte.
+
+Vor einem späteren Preview-Einsatz müssen Datenschutzverantwortliche die tatsächliche
+Aufbewahrungsfrist und die Version des Datenschutzhinweises festlegen. Die Migration begrenzt den
+serverseitig übergebenen Aufbewahrungszeitpunkt technisch auf höchstens 730 Tage; dies ersetzt keine
+rechtliche Fristentscheidung.
+
+Ein geplanter Serverjob darf personenbezogene Werte anschließend in begrenzten Batches entfernen:
+
+```sql
+select private.purge_expired_guest_checkout_data(now(), 500);
+```
+
+Vor der Aktivierung des Jobs sind mindestens folgende Nachweise erforderlich:
+
+1. Der Job verwendet ausschließlich die Service-Rolle und ein nicht protokolliertes Secret.
+2. Nur `completed`, `rejected` oder `cancelled` markierte Bestellungen werden bereinigt.
+3. Laufende Bestellungen bleiben unangetastet.
+4. Bestell-, Zahlungs- und nicht personenbezogene Ereignisnachweise bleiben erhalten.
+5. Owner, Manager und Fahrer sehen bereinigte Datensätze nicht mehr.
+6. Outbox- und Anwendungslogs enthalten keine Namen, Telefonnummern, E-Mail-Adressen oder
+   Anschriften.
+
+Öffentliche Checkout-Endpunkte, echte Kundendaten und die automatische Ausführung des Löschjobs
+bleiben bis zu eigenen API-, Datenschutz- und Preview-Gates gesperrt.
+
 ## Feature-Flags
 
 Bekannte Features werden in `public.feature_definitions` registriert. Optionale Einträge in
