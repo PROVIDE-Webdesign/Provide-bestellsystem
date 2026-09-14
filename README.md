@@ -7,7 +7,7 @@ Staging-Pilot.
 
 - Architektur-SoT: `PROVIDE Bestellsystem - Architektur und Arbeitsplan A2`
 - Organisatorische SoT: `PROVIDE Bestellsystem Projektprotokoll V2`
-- Aktiver Arbeitsblock: `2.10 - Gast-Checkout, Kundendaten und Datenschutzgrenzen`
+- Aktiver Arbeitsblock: `3.1 - Sichere API-Anfragegrundlage`
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 
 ## Geplante Anwendungen

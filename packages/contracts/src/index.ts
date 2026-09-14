@@ -5,3 +5,28 @@ export type AppEnvironment = (typeof appEnvironments)[number];
 export function isAppEnvironment(value: string): value is AppEnvironment {
   return appEnvironments.some((environment) => environment === value);
 }
+
+export const apiErrorCodes = [
+  "bad_request",
+  "internal_error",
+  "method_not_allowed",
+  "not_found",
+  "payload_too_large",
+  "service_unavailable",
+  "unsupported_media_type",
+] as const;
+
+export type ApiErrorCode = (typeof apiErrorCodes)[number];
+
+export interface ApiErrorEnvelope {
+  readonly error: {
+    readonly code: ApiErrorCode;
+    readonly message: string;
+    readonly requestId: string;
+  };
+}
+
+export interface ApiSuccessEnvelope<T> {
+  readonly data: T;
+  readonly requestId: string;
+}

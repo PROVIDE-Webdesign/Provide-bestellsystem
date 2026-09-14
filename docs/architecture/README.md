@@ -23,3 +23,4 @@ Aktueller technischer Nachweis:
 - [Bestell-Snapshot und Bestelllebenszyklus](../decisions/0015-order-snapshot-and-lifecycle.md)
 - [Zahlungsgrundlage und sichere Zahlungsereignisse](../decisions/0016-payment-foundation-and-secure-events.md)
 - [Gast-Checkout und personenbezogene Bestelldaten](../decisions/0017-guest-checkout-and-personal-data.md)
+- [API-Grundlage und Anfragegrenzen](../decisions/0018-api-foundation-and-request-boundaries.md)

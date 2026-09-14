@@ -1,6 +1,11 @@
 import { isAppEnvironment } from "@provide/contracts";
 
+import { corsHeaders, parseAllowedOrigins } from "./cors.js";
+import { createRequestContext } from "./context.js";
 import { probeDatabase } from "./database.js";
+import { jsonError, jsonSuccess } from "./http.js";
+import { consoleLogger, type ApiLogger } from "./logger.js";
+import { isKnownPath, routeRequest } from "./router.js";
 
 interface HyperdriveBinding {
   readonly connectionString: string;
@@ -8,56 +13,78 @@ interface HyperdriveBinding {
 
 interface Env {
   readonly APP_ENV: string;
+  readonly API_ALLOWED_ORIGINS?: string;
   readonly HYPERDRIVE?: HyperdriveBinding;
 }
 
 type DatabaseProbe = (connectionString: string) => Promise<void>;
 
-function json(body: unknown, status = 200): Response {
-  return Response.json(body, {
-    headers: {
-      "cache-control": "no-store",
-    },
-    status,
-  });
-}
-
-export function createApiWorker(databaseProbe: DatabaseProbe = probeDatabase) {
+export function createApiWorker(
+  databaseProbe: DatabaseProbe = probeDatabase,
+  logger: ApiLogger = consoleLogger,
+) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
-      const url = new URL(request.url);
+      const context = createRequestContext();
+      const cors = corsHeaders(request, parseAllowedOrigins(env.API_ALLOWED_ORIGINS));
       const environment = isAppEnvironment(env.APP_ENV) ? env.APP_ENV : "unknown";
 
-      if (request.method === "GET" && url.pathname === "/health") {
-        return json({
-          application: "api",
-          database: env.HYPERDRIVE ? "configured" : "not-configured",
-          environment,
-          runtime: "cloudflare-workers",
-          status: "ok",
-        });
+      if (request.method === "OPTIONS") {
+        return new Response(null, { headers: cors, status: 204 });
       }
 
-      if (request.method === "GET" && url.pathname === "/health/database") {
-        if (!env.HYPERDRIVE) {
-          return json(
-            {
-              database: "not-configured",
-              status: "unavailable",
-            },
-            503,
+      const route = routeRequest(request);
+      if (!route) {
+        if (isKnownPath(request)) {
+          return jsonError(
+            "method_not_allowed",
+            "Method is not allowed for this resource.",
+            context.requestId,
+            405,
+            cors,
           );
         }
-
-        try {
-          await databaseProbe(env.HYPERDRIVE.connectionString);
-          return json({ database: "reachable", status: "ok" });
-        } catch {
-          return json({ database: "unreachable", status: "unavailable" }, 503);
-        }
+        return jsonError("not_found", "Resource was not found.", context.requestId, 404, cors);
       }
 
-      return json({ status: "not-found" }, 404);
+      if (route.name === "health") {
+        return jsonSuccess(
+          {
+            application: "api",
+            database: env.HYPERDRIVE ? "configured" : "not-configured",
+            environment,
+            runtime: "cloudflare-workers",
+            status: "ok",
+          },
+          context.requestId,
+          200,
+          cors,
+        );
+      }
+
+      if (!env.HYPERDRIVE) {
+        return jsonError(
+          "service_unavailable",
+          "Database health probe is not available.",
+          context.requestId,
+          503,
+          cors,
+        );
+      }
+
+      try {
+        await databaseProbe(env.HYPERDRIVE.connectionString);
+        return jsonSuccess({ database: "reachable", status: "ok" }, context.requestId, 200, cors);
+      } catch {
+        logger.error(context, "database_health_probe_failed");
+        return jsonError(
+          "service_unavailable",
+          "Database health probe is not available.",
+          context.requestId,
+          503,
+          cors,
+        );
+      }
     },
   };
 }

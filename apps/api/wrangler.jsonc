@@ -6,6 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "APP_ENV": "preview",
+    "API_ALLOWED_ORIGINS": "https://replace-with-preview-storefront.example.invalid",
   },
   "hyperdrive": [
     {

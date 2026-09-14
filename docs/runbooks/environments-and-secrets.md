@@ -27,6 +27,7 @@ Produktionsdaten in Development, Test oder Preview ist ausgeschlossen.
 | `PUBLIC_API_URL`        | Öffentlich   | Öffentliche API-Basisadresse                  |
 | `DATABASE_URL`          | Nur Server   | PostgreSQL-Verbindung der jeweiligen Umgebung |
 | `AUTH_SESSION_SECRET`   | Nur Server   | Signierung und Schutz von Sitzungen           |
+| `API_ALLOWED_ORIGINS`   | Öffentlich   | Kommagetrennte CORS-Allowlist der API         |
 
 Neue Variablen werden erst nach Einordnung als öffentlich oder serverseitig ergänzt. Anbieterwerte
 für Stripe, Supabase, E-Mail oder Adressprüfung werden erst mit dem jeweiligen Technikblock
