@@ -11,8 +11,19 @@ select has_table('public', 'order_status_events', 'append-only order status hist
 
 select has_function(
   'private',
-  'submit_order',
-  array['uuid', 'uuid', 'uuid', 'uuid', 'text', 'timestamptz', 'jsonb', 'text', 'timestamptz'],
+  'submit_order_with_payment',
+  array[
+    'uuid',
+    'uuid',
+    'uuid',
+    'uuid',
+    'text',
+    'timestamptz',
+    'jsonb',
+    'text',
+    'timestamptz',
+    'text'
+  ],
   'controlled order submission exists'
 );
 select has_function(
@@ -49,7 +60,7 @@ select has_trigger(
 select ok(
   has_function_privilege(
     'service_role',
-    'private.submit_order(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz)',
+    'private.submit_order_with_payment(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz,text)',
     'execute'
   ),
   'service role may submit through the controlled function'
@@ -65,7 +76,7 @@ select ok(
 select ok(
   not has_function_privilege(
     'authenticated',
-    'private.submit_order(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz)',
+    'private.submit_order_with_payment(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz,text)',
     'execute'
   ),
   'authenticated browsers cannot submit orders directly'
@@ -73,7 +84,7 @@ select ok(
 select ok(
   not has_function_privilege(
     'anon',
-    'private.submit_order(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz)',
+    'private.submit_order_with_payment(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz,text)',
     'execute'
   ),
   'anonymous browsers cannot call internal order submission'
@@ -461,7 +472,7 @@ set local role service_role;
 
 select throws_ok(
   $$
-    select private.submit_order(
+    select private.submit_order_with_payment(
       'c2000000-0000-0000-0000-000000000001',
       'c3000000-0000-0000-0000-000000000001',
       'c4000000-0000-0000-0000-000000000001',
@@ -479,7 +490,7 @@ select throws_ok(
 );
 select throws_ok(
   $$
-    select private.submit_order(
+    select private.submit_order_with_payment(
       'c2000000-0000-0000-0000-000000000001',
       'c3000000-0000-0000-0000-000000000001',
       'c4000000-0000-0000-0000-000000000001',
@@ -497,7 +508,7 @@ select throws_ok(
 );
 select throws_ok(
   $$
-    select private.submit_order(
+    select private.submit_order_with_payment(
       'c2000000-0000-0000-0000-000000000001',
       'c3000000-0000-0000-0000-000000000001',
       'c4000000-0000-0000-0000-000000000001',
@@ -515,7 +526,7 @@ select throws_ok(
 );
 select throws_ok(
   $$
-    select private.submit_order(
+    select private.submit_order_with_payment(
       'c2000000-0000-0000-0000-000000000002',
       'c3000000-0000-0000-0000-000000000001',
       'c4000000-0000-0000-0000-000000000001',
@@ -555,7 +566,7 @@ set local role service_role;
 
 select throws_ok(
   $$
-    select private.submit_order(
+    select private.submit_order_with_payment(
       'c2000000-0000-0000-0000-000000000001',
       'c3000000-0000-0000-0000-000000000001',
       'c4000000-0000-0000-0000-000000000001',
@@ -584,7 +595,7 @@ set local role service_role;
 
 select lives_ok(
   $$
-    select private.submit_order(
+    select private.submit_order_with_payment(
       'c2000000-0000-0000-0000-000000000001',
       'c3000000-0000-0000-0000-000000000001',
       'c4000000-0000-0000-0000-000000000001',
@@ -669,7 +680,7 @@ select ok(
 set local role service_role;
 
 select is(
-  private.submit_order(
+  private.submit_order_with_payment(
     'c2000000-0000-0000-0000-000000000001',
     'c3000000-0000-0000-0000-000000000001',
     'c4000000-0000-0000-0000-000000000001',
@@ -685,7 +696,7 @@ select is(
 );
 select throws_ok(
   $$
-    select private.submit_order(
+    select private.submit_order_with_payment(
       'c2000000-0000-0000-0000-000000000001',
       'c3000000-0000-0000-0000-000000000001',
       'c4000000-0000-0000-0000-000000000001',
@@ -889,7 +900,7 @@ set local role service_role;
 
 select lives_ok(
   $$
-    select private.submit_order(
+    select private.submit_order_with_payment(
       'c2000000-0000-0000-0000-000000000001',
       'c3000000-0000-0000-0000-000000000001',
       'c4000000-0000-0000-0000-000000000001',

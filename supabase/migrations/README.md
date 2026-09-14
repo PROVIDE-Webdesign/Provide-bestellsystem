@@ -25,7 +25,12 @@ veröffentlichte Speisekartenversion atomar mit der reservierten Slot-Kapazität
 unveränderliche Positions- und Preissnapshots und erzwingt einen kontrollierten, append-only
 protokollierten Bestellstatus. Direkte Bestellschreibrechte bleiben auch für die Service-Rolle
 gesperrt; Einreichung und Statuswechsel erfolgen ausschließlich über die dafür vorgesehenen
-Funktionen.
+Funktionen. Die Zahlungsmigration ergänzt für jede neue Bestellung eine anbieterunabhängige
+Zahlungsanforderung, idempotente Zahlungsversuche, deduplizierte Metadaten API-verifizierter
+Anbieterereignisse und einen append-only Zahlungsverlauf. Betrag und Währung stammen ausschließlich
+aus dem Bestell-Snapshot. Der bisherige Bestelleingang ist für die Service-Rolle gesperrt; der neue
+Einstieg erstellt Bestellung und Zahlungsanforderung atomar. Onlinezahlungen bleiben durch
+`payment.online` standardmäßig deaktiviert.
 
 Bereits angewendete Migrationen werden nicht nachträglich verändert. Korrekturen erfolgen immer in
 einer neuen Migration.

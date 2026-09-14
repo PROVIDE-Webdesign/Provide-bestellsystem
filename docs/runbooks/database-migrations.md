@@ -256,6 +256,51 @@ Vor einem späteren Preview-Rollout sind mit synthetischen Daten mindestens dies
 Echte Bestellungen und personenbezogene Daten bleiben bis zu einem gesondert freigegebenen
 Checkout-, Datenschutz- und Aufbewahrungsblock verboten.
 
+## Zahlungsanforderungen und verifizierte Anbieterereignisse
+
+Neue Bestellungen werden serverseitig ausschließlich über `private.submit_order_with_payment`
+angelegt. Die Funktion speichert Bestellung und Zahlungsanforderung atomar. Betrag und Währung
+werden aus dem Bestell-Snapshot übernommen. `online` verlangt zusätzlich das aktivierte
+Restaurant-Feature `payment.online`; ohne ausdrückliche Aktivierung schlägt der Vorgang geschlossen
+fehl. `on_fulfillment` erzeugt keine Onlinezahlung und bleibt als eigene Abwicklungsart erkennbar.
+
+Ein Zahlungsversuch wird erst angelegt, nachdem ein zukünftiger API-Adapter beim Anbieter eine
+Referenz mit einem wiederverwendbaren PROVIDE-Idempotenzschlüssel erzeugt hat. Dafür ruft der Server
+`private.create_payment_attempt` auf. Anbieterreferenzen sind keine Geheimnisse, dürfen aber nicht
+in Browserantworten, Outbox-Nutzdaten oder allgemeine Logs übernommen werden.
+
+Webhook-Verarbeitung erfolgt später in dieser Reihenfolge:
+
+1. Der API-Adapter liest den unveränderten Request-Body mit einer festen Größenbegrenzung.
+2. Er wählt den Anbieter ausschließlich aus der konfigurierten Route, niemals aus einem untrusted
+   Request-Feld.
+3. Er prüft Signatur, Zeitfenster und gegebenenfalls die Anbieterversion mit einem Secret der
+   jeweiligen Laufzeitumgebung.
+4. Erst danach extrahiert er die minimale Ereignis-ID, Zahlungsreferenz, Ereignisart, Betrag,
+   Währung und Ereigniszeit.
+5. Er bildet einen SHA-256-Digest des für die Signatur verwendeten Rohinhalts und ruft
+   `private.apply_verified_payment_event` auf.
+6. Die Datenbank prüft Mandantenzuordnung, Betrag, Währung, Zustandswechsel und Idempotenz und
+   schreibt Provider-, Status- und Outbox-Ereignis atomar.
+
+Der Webhook-Rohinhalt, Karten- oder Kontodaten, Kundenkontaktdaten, API-Schlüssel und
+Webhook-Geheimnisse werden weder in der PROVIDE-Datenbank noch im Repository gespeichert. Eine
+identische Wiederholung derselben Anbieterereignis-ID liefert dasselbe Ergebnis. Abweichende
+Metadaten unter derselben Ereignis-ID sind ein Sicherheitsfehler und werden nicht verarbeitet.
+
+Vor einem späteren Preview-Rollout sind mit einem ausgewählten Anbieter und ausschließlich
+synthetischen Daten zusätzlich zu den Datenbanktests mindestens diese Fälle nachzuweisen:
+
+1. Erfolgreiche Zahlung mit korrekt geprüfter Signatur.
+2. Ungültige, fehlende und veraltete Signatur.
+3. Mehrfache identische Zustellung desselben Webhooks.
+4. Ereignis mit falschem Betrag, falscher Währung oder fremder Zahlungsreferenz.
+5. Webhooks in unerwarteter Reihenfolge sowie verspätete Ereignisse nach Stornierung.
+6. Vollständiger Abgleich zwischen Anbieterbestand und PROVIDE-Zahlungsverlauf.
+
+Echte Zahlungen, Anbieter-Secrets, automatische Erstattungen und die Aktivierung von
+`payment.online` bleiben bis zu einem eigenen Provider-, Datenschutz- und Preview-Gate gesperrt.
+
 ## Feature-Flags
 
 Bekannte Features werden in `public.feature_definitions` registriert. Optionale Einträge in
