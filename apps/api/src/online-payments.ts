@@ -329,9 +329,34 @@ export async function handleStripeWebhook(
       Number(request.headers.get("content-length") ?? 0) > 256 * 1024
     )
       return new Response(null, { status: 400 });
-    const bytes = await request.arrayBuffer();
-    if (bytes.byteLength > 256 * 1024) return new Response(null, { status: 413 });
-    const raw = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes);
+    const reader = request.body?.getReader();
+    if (!reader) return new Response(null, { status: 400 });
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    try {
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        const value: unknown = chunk.value;
+        if (!(value instanceof Uint8Array)) return new Response(null, { status: 400 });
+        size += value.byteLength;
+        if (size > 256 * 1024) {
+          await reader.cancel();
+          return new Response(null, { status: 413 });
+        }
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    // Preserve a BOM as a character: stripping it would verify different bytes from the request.
+    const raw = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
     if (
       !(await verifyStripeWebhook(
         raw,

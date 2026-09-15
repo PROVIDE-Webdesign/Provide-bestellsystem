@@ -4,6 +4,7 @@ import {
   createPaymentToken,
   verifyPaymentToken,
   processOnlinePayment,
+  handleStripeWebhook,
 } from "./online-payments.js";
 import { createStatusAccessToken } from "./status-token.js";
 import { verifyStripeWebhook, type SandboxProvider } from "./stripe-sandbox.js";
@@ -18,6 +19,81 @@ const config = {
   returnOrigin: "https://store.example.test",
 };
 describe("online payment boundaries", () => {
+  it("acknowledges a signed event only after storage and rejects modified raw bytes", async () => {
+    const env = {
+      APP_ENV: "test",
+      ONLINE_PAYMENT_PROCESSING_ENABLED: "true",
+      STRIPE_TEST_SECRET_KEY: config.key,
+      STRIPE_TEST_ACCOUNT_ID: config.account,
+      STRIPE_TEST_WEBHOOK_SECRET: config.webhookSecret,
+      PAYMENT_ACCESS_SECRET: secret,
+      PAYMENT_RETURN_ORIGIN: config.returnOrigin,
+      HYPERDRIVE: { connectionString: "synthetic" },
+      HYPERDRIVE_CACHE_DISABLED: "true",
+    };
+    const event = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("storage unavailable"))
+      .mockResolvedValue(undefined);
+    const repo: OnlineRepository = {
+      submit: vi.fn(),
+      read: vi.fn(),
+      resume: vi.fn(),
+      claim: vi.fn(),
+      bind: vi.fn(),
+      sync: vi.fn(),
+      fail: vi.fn(),
+      event,
+    };
+    const raw = JSON.stringify({
+      id: "evt_synthetic",
+      livemode: false,
+      type: "checkout.session.completed",
+      data: { object: { id: "cs_test_synthetic" } },
+    });
+    const timestamp = Math.floor(Date.now() / 1000);
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(config.webhookSecret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const bytes = await crypto.subtle.sign(
+      "HMAC",
+      key,
+      new TextEncoder().encode(timestamp + "." + raw),
+    );
+    const signature =
+      "t=" +
+      timestamp +
+      ",v1=" +
+      Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, "0")).join("");
+    const send = (body: string) =>
+      handleStripeWebhook(
+        new Request("https://api.test/v1/payments/stripe/webhook", {
+          method: "POST",
+          headers: { "stripe-signature": signature },
+          body,
+        }),
+        env,
+        repo,
+        { requestId: id },
+      );
+    expect((await send(raw)).status).toBe(503);
+    expect((await send(raw)).status).toBe(204);
+    expect((await send("\uFEFF" + raw)).status).toBe(400);
+    expect((await send(raw + " ")).status).toBe(400);
+    expect((await send("x".repeat(256 * 1024 + 1))).status).toBe(413);
+    expect(event).toHaveBeenCalledTimes(2);
+    expect(event.mock.calls[1]?.slice(1, 5)).toEqual([
+      "acct_synthetic",
+      "evt_synthetic",
+      "checkout.session.completed",
+      "cs_test_synthetic",
+    ]);
+    expect(JSON.stringify(event.mock.calls)).not.toContain(raw);
+  });
   it("rejects live keys and production while accepting an explicit sandbox configuration", () => {
     const env = {
       APP_ENV: "test",

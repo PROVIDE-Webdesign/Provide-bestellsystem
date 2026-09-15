@@ -29,7 +29,7 @@ Staging-Pilot.
   endfreigegeben und über PR #7 in `main` zusammengeführt.
 - Umsetzung und Nachweise: [Arbeitsblock 3.8](docs/work-blocks/3.8-secure-delivery-orders.md).
 - Arbeitsblock 3.9 – Onlinezahlungen im Testbetrieb – ist formal freigegeben und umgesetzt;
-  technische Prüfung und echter Stripe-Sandbox-Nachweis stehen noch aus.
+  automatisierte Prüfungen sind erfolgreich, der echte Stripe-Sandbox-Nachweis steht noch aus.
 - Umsetzung und Nachweise: [Arbeitsblock 3.9](docs/work-blocks/3.9-sandbox-online-payments.md).
 - Gesamtfortschritt des freigegebenen MVP-Umfangs: **84 %** (gewichtete Schätzung, etwa ±2
   Prozentpunkte).
