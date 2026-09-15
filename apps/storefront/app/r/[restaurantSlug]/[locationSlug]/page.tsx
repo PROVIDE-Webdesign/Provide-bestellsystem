@@ -9,6 +9,7 @@ export default async function Page({
   return (
     <Storefront
       {...scope}
+      onlinePaymentEnabled={env.PUBLIC_ONLINE_PAYMENT_ENABLED === "true"}
       privacyNoticeVersion={env.PUBLIC_CHECKOUT_PRIVACY_NOTICE_VERSION ?? "unconfigured"}
     />
   );
