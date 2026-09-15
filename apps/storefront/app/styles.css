@@ -125,6 +125,10 @@ address {
   color: #526354;
 }
 .storefront-grid {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 350px);
   gap: 48px;

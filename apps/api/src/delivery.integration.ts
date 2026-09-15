@@ -104,7 +104,7 @@ export async function verifyDeliveryIntegration(
     "https://api.test/v1/dashboard/restaurants/f2000000-0000-0000-0000-000000000001/locations/f3000000-0000-0000-0000-000000000001/orders";
   const list = await worker.fetch(
     new Request(`${dashboard}?fulfillmentType=delivery`, {
-      headers: { authorization: "Bearer synthetic" },
+      headers: { authorization: "Bearer header.payload.signature" },
     }),
     env,
   );
@@ -113,7 +113,7 @@ export async function verifyDeliveryIntegration(
   expect(listData.data.orders).toHaveLength(1);
   const detail = await worker.fetch(
     new Request(`${dashboard}/${confirmation.orderId}`, {
-      headers: { authorization: "Bearer synthetic" },
+      headers: { authorization: "Bearer header.payload.signature" },
     }),
     env,
   );
@@ -150,7 +150,10 @@ export async function verifyDeliveryIntegration(
     const response = await worker.fetch(
       new Request(`${dashboard}/${confirmation.orderId}/status`, {
         method: "POST",
-        headers: { authorization: "Bearer synthetic", "content-type": "application/json" },
+        headers: {
+          authorization: "Bearer header.payload.signature",
+          "content-type": "application/json",
+        },
         body: JSON.stringify({ expectedStatus: from, targetStatus: to }),
       }),
       env,
@@ -175,7 +178,10 @@ export async function verifyDeliveryIntegration(
   const done = await worker.fetch(
     new Request(`${dashboard}/${confirmation.orderId}/status`, {
       method: "POST",
-      headers: { authorization: "Bearer synthetic", "content-type": "application/json" },
+      headers: {
+        authorization: "Bearer header.payload.signature",
+        "content-type": "application/json",
+      },
       body: JSON.stringify({ expectedStatus: "ready", targetStatus: "completed" }),
     }),
     env,
