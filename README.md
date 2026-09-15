@@ -10,11 +10,14 @@ Staging-Pilot.
 - Arbeitsblock 3.1 ist abgeschlossen und formal freigegeben.
 - Arbeitsblock 3.2 ist technisch endfreigegeben und über PR #1 in `main` zusammengeführt.
 - Umsetzung und Nachweise: [Arbeitsblock 3.2](docs/work-blocks/3.2-public-storefront.md).
-- Arbeitsblock 3.3 – Warenkorb und sicherer Gast-Abholcheckout – ist technisch endfreigegeben; die
-  Zusammenführung von PR #2 ist freigegeben.
+- Arbeitsblock 3.3 – Warenkorb und sicherer Gast-Abholcheckout – ist technisch endfreigegeben und
+  über PR #2 in `main` zusammengeführt.
 - Umsetzung und Nachweise: [Arbeitsblock 3.3](docs/work-blocks/3.3-guest-pickup-checkout.md).
 - Gesamtfortschritt des freigegebenen MVP-Umfangs: **55 %**.
-- Das Deployment von Arbeitsblock 3.3 steht aus.
+- Arbeitsblock 3.4 – sicherer öffentlicher Gast-Bestellstatus – ist im Umfang formal freigegeben und
+  befindet sich in der technischen Prüfung.
+- Umsetzung und Nachweise: [Arbeitsblock 3.4](docs/work-blocks/3.4-public-order-status.md).
+- Das Deployment der kundenbezogenen Arbeitsblöcke steht aus.
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 
 ## Geplante Anwendungen

@@ -19,15 +19,18 @@ Produktionsdaten in Development, Test oder Preview ist ausgeschlossen.
 
 ## Variablenvertrag
 
-| Variable                | Sichtbarkeit | Zweck                                         |
-| ----------------------- | ------------ | --------------------------------------------- |
-| `APP_ENV`               | Öffentlich   | Aktuelle Laufzeitumgebung                     |
-| `PUBLIC_STOREFRONT_URL` | Öffentlich   | Basisadresse der Kundenoberfläche             |
-| `PUBLIC_DASHBOARD_URL`  | Öffentlich   | Basisadresse des Dashboards                   |
-| `PUBLIC_API_URL`        | Öffentlich   | Öffentliche API-Basisadresse                  |
-| `DATABASE_URL`          | Nur Server   | PostgreSQL-Verbindung der jeweiligen Umgebung |
-| `AUTH_SESSION_SECRET`   | Nur Server   | Signierung und Schutz von Sitzungen           |
-| `API_ALLOWED_ORIGINS`   | Öffentlich   | Kommagetrennte CORS-Allowlist der API         |
+| Variable                             | Sichtbarkeit | Zweck                                                 |
+| ------------------------------------ | ------------ | ----------------------------------------------------- |
+| `APP_ENV`                            | Öffentlich   | Aktuelle Laufzeitumgebung                             |
+| `PUBLIC_STOREFRONT_URL`              | Öffentlich   | Basisadresse der Kundenoberfläche                     |
+| `PUBLIC_DASHBOARD_URL`               | Öffentlich   | Basisadresse des Dashboards                           |
+| `PUBLIC_API_URL`                     | Öffentlich   | Öffentliche API-Basisadresse                          |
+| `DATABASE_URL`                       | Nur Server   | PostgreSQL-Verbindung der jeweiligen Umgebung         |
+| `AUTH_SESSION_SECRET`                | Nur Server   | Signierung und Schutz von Sitzungen                   |
+| `API_ALLOWED_ORIGINS`                | Öffentlich   | Kommagetrennte CORS-Allowlist der API                 |
+| `ORDER_STATUS_READ_ENABLED`          | Nur Server   | Explizites Laufzeit-Gate für öffentliche Statusabrufe |
+| `ORDER_STATUS_TOKEN_SECRET`          | Nur Server   | Aktuelles HMAC-Secret für Statusberechtigungen        |
+| `ORDER_STATUS_TOKEN_SECRET_PREVIOUS` | Nur Server   | Optionales vorheriges Secret während Rotation         |
 
 Neue Variablen werden erst nach Einordnung als öffentlich oder serverseitig ergänzt. Anbieterwerte
 für Stripe, Supabase, E-Mail oder Adressprüfung werden erst mit dem jeweiligen Technikblock
@@ -38,6 +41,11 @@ tatsächlichen Hyperdrive-Konfiguration. Die Variable enthält kein Secret und s
 Cache nicht selbst aus. Die Storefront verwendet `PUBLIC_API_URL` ausschließlich als feste
 öffentliche API-Basisadresse. Details und lokale Overrides:
 [Storefront-Runbook](public-storefront.md).
+
+Status-Secrets müssen mindestens 32 Byte lang sein und werden ausschließlich im Secret-Speicher der
+Laufzeit hinterlegt. Sie dürfen nicht als Wrangler-`vars`, öffentliche Bindings oder echte Werte in
+Beispieldateien gelangen. Rotation und lokale Prüfung stehen im
+[Status-Runbook](public-order-status.md).
 
 ## Lokale Einrichtung
 

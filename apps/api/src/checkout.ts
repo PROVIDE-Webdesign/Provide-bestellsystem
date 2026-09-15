@@ -8,11 +8,18 @@ import type { RequestContext } from "./context.js";
 import { jsonError, jsonSuccess, readJsonBody, RequestBodyError } from "./http.js";
 import type { ApiLogger } from "./logger.js";
 import type { StorefrontRoute } from "./storefront.js";
+import {
+  createStatusAccessToken,
+  hasValidStatusSecret,
+  statusAvailableUntil,
+} from "./status-token.js";
 
 export interface CheckoutEnvironment {
   readonly CHECKOUT_WRITE_ENABLED?: string;
   readonly CHECKOUT_PRIVACY_NOTICE_VERSION?: string;
   readonly CHECKOUT_RETENTION_DAYS?: string;
+  readonly ORDER_STATUS_READ_ENABLED?: string;
+  readonly ORDER_STATUS_TOKEN_SECRET?: string;
   readonly HYPERDRIVE_CACHE_DISABLED?: string;
   readonly HYPERDRIVE?: { readonly connectionString: string };
 }
@@ -47,6 +54,8 @@ export async function handleGuestPickupOrder(
     !isStorefrontScope(route) ||
     request.url.length > 2048 ||
     env.CHECKOUT_WRITE_ENABLED !== "true" ||
+    env.ORDER_STATUS_READ_ENABLED !== "true" ||
+    !hasValidStatusSecret(env.ORDER_STATUS_TOKEN_SECRET) ||
     !env.HYPERDRIVE ||
     env.HYPERDRIVE_CACHE_DISABLED !== "true"
   )
@@ -79,7 +88,24 @@ export async function handleGuestPickupOrder(
   };
   try {
     const result = await writer.submit(env.HYPERDRIVE.connectionString, command, retentionDays);
-    const confirmation = parseGuestPickupOrderConfirmation(result);
+    const source =
+      result !== null && typeof result === "object" && !Array.isArray(result)
+        ? (result as Record<string, unknown>)
+        : undefined;
+    if (!source || typeof source.orderId !== "string" || typeof source.requestedFor !== "string")
+      throw new Error("Invalid checkout confirmation");
+    const availableUntil = statusAvailableUntil(source.requestedFor);
+    if (!availableUntil) throw new Error("Invalid checkout status expiry");
+    const statusAccessToken = await createStatusAccessToken(
+      env.ORDER_STATUS_TOKEN_SECRET,
+      route,
+      source.orderId,
+    );
+    const confirmation = parseGuestPickupOrderConfirmation({
+      ...source,
+      statusAccessToken,
+      statusAvailableUntil: availableUntil,
+    });
     if (!confirmation) throw new Error("Invalid checkout confirmation");
     return jsonSuccess(confirmation, context.requestId, 201, cors);
   } catch {

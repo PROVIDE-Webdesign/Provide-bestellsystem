@@ -17,6 +17,8 @@ const env = {
   CHECKOUT_WRITE_ENABLED: "true",
   CHECKOUT_PRIVACY_NOTICE_VERSION: "preview-v1",
   CHECKOUT_RETENTION_DAYS: "30",
+  ORDER_STATUS_READ_ENABLED: "true",
+  ORDER_STATUS_TOKEN_SECRET: "synthetic-checkout-status-secret-at-least-32-bytes",
   HYPERDRIVE_CACHE_DISABLED: "true",
   HYPERDRIVE: { connectionString: "postgresql://synthetic.invalid/db" },
 };
@@ -50,7 +52,13 @@ describe("guest pickup checkout API", () => {
       }),
       30,
     );
-    expect(await response.text()).not.toContain("hidden");
+    const text = await response.text();
+    expect(text).not.toContain("hidden");
+    const payload = JSON.parse(text) as {
+      data?: { statusAccessToken?: unknown; statusAvailableUntil?: unknown };
+    };
+    expect(payload.data?.statusAccessToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(payload.data?.statusAvailableUntil).toBe("2026-09-17T12:00:00.000Z");
   });
 
   it("fails closed unless every server-side write setting is explicit", async () => {
@@ -61,6 +69,8 @@ describe("guest pickup checkout API", () => {
       { ...env, HYPERDRIVE_CACHE_DISABLED: "false" },
       { ...env, CHECKOUT_PRIVACY_NOTICE_VERSION: "" },
       { ...env, CHECKOUT_RETENTION_DAYS: "731" },
+      { ...env, ORDER_STATUS_READ_ENABLED: "false" },
+      { ...env, ORDER_STATUS_TOKEN_SECRET: "short" },
       {
         APP_ENV: "test",
         CHECKOUT_WRITE_ENABLED: "true",

@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   isStorefrontScope,
   parseGuestPickupOrderConfirmation,
   parsePublicAvailability,
   parsePublicCatalog,
+  parsePublicOrderStatus,
   type FulfillmentType,
   type GuestPickupOrderConfirmation,
   type PublicCatalog,
+  type PublicOrderStatus,
   type StorefrontScope,
 } from "@provide/contracts";
 import {
@@ -19,10 +21,30 @@ import {
   type CartLine,
 } from "./cart";
 import { locationTimeToInstant } from "./time";
+import {
+  orderStatusStorageKey,
+  parseStoredOrderStatusAccess,
+  type StoredOrderStatusAccess,
+} from "./status-storage";
 
 interface StorefrontProps extends StorefrontScope {
   readonly privacyNoticeVersion: string;
 }
+
+const terminalStatuses: readonly PublicOrderStatus["status"][] = [
+  "completed",
+  "rejected",
+  "cancelled",
+];
+const statusLabels: Record<PublicOrderStatus["status"], string> = {
+  submitted: "Bestellung eingegangen",
+  accepted: "Bestellung angenommen",
+  preparing: "Wird zubereitet",
+  ready: "Abholbereit",
+  completed: "Bestellung abgeschlossen",
+  rejected: "Bestellung abgelehnt",
+  cancelled: "Bestellung storniert",
+};
 
 export default function Storefront(scope: StorefrontProps) {
   const [catalog, setCatalog] = useState<PublicCatalog | null>(null);
@@ -41,9 +63,14 @@ export default function Storefront(scope: StorefrontProps) {
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [checkoutState, setCheckoutState] = useState<"idle" | "submitting" | "error">("idle");
   const [confirmation, setConfirmation] = useState<GuestPickupOrderConfirmation | null>(null);
+  const [orderStatus, setOrderStatus] = useState<PublicOrderStatus | null>(null);
+  const [statusAccess, setStatusAccess] = useState<StoredOrderStatusAccess | null>(null);
+  const [statusState, setStatusState] = useState<"idle" | "loading" | "error">("idle");
+  const [statusMessage, setStatusMessage] = useState("");
   const submissionKey = useRef<string | null>(null);
   const availabilityRequest = useRef<AbortController | null>(null);
   const checkoutRequest = useRef<AbortController | null>(null);
+  const statusRequest = useRef<AbortController | null>(null);
   const base = `/api/storefront/${encodeURIComponent(scope.restaurantSlug)}/${encodeURIComponent(scope.locationSlug)}`;
   const validScope = isStorefrontScope(scope);
   const totalQuantity = cartItemCount(cart);
@@ -67,6 +94,95 @@ export default function Storefront(scope: StorefrontProps) {
     setAnswer("");
     setChecking(false);
   }
+
+  const clearStoredStatus = useCallback(() => {
+    const key = orderStatusStorageKey(scope);
+    if (key)
+      try {
+        sessionStorage.removeItem(key);
+      } catch {
+        // Storage is optional; the in-memory capability remains the primary source.
+      }
+  }, [scope.locationSlug, scope.restaurantSlug]);
+
+  const refreshOrderStatus = useCallback(
+    async (access: StoredOrderStatusAccess) => {
+      const controller = new AbortController();
+      statusRequest.current?.abort();
+      statusRequest.current = controller;
+      setStatusState("loading");
+      setStatusMessage("");
+      try {
+        const response = await fetch(`${base}/order-status`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            orderId: access.orderId,
+            statusAccessToken: access.statusAccessToken,
+          }),
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        if (response.status === 404) {
+          clearStoredStatus();
+          setStatusAccess(null);
+          setOrderStatus(null);
+          setConfirmation(null);
+          setStatusMessage("Dieser Bestellstatus ist nicht mehr verfügbar.");
+          setStatusState("idle");
+          return;
+        }
+        if (!response.ok) throw new Error("Status read failed");
+        const body = (await response.json()) as { data?: unknown };
+        const result = parsePublicOrderStatus(body.data);
+        if (!result || result.orderId !== access.orderId) throw new Error("Invalid status");
+        setOrderStatus(result);
+        setStatusState("idle");
+      } catch {
+        if (!controller.signal.aborted) {
+          setStatusState("error");
+          setStatusMessage("Der Bestellstatus konnte gerade nicht aktualisiert werden.");
+        }
+      } finally {
+        if (statusRequest.current === controller) statusRequest.current = null;
+      }
+    },
+    [base, clearStoredStatus],
+  );
+
+  useEffect(() => {
+    const key = orderStatusStorageKey(scope);
+    if (!key) return;
+    statusRequest.current?.abort();
+    setStatusAccess(null);
+    setOrderStatus(null);
+    setConfirmation(null);
+    setStatusMessage("");
+    try {
+      const stored = parseStoredOrderStatusAccess(sessionStorage.getItem(key));
+      if (stored) setStatusAccess(stored);
+      else sessionStorage.removeItem(key);
+    } catch {
+      // Status remains available in memory when browser storage is unavailable.
+    }
+  }, [scope.locationSlug, scope.restaurantSlug]);
+
+  useEffect(() => {
+    if (!statusAccess) return;
+    const refreshVisible = () => {
+      if (document.visibilityState === "visible") void refreshOrderStatus(statusAccess);
+    };
+    refreshVisible();
+    if (orderStatus && terminalStatuses.includes(orderStatus.status)) return;
+    const interval = window.setInterval(refreshVisible, 20_000);
+    document.addEventListener("visibilitychange", refreshVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshVisible);
+      statusRequest.current?.abort();
+    };
+  }, [orderStatus?.status, refreshOrderStatus, statusAccess]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -110,6 +226,7 @@ export default function Storefront(scope: StorefrontProps) {
       controller.abort();
       availabilityRequest.current?.abort();
       checkoutRequest.current?.abort();
+      statusRequest.current?.abort();
     };
   }, [base, refresh, validScope]);
 
@@ -234,6 +351,21 @@ export default function Storefront(scope: StorefrontProps) {
       const result = parseGuestPickupOrderConfirmation(payload.data);
       if (!result) throw new Error("Invalid confirmation");
       setConfirmation(result);
+      setOrderStatus(null);
+      setStatusMessage("");
+      const access = {
+        orderId: result.orderId,
+        statusAccessToken: result.statusAccessToken,
+        statusAvailableUntil: result.statusAvailableUntil,
+      };
+      setStatusAccess(access);
+      const storageKey = orderStatusStorageKey(scope);
+      if (storageKey)
+        try {
+          sessionStorage.setItem(storageKey, JSON.stringify(access));
+        } catch {
+          // A blocked session store must not invalidate an otherwise confirmed order.
+        }
       setCheckoutState("idle");
       setCart([]);
       setContactName("");
@@ -264,6 +396,51 @@ export default function Storefront(scope: StorefrontProps) {
         </a>
         <span className="preview-label">Testansicht · Checkout standardmäßig gesperrt</span>
       </header>
+      {(confirmation || orderStatus || statusMessage) && (
+        <section className="order-status" aria-labelledby="order-status-title" aria-live="polite">
+          <p className="eyebrow">DEINE ABHOLBESTELLUNG</p>
+          <h2 id="order-status-title">
+            {orderStatus
+              ? statusLabels[orderStatus.status]
+              : confirmation
+                ? statusLabels[confirmation.status]
+                : "Bestellstatus"}
+          </h2>
+          {(orderStatus || confirmation) && (
+            <p>
+              {(orderStatus ?? confirmation)!.itemCount} Gerichte ·{" "}
+              {money(
+                (orderStatus ?? confirmation)!.totalAmountMinor,
+                (orderStatus ?? confirmation)!.currency,
+              )}{" "}
+              · Zahlung bei Abholung
+            </p>
+          )}
+          {confirmation && !orderStatus && (
+            <p>Das Restaurant muss die Bestellung im nächsten Prozessschritt noch annehmen.</p>
+          )}
+          {statusMessage && (
+            <p role="alert" className="status-message">
+              {statusMessage}
+            </p>
+          )}
+          {statusAccess && (
+            <button
+              type="button"
+              className="secondary"
+              disabled={statusState === "loading"}
+              onClick={() => void refreshOrderStatus(statusAccess)}
+            >
+              {statusState === "loading" ? "Status wird aktualisiert …" : "Status aktualisieren"}
+            </button>
+          )}
+          {orderStatus && (
+            <p className="status-updated">
+              Zuletzt aktualisiert: {new Date(orderStatus.updatedAt).toLocaleString("de-DE")}
+            </p>
+          )}
+        </section>
+      )}
       {loadState === "loading" && (
         <section aria-live="polite">
           <h1>Speisekarte wird geladen …</h1>
@@ -566,19 +743,6 @@ export default function Storefront(scope: StorefrontProps) {
                     {cartMessage}
                   </p>
                 </form>
-                {confirmation && (
-                  <section className="confirmation" role="status" aria-live="polite">
-                    <h3>Bestellung wurde übermittelt</h3>
-                    <p>
-                      {confirmation.itemCount} Gerichte ·{" "}
-                      {money(confirmation.totalAmountMinor, confirmation.currency)} · Zahlung bei
-                      Abholung
-                    </p>
-                    <p>
-                      Das Restaurant muss die Bestellung im nächsten Prozessschritt noch annehmen.
-                    </p>
-                  </section>
-                )}
               </aside>
             </div>
           </div>

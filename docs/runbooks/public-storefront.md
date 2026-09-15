@@ -8,6 +8,7 @@
 | API-Katalog        | `GET /v1/storefront/{restaurantSlug}/{locationSlug}/catalog`                  |
 | API-Bestellbarkeit | `GET /v1/storefront/{restaurantSlug}/{locationSlug}/availability`             |
 | Storefront-Gateway | `GET /api/storefront/{restaurantSlug}/{locationSlug}/{catalog\|availability}` |
+| Gast-Bestellstatus | `POST /v1/storefront/{restaurantSlug}/{locationSlug}/order-status`            |
 
 Die Bestellbarkeitsabfrage benötigt exakt `fulfillmentType=pickup|delivery`, `requestedFor` als
 RFC3339-Zeitpunkt mit Sekunden und `Z` oder explizitem Offset sowie `itemCount=1..1000`. Ein
@@ -57,6 +58,9 @@ aktivieren. `supabase/config.toml` lässt automatisches Seeding weiterhin ausges
 4. Laufzeitrechte (`SET ROLE service_role`), Sperren, Verfügbarkeitswechsel und Header gegen die
    echte Preview-Konfiguration erneut prüfen. Verbindung nicht als Browser-Secret veröffentlichen.
 5. Gesonderte Rollout-Freigabe einholen. Ein lokaler Browserlauf ist keine Preview-Freigabe.
+
+Der öffentliche Gast-Bestellstatus und seine zusätzliche HMAC-Konfiguration stehen im
+[Status-Runbook](public-order-status.md).
 
 ## Akzeptanz und verbleibende Nachweise
 

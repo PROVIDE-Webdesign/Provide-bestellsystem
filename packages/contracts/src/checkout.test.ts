@@ -33,6 +33,8 @@ describe("guest pickup checkout contracts", () => {
     expect(
       parseGuestPickupOrderConfirmation({
         orderId: "fa000000-0000-0000-0000-000000000001",
+        statusAccessToken: "a".repeat(43),
+        statusAvailableUntil: "2026-09-17T12:00:00Z",
         status: "submitted",
         fulfillmentType: "pickup",
         paymentCollectionMode: "on_fulfillment",
@@ -44,6 +46,8 @@ describe("guest pickup checkout contracts", () => {
       }),
     ).toEqual({
       orderId: "fa000000-0000-0000-0000-000000000001",
+      statusAccessToken: "a".repeat(43),
+      statusAvailableUntil: "2026-09-17T12:00:00Z",
       status: "submitted",
       fulfillmentType: "pickup",
       paymentCollectionMode: "on_fulfillment",

@@ -18,6 +18,8 @@ export interface GuestPickupOrderCommand extends GuestPickupOrderRequest, Storef
 
 export interface GuestPickupOrderConfirmation {
   readonly orderId: string;
+  readonly statusAccessToken: string;
+  readonly statusAvailableUntil: string;
   readonly status: "submitted";
   readonly fulfillmentType: "pickup";
   readonly paymentCollectionMode: "on_fulfillment";
@@ -32,6 +34,7 @@ const submissionKeyPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/;
 const noticePattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const phonePattern = /^\+[1-9][0-9]{7,14}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const statusAccessTokenPattern = /^[A-Za-z0-9_-]{43}$/;
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -133,11 +136,17 @@ export function parseGuestPickupOrderConfirmation(
     !source ||
     typeof source.orderId !== "string" ||
     !idPattern.test(source.orderId) ||
+    typeof source.statusAccessToken !== "string" ||
+    !statusAccessTokenPattern.test(source.statusAccessToken) ||
+    typeof source.statusAvailableUntil !== "string" ||
+    !isExplicitInstant(source.statusAvailableUntil) ||
     source.status !== "submitted" ||
     source.fulfillmentType !== "pickup" ||
     source.paymentCollectionMode !== "on_fulfillment" ||
     typeof source.requestedFor !== "string" ||
     !isExplicitInstant(source.requestedFor) ||
+    Date.parse(source.statusAvailableUntil) - Date.parse(source.requestedFor) !==
+      48 * 60 * 60 * 1000 ||
     typeof source.currency !== "string" ||
     !/^[A-Z]{3}$/.test(source.currency) ||
     typeof source.totalAmountMinor !== "number" ||
@@ -151,6 +160,8 @@ export function parseGuestPickupOrderConfirmation(
     return undefined;
   return {
     orderId: source.orderId,
+    statusAccessToken: source.statusAccessToken,
+    statusAvailableUntil: source.statusAvailableUntil,
     status: "submitted",
     fulfillmentType: "pickup",
     paymentCollectionMode: "on_fulfillment",

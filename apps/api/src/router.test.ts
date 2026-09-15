@@ -26,4 +26,15 @@ describe("API router", () => {
     expect(routeRequest(new Request(url))).toBeUndefined();
     expect(isKnownPath(new Request(url))).toBe(true);
   });
+
+  it("allows only POST for the public order status capability boundary", () => {
+    const url = "https://api.example.test/v1/storefront/restaurant-a/location-a/order-status";
+    expect(routeRequest(new Request(url, { method: "POST" }))).toEqual({
+      name: "orderStatus",
+      restaurantSlug: "restaurant-a",
+      locationSlug: "location-a",
+    });
+    expect(routeRequest(new Request(url))).toBeUndefined();
+    expect(isKnownPath(new Request(url))).toBe(true);
+  });
 });

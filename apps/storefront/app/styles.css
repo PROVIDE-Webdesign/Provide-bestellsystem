@@ -309,7 +309,8 @@ input:not([type]) {
   border-top: 2px solid #23332b;
 }
 .notice,
-.confirmation {
+.confirmation,
+.order-status {
   border-left: 4px solid #a84513;
   padding: 12px 14px;
   background: #fff7ed;
@@ -318,6 +319,23 @@ input:not([type]) {
   border-left-color: #234f3b;
   background: #eef7f0;
   margin-top: 20px;
+}
+.order-status {
+  border-left-color: #234f3b;
+  background: #eef7f0;
+  margin-bottom: 32px;
+  padding: 24px;
+}
+.order-status .secondary {
+  margin-top: 4px;
+}
+.order-status .status-message {
+  color: #7f2d12;
+}
+.order-status .status-updated {
+  margin: 14px 0 0;
+  color: #526354;
+  font-size: 0.8rem;
 }
 .confirmation h3,
 .confirmation p:last-child {
