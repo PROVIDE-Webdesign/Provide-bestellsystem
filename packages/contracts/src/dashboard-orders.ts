@@ -261,7 +261,7 @@ export function parseDashboardOrderDetail(value: unknown): DashboardOrderDetail 
       !d.recipientName.trim() ||
       d.recipientName.length > 120 ||
       typeof d.phoneE164 !== "string" ||
-      !/^\\+[1-9][0-9]{7,14}$/.test(d.phoneE164)
+      !/^\+[1-9][0-9]{7,14}$/.test(d.phoneE164)
     )
       return undefined;
     const { recipientName, phoneE164, ...address } = d;
