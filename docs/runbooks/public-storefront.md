@@ -23,8 +23,8 @@ minimierten Fehlercode weiter und entfernt interne Fehlertexte.
 1. `pnpm install --frozen-lockfile`, anschließend `pnpm --filter @provide/contracts build`.
 2. Supabase lokal mit `pnpm db:start` starten und alle Migrationen anwenden. Nur eine frische,
    wegwerfbare Testdatenbank verwenden.
-3. `pnpm db:test` ausführen. Die neue pgTAP-Datei lädt `supabase/fixtures/storefront.sql` innerhalb
-   ihrer zurückgerollten Testtransaktion.
+3. `pnpm db:test` ausführen. Die neue pgTAP-Datei lädt `supabase/tests/fixtures/storefront.sql`
+   innerhalb ihrer zurückgerollten Testtransaktion.
 4. Für die zusätzliche API-/Treiberprüfung `TEST_DATABASE_URL` ausschließlich auf diese lokale
    Datenbank setzen, dann
    `pnpm --filter @provide/api exec vitest run src/storefront.integration.test.ts` ausführen. Dieser

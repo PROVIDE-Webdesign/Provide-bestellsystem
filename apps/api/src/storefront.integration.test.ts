@@ -26,7 +26,7 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
     try {
       await admin.query("BEGIN");
       const fixtureSql: string = await readFile(
-        new URL("../../../supabase/fixtures/storefront.sql", import.meta.url),
+        new URL("../../../supabase/tests/fixtures/storefront.sql", import.meta.url),
         "utf8",
       );
       await admin.query(fixtureSql);
