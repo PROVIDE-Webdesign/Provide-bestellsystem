@@ -54,3 +54,8 @@ Routingzustand.
 Die Dashboard-Bestellmigration ergänzt begrenzte, service-only Listen- und Detailprojektionen sowie
 einen gegen veraltete Ansichten geschützten Statusbefehl. Rollen-, MFA-, Standort- und
 Mandantengrenzen werden in jeder Funktion erneut geprüft; Küche erhält keine Kontaktdaten.
+
+Die Benachrichtigungsmigration leitet ausgewählte Bestellereignisse transaktional in einen
+PII-freien Zustellnachweis. Ausschließlich begrenzte Service-Funktionen dürfen Aufträge sperren und
+abschließen; Telefonnummern werden nur kurzzeitig für den aktuell gesperrten SMS-Versuch projiziert.
+Wiederholungen, veraltete Meldungen und Dead Letters besitzen explizite Zustände.

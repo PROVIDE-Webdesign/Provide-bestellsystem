@@ -56,3 +56,11 @@ AAL-, Rollen-, Mandanten- und Standortprüfung je Anfrage und bleiben ohne
 `DASHBOARD_ORDER_OPERATIONS_ENABLED=true` geschlossen. Statusänderungen verlangen den erwarteten
 Ausgangsstatus und verwenden die bestehende transaktionale Statusmaschine. Details stehen im
 [Dashboard-Bestell-Runbook](../../docs/runbooks/dashboard-order-operations.md).
+
+## Transaktionale Bestellbenachrichtigungen
+
+Der Scheduled Handler verarbeitet einmal pro Minute einen auf 25 Einträge begrenzten Batch. Ohne
+`NOTIFICATION_DISPATCH_ENABLED=true`, Datenbankbindung und ausdrücklich konfigurierten Adapter
+beansprucht er keine Aufträge. Das Repository enthält nur einen synthetischen Testadapter und führt
+keinen echten SMS-Versand aus. Details stehen im
+[Benachrichtigungs-Runbook](../../docs/runbooks/order-notifications.md).

@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import fixture from "../../../fixtures/storefront-catalog.json" with { type: "json" };
 import { parseGuestPickupOrderConfirmation } from "@provide/contracts";
 import { createApiWorker } from "./index.js";
+import type { NotificationAdapter } from "./notifications.js";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 // A fresh, migrated disposable database is mandatory; the shared fixture commits synthetic data.
@@ -17,12 +18,30 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       throw new Error("Integration tests require an explicit loopback test database");
     const admin = new Client({ connectionString: databaseUrl });
     await admin.connect();
-    const worker = createApiWorker(undefined, { error: vi.fn() }, undefined, undefined, undefined, {
-      verify: vi.fn().mockResolvedValue({
-        userId: "f1000000-0000-0000-0000-000000000001",
-        aal: "aal2",
-      }),
-    });
+    const sendNotification = vi
+      .fn<NotificationAdapter["send"]>()
+      .mockResolvedValue({ outcome: "accepted" });
+    const notificationAdapter: NotificationAdapter = {
+      configured: true,
+      send: sendNotification,
+    };
+    const worker = createApiWorker(
+      undefined,
+      { error: vi.fn() },
+      undefined,
+      undefined,
+      undefined,
+      {
+        verify: vi.fn().mockResolvedValue({
+          userId: "f1000000-0000-0000-0000-000000000001",
+          aal: "aal2",
+        }),
+      },
+      undefined,
+      undefined,
+      undefined,
+      notificationAdapter,
+    );
     const env = {
       APP_ENV: "test",
       HYPERDRIVE: { connectionString: databaseUrl },
@@ -34,6 +53,7 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       ORDER_STATUS_TOKEN_SECRET: "synthetic-integration-status-secret-at-least-32-bytes",
       DASHBOARD_AUTH_ENABLED: "true",
       DASHBOARD_ORDER_OPERATIONS_ENABLED: "true",
+      NOTIFICATION_DISPATCH_ENABLED: "true",
       SUPABASE_AUTH_ISSUER: "https://project.supabase.co/auth/v1",
       SUPABASE_AUTH_AUDIENCE: "authenticated",
     };
@@ -97,6 +117,20 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
         paymentCollectionMode: "on_fulfillment",
         totalAmountMinor: 2500,
       });
+      const runNotificationSchedule = async () => {
+        const pending: Promise<unknown>[] = [];
+        const waitUntil = (promise: Promise<unknown>) => pending.push(promise);
+        worker.scheduled({} as ScheduledController, env, {
+          waitUntil,
+        } as unknown as ExecutionContext);
+        await Promise.all(pending);
+      };
+      await runNotificationSchedule();
+      expect(sendNotification).toHaveBeenCalledTimes(1);
+      const submittedMessage = sendNotification.mock.calls[0]?.[0];
+      expect(submittedMessage?.idempotencyKey).toMatch(/^notification:[a-f0-9-]+:v1$/);
+      expect(submittedMessage?.destination).toBe("+999100000001");
+      expect(submittedMessage?.body).toContain("eingegangen");
       const statusRequest = (token = orderPayload.statusAccessToken) =>
         worker.fetch(
           new Request(`${base}/order-status`, {
@@ -124,6 +158,12 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
         ],
       );
       await admin.query("COMMIT");
+      await runNotificationSchedule();
+      expect(sendNotification).toHaveBeenCalledTimes(2);
+      const acceptedMessage = sendNotification.mock.calls[1]?.[0];
+      expect(acceptedMessage?.idempotencyKey).toMatch(/^notification:[a-f0-9-]+:v1$/);
+      expect(acceptedMessage?.destination).toBe("+999100000001");
+      expect(acceptedMessage?.body).toContain("angenommen");
       await expect((await statusRequest()).json()).resolves.toMatchObject({
         data: { status: "accepted" },
       });
@@ -183,6 +223,11 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
         "select count(*) from public.orders where submission_key='integration-pickup-order-0001'",
       );
       expect(persisted.rows[0]?.count).toBe("1");
+      const notifications = await admin.query<{ count: string; contains_phone: boolean }>(
+        "select count(*)::text as count, bool_or(row_to_json(delivery)::text like '%999100000001%') as contains_phone from public.notification_deliveries as delivery where order_id=$1::uuid",
+        [orderPayload.orderId],
+      );
+      expect(notifications.rows[0]).toEqual({ count: "2", contains_phone: false });
       expect(
         (
           await read(

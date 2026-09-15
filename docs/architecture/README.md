@@ -30,3 +30,4 @@ Aktueller technischer Nachweis:
 - [Öffentlicher Gast-Bestellstatus](../decisions/0021-public-guest-order-status.md)
 - [Dashboard-Authentifizierung und sicherer Betriebszugang](../decisions/0022-dashboard-authentication-entry.md)
 - [Dashboard-Bestellübersicht und kontrollierte Statusbefehle](../decisions/0023-dashboard-order-operations.md)
+- [Zuverlässige transaktionale Gast-Bestellbenachrichtigungen](../decisions/0024-order-notification-dispatch.md)

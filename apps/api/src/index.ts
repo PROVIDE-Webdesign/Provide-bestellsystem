@@ -16,6 +16,13 @@ import { handleDashboardOrders, type DashboardOrdersReader } from "./dashboard-o
 import { postgresDashboardOrdersReader } from "./dashboard-orders-database.js";
 import { jsonError, jsonSuccess } from "./http.js";
 import { consoleLogger, type ApiLogger } from "./logger.js";
+import {
+  dispatchOrderNotifications,
+  type NotificationAdapter,
+  type NotificationRepository,
+  unconfiguredNotificationAdapter,
+} from "./notifications.js";
+import { postgresNotificationRepository } from "./notifications-database.js";
 import { isKnownPath, routeRequest } from "./router.js";
 
 interface HyperdriveBinding {
@@ -33,6 +40,7 @@ interface Env {
   readonly ORDER_STATUS_TOKEN_SECRET_PREVIOUS?: string;
   readonly DASHBOARD_AUTH_ENABLED?: string;
   readonly DASHBOARD_ORDER_OPERATIONS_ENABLED?: string;
+  readonly NOTIFICATION_DISPATCH_ENABLED?: string;
   readonly SUPABASE_AUTH_ISSUER?: string;
   readonly SUPABASE_AUTH_AUDIENCE?: string;
   readonly HYPERDRIVE_CACHE_DISABLED?: string;
@@ -50,6 +58,8 @@ export function createApiWorker(
   dashboardTokenVerifier: DashboardTokenVerifier = supabaseDashboardTokenVerifier,
   dashboardAccessReader: DashboardAccessReader = postgresDashboardAccessReader,
   dashboardOrdersReader: DashboardOrdersReader = postgresDashboardOrdersReader,
+  notificationRepository: NotificationRepository = postgresNotificationRepository,
+  notificationAdapter: NotificationAdapter = unconfiguredNotificationAdapter,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -162,6 +172,11 @@ export function createApiWorker(
           cors,
         );
       }
+    },
+    scheduled(_controller: ScheduledController, env: Env, context: ExecutionContext) {
+      context.waitUntil(
+        dispatchOrderNotifications(env, notificationRepository, notificationAdapter, logger),
+      );
     },
   };
 }
