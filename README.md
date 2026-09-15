@@ -12,7 +12,8 @@ Staging-Pilot.
 - Umsetzung und Nachweise: [Arbeitsblock 3.2](docs/work-blocks/3.2-public-storefront.md).
 - Gesamtfortschritt des freigegebenen MVP-Umfangs: **45 %**.
 - Arbeitsblock 3.3 – Warenkorb und sicherer Gast-Abholcheckout – ist im Umfang freigegeben und als
-  technischer Kandidat umgesetzt; Endfreigabe, Merge und Deployment stehen aus.
+  technischer Kandidat über PR #2 umgesetzt; die Pflichtprüfungen sind grün, Endfreigabe, Merge und
+  Deployment stehen aus.
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 
 ## Geplante Anwendungen
