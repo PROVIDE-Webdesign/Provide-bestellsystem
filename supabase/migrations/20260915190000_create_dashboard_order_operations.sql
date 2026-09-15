@@ -121,11 +121,17 @@ begin
           'status', selected.status,
           'fulfillmentType', selected.fulfillment_type,
           'paymentCollectionMode', selected.collection_mode,
-          'requestedFor', selected.requested_for,
+          'requestedFor', to_char(
+            selected.requested_for at time zone 'UTC',
+            'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
+          ),
           'currency', selected.currency_code,
           'totalAmountMinor', selected.total_amount_minor,
           'itemCount', selected.item_count,
-          'updatedAt', selected.updated_at,
+          'updatedAt', to_char(
+            selected.updated_at at time zone 'UTC',
+            'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
+          ),
           'allowedTransitions', private.dashboard_order_allowed_transitions(selected.status, actor_role)
         )
         order by selected.requested_for, selected.id
@@ -189,11 +195,17 @@ begin
     'status', order_record.status,
     'fulfillmentType', order_record.fulfillment_type,
     'paymentCollectionMode', payment.collection_mode,
-    'requestedFor', order_record.requested_for,
+    'requestedFor', to_char(
+      order_record.requested_for at time zone 'UTC',
+      'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
+    ),
     'currency', order_record.currency_code,
     'totalAmountMinor', order_record.total_amount_minor,
     'itemCount', order_record.item_count,
-    'updatedAt', order_record.updated_at,
+    'updatedAt', to_char(
+      order_record.updated_at at time zone 'UTC',
+      'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
+    ),
     'allowedTransitions', private.dashboard_order_allowed_transitions(order_record.status, actor_role),
     'contactName', case
       when actor_role in ('owner', 'manager') and contact.purged_at is null then contact.contact_name
@@ -313,7 +325,10 @@ begin
     'data', jsonb_build_object(
       'orderId', current_order.id,
       'status', current_order.status,
-      'updatedAt', current_order.updated_at
+      'updatedAt', to_char(
+        current_order.updated_at at time zone 'UTC',
+        'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
+      )
     )
   );
 end;
