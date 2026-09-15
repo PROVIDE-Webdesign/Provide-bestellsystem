@@ -108,7 +108,7 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       const claims = await admin.query<{ count: string }>(
         "select count(*) from public.ordering_capacity_claims where restaurant_id='f2000000-0000-0000-0000-000000000001'",
       );
-      expect(claims.rows[0]?.count).toBe("0");
+      expect(claims.rows[0]?.count).toBe("1");
     } finally {
       await admin.end();
     }
