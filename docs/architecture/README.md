@@ -29,3 +29,4 @@ Aktueller technischer Nachweis:
 - [Öffentlicher Gast-Checkout für Abholung](../decisions/0020-public-guest-pickup-checkout.md)
 - [Öffentlicher Gast-Bestellstatus](../decisions/0021-public-guest-order-status.md)
 - [Dashboard-Authentifizierung und sicherer Betriebszugang](../decisions/0022-dashboard-authentication-entry.md)
+- [Dashboard-Bestellübersicht und kontrollierte Statusbefehle](../decisions/0023-dashboard-order-operations.md)

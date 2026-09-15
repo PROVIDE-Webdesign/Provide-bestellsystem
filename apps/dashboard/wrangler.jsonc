@@ -13,6 +13,7 @@
   "vars": {
     "APP_ENV": "preview",
     "DASHBOARD_AUTH_ENABLED": "false",
+    "DASHBOARD_ORDER_OPERATIONS_ENABLED": "false",
     "DASHBOARD_API_BASE_URL": "https://replace-with-preview-api.example.invalid",
     "NEXT_PUBLIC_SUPABASE_URL": "https://replace-with-preview-project.supabase.co",
     "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "replace-before-preview",

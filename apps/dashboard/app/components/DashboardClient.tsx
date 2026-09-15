@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { createDashboardBrowserClient } from "@/lib/supabase-browser.js";
 import { MfaPanel } from "./MfaPanel.js";
+import { OrderBoard } from "./OrderBoard.js";
 
 type ViewState =
   | { readonly name: "loading" }
@@ -93,9 +94,11 @@ export function DashboardClient({ enabled }: { readonly enabled: boolean }) {
               ))}
             </ul>
           )}
-          <p className="notice">
-            Bestellübersicht und Statusbearbeitung folgen in Arbeitsblock 3.6.
-          </p>
+          <OrderBoard
+            restaurantId={membership.restaurantId}
+            role={membership.role}
+            locations={membership.locations}
+          />
         </section>
       ))}
     </>
