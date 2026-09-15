@@ -2,7 +2,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public;
 select no_plan();
-\ir fixtures/storefront.sql
+\ir fixtures/storefront.fixture.inc
 
 select ok(has_function_privilege('service_role', 'private.read_storefront_catalog(text,text)', 'execute'), 'server can read public catalog');
 select ok(not has_function_privilege('anon', 'private.read_storefront_catalog(text,text)', 'execute'), 'anon cannot execute catalog SQL');
