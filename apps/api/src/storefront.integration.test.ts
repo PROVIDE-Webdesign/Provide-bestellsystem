@@ -21,6 +21,9 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       APP_ENV: "test",
       HYPERDRIVE: { connectionString: databaseUrl },
       HYPERDRIVE_CACHE_DISABLED: "true",
+      CHECKOUT_WRITE_ENABLED: "true",
+      CHECKOUT_PRIVACY_NOTICE_VERSION: "preview-v1",
+      CHECKOUT_RETENTION_DAYS: "30",
     };
     const base = "https://api.test/v1/storefront/storefront-restaurant-a/storefront-a-mitte";
     try {
@@ -48,6 +51,39 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       ).resolves.toMatchObject({
         data: { status: "available" },
       });
+      const order = await worker.fetch(
+        new Request(`${base}/orders`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            menuId: "f4000000-0000-0000-0000-000000000001",
+            menuVersionId: "f5000000-0000-0000-0000-000000000001",
+            requestedFor: rows[0]!.requested_for,
+            lines: [{ menuItemId: "f6000000-0000-0000-0000-000000000001", quantity: 2 }],
+            submissionKey: "integration-pickup-order-0001",
+            customer: {
+              contactName: "Synthetic Integration Guest",
+              phoneE164: "+999100000001",
+              email: null,
+            },
+            privacyNoticeVersion: "preview-v1",
+          }),
+        }),
+        env,
+      );
+      expect(order.status).toBe(201);
+      await expect(order.json()).resolves.toMatchObject({
+        data: {
+          status: "submitted",
+          fulfillmentType: "pickup",
+          paymentCollectionMode: "on_fulfillment",
+          totalAmountMinor: 2500,
+        },
+      });
+      const persisted = await admin.query<{ count: string }>(
+        "select count(*) from public.orders where submission_key='integration-pickup-order-0001'",
+      );
+      expect(persisted.rows[0]?.count).toBe("1");
       expect(
         (
           await read(

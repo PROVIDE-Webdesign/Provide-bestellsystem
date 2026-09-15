@@ -3,15 +3,28 @@
 import { useEffect, useRef, useState } from "react";
 import {
   isStorefrontScope,
-  parsePublicCatalog,
+  parseGuestPickupOrderConfirmation,
   parsePublicAvailability,
+  parsePublicCatalog,
   type FulfillmentType,
+  type GuestPickupOrderConfirmation,
   type PublicCatalog,
   type StorefrontScope,
 } from "@provide/contracts";
+import {
+  addCartItem,
+  cartItemCount,
+  cartTotalAmountMinor,
+  setCartItemQuantity,
+  type CartLine,
+} from "./cart";
 import { locationTimeToInstant } from "./time";
 
-export default function Storefront(scope: StorefrontScope) {
+interface StorefrontProps extends StorefrontScope {
+  readonly privacyNoticeVersion: string;
+}
+
+export default function Storefront(scope: StorefrontProps) {
   const [catalog, setCatalog] = useState<PublicCatalog | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "missing" | "error">("loading");
   const [refresh, setRefresh] = useState(0);
@@ -20,9 +33,33 @@ export default function Storefront(scope: StorefrontScope) {
   const [itemCount, setItemCount] = useState("1");
   const [answer, setAnswer] = useState("");
   const [checking, setChecking] = useState(false);
+  const [cart, setCart] = useState<readonly CartLine[]>([]);
+  const [cartMessage, setCartMessage] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [phoneE164, setPhoneE164] = useState("");
+  const [email, setEmail] = useState("");
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [checkoutState, setCheckoutState] = useState<"idle" | "submitting" | "error">("idle");
+  const [confirmation, setConfirmation] = useState<GuestPickupOrderConfirmation | null>(null);
+  const submissionKey = useRef<string | null>(null);
   const availabilityRequest = useRef<AbortController | null>(null);
+  const checkoutRequest = useRef<AbortController | null>(null);
   const base = `/api/storefront/${encodeURIComponent(scope.restaurantSlug)}/${encodeURIComponent(scope.locationSlug)}`;
   const validScope = isStorefrontScope(scope);
+  const totalQuantity = cartItemCount(cart);
+  const displayTotal = cartTotalAmountMinor(cart);
+  const currency = cart[0]?.currency ?? catalog?.menus[0]?.currency ?? "EUR";
+
+  const money = (amountMinor: number, currencyCode = currency) =>
+    new Intl.NumberFormat("de-DE", { style: "currency", currency: currencyCode }).format(
+      amountMinor / 100,
+    );
+
+  function invalidateSubmission() {
+    submissionKey.current = null;
+    setCheckoutState("idle");
+    setConfirmation(null);
+  }
 
   function clearAnswer() {
     availabilityRequest.current?.abort();
@@ -34,11 +71,15 @@ export default function Storefront(scope: StorefrontScope) {
   useEffect(() => {
     const controller = new AbortController();
     availabilityRequest.current?.abort();
+    checkoutRequest.current?.abort();
     availabilityRequest.current = null;
+    checkoutRequest.current = null;
     setCatalog(null);
+    setCart([]);
     setAnswer("");
     setChecking(false);
     setLoadState("loading");
+    submissionKey.current = null;
     if (!validScope) {
       setLoadState("missing");
       return;
@@ -68,6 +109,7 @@ export default function Storefront(scope: StorefrontScope) {
     return () => {
       controller.abort();
       availabilityRequest.current?.abort();
+      checkoutRequest.current?.abort();
     };
   }, [base, refresh, validScope]);
 
@@ -81,7 +123,8 @@ export default function Storefront(scope: StorefrontScope) {
       );
       return;
     }
-    if (!/^[1-9]\d{0,3}$/.test(itemCount) || Number(itemCount) > 1000) {
+    const count = totalQuantity > 0 ? totalQuantity : Number(itemCount);
+    if (!Number.isInteger(count) || count < 1 || count > 1000) {
       setAnswer("Bitte gib eine Anzahl zwischen 1 und 1000 ein.");
       return;
     }
@@ -89,7 +132,11 @@ export default function Storefront(scope: StorefrontScope) {
     availabilityRequest.current = controller;
     setChecking(true);
     try {
-      const query = new URLSearchParams({ fulfillmentType, requestedFor, itemCount });
+      const query = new URLSearchParams({
+        fulfillmentType,
+        requestedFor,
+        itemCount: String(count),
+      });
       const response = await fetch(`${base}/availability?${query}`, {
         cache: "no-store",
         signal: controller.signal,
@@ -103,10 +150,9 @@ export default function Storefront(scope: StorefrontScope) {
       if (!response.ok) throw new Error("Read failed");
       const body = (await response.json()) as { data?: unknown };
       const result = parsePublicAvailability(body.data);
-      if (controller.signal.aborted) return;
       setAnswer(
         result.status === "available"
-          ? "Für deine Auswahl ist derzeit Kapazität verfügbar. Es wurde nichts reserviert. Die einzelnen Gerichte werden beim späteren Bestellen erneut geprüft."
+          ? "Für deine Auswahl ist derzeit Kapazität verfügbar. Die endgültige Prüfung erfolgt beim Absenden."
           : "Für deine Auswahl ist aktuell keine Bestellung möglich. Bitte versuche einen anderen Zeitpunkt oder eine andere Bestellart.",
       );
     } catch {
@@ -120,6 +166,93 @@ export default function Storefront(scope: StorefrontScope) {
     }
   }
 
+  async function submitCheckout() {
+    if (!catalog || cart.length === 0 || checkoutState === "submitting") return;
+    setConfirmation(null);
+    const requestedFor = locationTimeToInstant(localTime, catalog.location.timezone);
+    if (!requestedFor) {
+      setCartMessage("Bitte wähle zuerst einen eindeutigen, gültigen Abholzeitpunkt.");
+      return;
+    }
+    if (fulfillmentType !== "pickup") {
+      setCartMessage("Der Checkout für Lieferung folgt in einem späteren Arbeitsblock.");
+      return;
+    }
+    if (!contactName.trim() || !/^\+[1-9][0-9]{7,14}$/.test(phoneE164.trim())) {
+      setCartMessage("Bitte gib einen Namen und eine Telefonnummer im internationalen Format an.");
+      return;
+    }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setCartMessage("Bitte prüfe die optionale E-Mail-Adresse.");
+      return;
+    }
+    if (!privacyAccepted) {
+      setCartMessage("Bitte bestätige, dass du den Datenschutzhinweis gesehen hast.");
+      return;
+    }
+    const key = submissionKey.current ?? crypto.randomUUID();
+    submissionKey.current = key;
+    const controller = new AbortController();
+    checkoutRequest.current?.abort();
+    checkoutRequest.current = controller;
+    setCheckoutState("submitting");
+    setCartMessage("");
+    try {
+      const response = await fetch(`${base}/orders`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        cache: "no-store",
+        signal: controller.signal,
+        body: JSON.stringify({
+          menuId: cart[0]!.menuId,
+          menuVersionId: cart[0]!.menuVersionId,
+          requestedFor,
+          lines: cart.map((line) => ({
+            menuItemId: line.menuItemId,
+            quantity: line.quantity,
+          })),
+          submissionKey: key,
+          customer: {
+            contactName: contactName.trim(),
+            phoneE164: phoneE164.trim(),
+            email: email.trim() ? email.trim().toLowerCase() : null,
+          },
+          privacyNoticeVersion: scope.privacyNoticeVersion,
+        }),
+      });
+      if (controller.signal.aborted) return;
+      if (!response.ok) {
+        setCheckoutState("error");
+        setCartMessage(
+          response.status === 409
+            ? "Die Bestellung konnte nicht angenommen werden. Bitte aktualisiere Speisekarte und Abholzeit."
+            : "Der Checkout ist derzeit nicht verfügbar. Es wurde keine bestätigte Bestellung angezeigt.",
+        );
+        return;
+      }
+      const payload = (await response.json()) as { data?: unknown };
+      const result = parseGuestPickupOrderConfirmation(payload.data);
+      if (!result) throw new Error("Invalid confirmation");
+      setConfirmation(result);
+      setCheckoutState("idle");
+      setCart([]);
+      setContactName("");
+      setPhoneE164("");
+      setEmail("");
+      setPrivacyAccepted(false);
+      submissionKey.current = null;
+    } catch {
+      if (!controller.signal.aborted) {
+        setCheckoutState("error");
+        setCartMessage(
+          "Die Verbindung ist fehlgeschlagen. Du kannst dieselbe Bestellung erneut senden.",
+        );
+      }
+    } finally {
+      if (checkoutRequest.current === controller) checkoutRequest.current = null;
+    }
+  }
+
   return (
     <main className="storefront">
       <a className="skip-link" href="#menu">
@@ -129,7 +262,7 @@ export default function Storefront(scope: StorefrontScope) {
         <a href="/">
           PROVIDE<span> BESTELLEN</span>
         </a>
-        <span className="preview-label">Testansicht · keine Bestellungen</span>
+        <span className="preview-label">Testansicht · Checkout standardmäßig gesperrt</span>
       </header>
       {loadState === "loading" && (
         <section aria-live="polite">
@@ -140,14 +273,14 @@ export default function Storefront(scope: StorefrontScope) {
         <section>
           <h1>Speisekarte derzeit nicht verfügbar</h1>
           <p>Für diesen Standort ist aktuell keine öffentliche Speisekarte verfügbar.</p>
-          <button onClick={() => setRefresh((v) => v + 1)}>Erneut prüfen</button>
+          <button onClick={() => setRefresh((value) => value + 1)}>Erneut prüfen</button>
         </section>
       )}
       {loadState === "error" && (
         <section role="alert">
           <h1>Verbindung gerade nicht möglich</h1>
           <p>Bitte lade die Speisekarte erneut.</p>
-          <button onClick={() => setRefresh((v) => v + 1)}>Erneut laden</button>
+          <button onClick={() => setRefresh((value) => value + 1)}>Erneut laden</button>
         </section>
       )}
       {catalog && (
@@ -172,123 +305,291 @@ export default function Storefront(scope: StorefrontScope) {
               {catalog.menus.map((menu) => (
                 <section className="menu" key={menu.id} aria-label={menu.name}>
                   <h2>{menu.name}</h2>
-                  {menu.sections.length === 0 && (
-                    <p>Hier sind derzeit keine Gerichte veröffentlicht.</p>
-                  )}
                   {menu.sections.map((section) => (
                     <div className="menu-section" key={section.key}>
                       <h3>{section.name}</h3>
-                      {section.items.length === 0 ? (
-                        <p>In dieser Kategorie sind derzeit keine Gerichte verfügbar.</p>
-                      ) : (
-                        <ul className="dishes">
-                          {section.items.map((item) => (
-                            <li key={item.id} className="dish">
-                              <div>
-                                <h4>{item.name}</h4>
-                                {item.description && <p>{item.description}</p>}
-                                {item.availability !== "available" && (
-                                  <span className="availability-badge">
-                                    {item.availability === "sold_out"
-                                      ? "Ausverkauft"
-                                      : "Nicht verfügbar"}
-                                  </span>
-                                )}
-                              </div>
+                      <ul className="dishes">
+                        {section.items.map((item) => (
+                          <li key={item.id} className="dish">
+                            <div>
+                              <h4>{item.name}</h4>
+                              {item.description && <p>{item.description}</p>}
+                              {item.availability !== "available" && (
+                                <span className="availability-badge">
+                                  {item.availability === "sold_out"
+                                    ? "Ausverkauft"
+                                    : "Nicht verfügbar"}
+                                </span>
+                              )}
+                            </div>
+                            <div className="dish-action">
                               <span className="price">
                                 {new Intl.NumberFormat("de-DE", {
                                   style: "currency",
                                   currency: menu.currency,
                                 }).format(item.priceAmountMinor / 100)}
                               </span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                              <button
+                                type="button"
+                                className="add-button"
+                                disabled={item.availability !== "available"}
+                                onClick={() => {
+                                  const next = addCartItem(cart, menu, item);
+                                  if (next === cart)
+                                    setCartMessage(
+                                      "Gerichte aus verschiedenen Speisekarten können noch nicht gemeinsam bestellt werden.",
+                                    );
+                                  else {
+                                    setCart(next);
+                                    setCartMessage("");
+                                    invalidateSubmission();
+                                  }
+                                }}
+                              >
+                                Hinzufügen
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   ))}
                 </section>
               ))}
             </div>
-            <aside className="availability-panel" aria-labelledby="availability-title">
-              <p className="eyebrow">DEIN WUNSCHTERMIN</p>
-              <h2 id="availability-title">Wann passt es dir?</h2>
-              <p>Prüfe die Kapazität für deinen gewünschten Zeitpunkt.</p>
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void checkAvailability();
-                }}
-              >
-                <fieldset>
-                  <legend>Bestellart</legend>
-                  <div className="fulfillment-options">
-                    {(["pickup", "delivery"] as const).map((type) => (
-                      <label key={type}>
-                        <input
-                          type="radio"
-                          name="fulfillment"
-                          value={type}
-                          checked={fulfillmentType === type}
-                          onChange={() => {
-                            clearAnswer();
-                            setFulfillmentType(type);
-                          }}
-                        />
-                        {type === "pickup" ? "Abholung" : "Lieferung"}
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-                <label htmlFor="requested-time">Datum und Uhrzeit</label>
-                <input
-                  id="requested-time"
-                  type="datetime-local"
-                  required
-                  value={localTime}
-                  onChange={(event) => {
-                    clearAnswer();
-                    setLocalTime(event.target.value);
+            <div className="side-column">
+              <aside className="availability-panel" aria-labelledby="availability-title">
+                <p className="eyebrow">DEIN WUNSCHTERMIN</p>
+                <h2 id="availability-title">Wann passt es dir?</h2>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void checkAvailability();
                   }}
-                  aria-describedby="timezone-note"
-                />
-                <p id="timezone-note" className="field-hint">
-                  Ortszeit des Restaurants: {catalog.location.timezone}
-                </p>
-                <label htmlFor="item-count">Anzahl der Gerichte</label>
-                <input
-                  id="item-count"
-                  type="number"
-                  min="1"
-                  max="1000"
-                  step="1"
-                  required
-                  value={itemCount}
-                  onChange={(event) => {
-                    clearAnswer();
-                    setItemCount(event.target.value);
+                >
+                  <fieldset>
+                    <legend>Bestellart</legend>
+                    <div className="fulfillment-options">
+                      {(["pickup", "delivery"] as const).map((type) => (
+                        <label key={type}>
+                          <input
+                            type="radio"
+                            name="fulfillment"
+                            value={type}
+                            checked={fulfillmentType === type}
+                            onChange={() => {
+                              clearAnswer();
+                              invalidateSubmission();
+                              setFulfillmentType(type);
+                            }}
+                          />
+                          {type === "pickup" ? "Abholung" : "Lieferung"}
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <label htmlFor="requested-time">Datum und Uhrzeit</label>
+                  <input
+                    id="requested-time"
+                    type="datetime-local"
+                    required
+                    value={localTime}
+                    onChange={(event) => {
+                      clearAnswer();
+                      invalidateSubmission();
+                      setLocalTime(event.target.value);
+                    }}
+                    aria-describedby="timezone-note"
+                  />
+                  <p id="timezone-note" className="field-hint">
+                    Ortszeit des Restaurants: {catalog.location.timezone}
+                  </p>
+                  {totalQuantity === 0 ? (
+                    <>
+                      <label htmlFor="item-count">Anzahl der Gerichte</label>
+                      <input
+                        id="item-count"
+                        type="number"
+                        min="1"
+                        max="1000"
+                        step="1"
+                        required
+                        value={itemCount}
+                        onChange={(event) => {
+                          clearAnswer();
+                          setItemCount(event.target.value);
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <p>Geprüfte Warenkorbmenge: {totalQuantity}</p>
+                  )}
+                  <button type="submit" disabled={checking}>
+                    {checking ? "Wird geprüft …" : "Verfügbarkeit prüfen"}
+                  </button>
+                  <p className="answer" role="status" aria-live="polite">
+                    {answer}
+                  </p>
+                </form>
+              </aside>
+
+              <aside className="cart-panel" aria-labelledby="cart-title">
+                <p className="eyebrow">DEIN WARENKORB</p>
+                <h2 id="cart-title">{totalQuantity} Gerichte</h2>
+                {cart.length === 0 ? (
+                  <p>Wähle verfügbare Gerichte aus der Speisekarte.</p>
+                ) : (
+                  <>
+                    <ul className="cart-lines">
+                      {cart.map((line) => (
+                        <li key={line.menuItemId}>
+                          <div>
+                            <strong>{line.name}</strong>
+                            <span>{money(line.unitPriceAmountMinor * line.quantity)}</span>
+                          </div>
+                          <div className="quantity-controls">
+                            <button
+                              type="button"
+                              className="secondary compact"
+                              aria-label={`${line.name} einmal weniger`}
+                              onClick={() => {
+                                setCart(
+                                  setCartItemQuantity(cart, line.menuItemId, line.quantity - 1),
+                                );
+                                invalidateSubmission();
+                              }}
+                            >
+                              −
+                            </button>
+                            <span aria-label={`${line.quantity} Stück`}>{line.quantity}</span>
+                            <button
+                              type="button"
+                              className="secondary compact"
+                              aria-label={`${line.name} einmal mehr`}
+                              onClick={() => {
+                                setCart(
+                                  setCartItemQuantity(cart, line.menuItemId, line.quantity + 1),
+                                );
+                                invalidateSubmission();
+                              }}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="cart-total">
+                      <span>Zwischensumme</span>
+                      <strong>{money(displayTotal)}</strong>
+                    </p>
+                    <p className="fine-print">
+                      Verbindliche Preise und Verfügbarkeit werden beim Absenden erneut geprüft.
+                    </p>
+                  </>
+                )}
+
+                {fulfillmentType === "delivery" && (
+                  <p className="notice">
+                    Der Checkout für Lieferung folgt in einem späteren Arbeitsblock.
+                  </p>
+                )}
+                <form
+                  className="checkout-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void submitCheckout();
                   }}
-                />
-                <button type="submit" disabled={checking}>
-                  {checking ? "Wird geprüft …" : "Verfügbarkeit prüfen"}
-                </button>
-                <p className="answer" role="status" aria-live="polite">
-                  {answer}
-                </p>
-              </form>
-              <p className="fine-print">
-                Die Prüfung ist unverbindlich und reserviert weder Gerichte noch einen Termin.
-              </p>
-            </aside>
+                >
+                  <label htmlFor="contact-name">Name</label>
+                  <input
+                    id="contact-name"
+                    autoComplete="name"
+                    maxLength={120}
+                    required
+                    value={contactName}
+                    onChange={(event) => {
+                      invalidateSubmission();
+                      setContactName(event.target.value);
+                    }}
+                  />
+                  <label htmlFor="contact-phone">Telefonnummer</label>
+                  <input
+                    id="contact-phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="+491701234567"
+                    required
+                    value={phoneE164}
+                    onChange={(event) => {
+                      invalidateSubmission();
+                      setPhoneE164(event.target.value);
+                    }}
+                  />
+                  <label htmlFor="contact-email">E-Mail-Adresse (optional)</label>
+                  <input
+                    id="contact-email"
+                    type="email"
+                    autoComplete="email"
+                    maxLength={254}
+                    value={email}
+                    onChange={(event) => {
+                      invalidateSubmission();
+                      setEmail(event.target.value);
+                    }}
+                  />
+                  <label className="privacy-confirmation">
+                    <input
+                      type="checkbox"
+                      checked={privacyAccepted}
+                      onChange={(event) => {
+                        invalidateSubmission();
+                        setPrivacyAccepted(event.target.checked);
+                      }}
+                    />
+                    Ich habe den Datenschutzhinweis für den Test-Checkout gesehen.
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={
+                      cart.length === 0 ||
+                      fulfillmentType !== "pickup" ||
+                      checkoutState === "submitting"
+                    }
+                  >
+                    {checkoutState === "submitting"
+                      ? "Wird übermittelt …"
+                      : "Abholbestellung absenden"}
+                  </button>
+                  <p className="answer" role="status" aria-live="polite">
+                    {cartMessage}
+                  </p>
+                </form>
+                {confirmation && (
+                  <section className="confirmation" role="status" aria-live="polite">
+                    <h3>Bestellung wurde übermittelt</h3>
+                    <p>
+                      {confirmation.itemCount} Gerichte ·{" "}
+                      {money(confirmation.totalAmountMinor, confirmation.currency)} · Zahlung bei
+                      Abholung
+                    </p>
+                    <p>
+                      Das Restaurant muss die Bestellung im nächsten Prozessschritt noch annehmen.
+                    </p>
+                  </section>
+                )}
+              </aside>
+            </div>
           </div>
           <footer>
-            <span>Preise und Verfügbarkeit können sich ändern.</span>
+            <span>Testsystem · keine Livezahlung und kein produktiver Bestellbetrieb.</span>
             <button
               className="secondary"
               onClick={() => {
                 clearAnswer();
                 setCatalog(null);
-                setRefresh((v) => v + 1);
+                setRefresh((value) => value + 1);
               }}
             >
               Speisekarte aktualisieren

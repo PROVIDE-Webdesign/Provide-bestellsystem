@@ -11,6 +11,7 @@ export const apiErrorCodes = [
   "internal_error",
   "method_not_allowed",
   "not_found",
+  "order_unavailable",
   "payload_too_large",
   "service_unavailable",
   "unsupported_media_type",
@@ -33,3 +34,4 @@ export interface ApiSuccessEnvelope<T> {
 
 export * from "./storefront.js";
 export * from "./storefront-output.js";
+export * from "./checkout.js";

@@ -151,6 +151,17 @@ address {
   border-top: 1px solid #d5dacf;
   padding: 24px 0;
 }
+.dish-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+.add-button {
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
 .dish h4,
 .dish p {
   overflow-wrap: anywhere;
@@ -173,13 +184,19 @@ address {
   font-size: 0.8rem;
   border-radius: 4px;
 }
-.availability-panel {
+.side-column {
+  display: grid;
+  gap: 20px;
+}
+.availability-panel,
+.cart-panel {
   background: white;
   border: 1px solid #d5dacf;
   border-radius: 12px;
   padding: 28px;
 }
-.availability-panel p {
+.availability-panel p,
+.cart-panel p {
   color: #526354;
   font-size: 0.9rem;
 }
@@ -214,7 +231,10 @@ input[type="radio"] {
   accent-color: #234f3b;
 }
 input[type="datetime-local"],
-input[type="number"] {
+input[type="number"],
+input[type="email"],
+input[type="tel"],
+input:not([type]) {
   width: 100%;
   min-width: 0;
   min-height: 46px;
@@ -223,6 +243,85 @@ input[type="number"] {
   border-radius: 6px;
   background: white;
   color: #23332b;
+}
+.checkout-form {
+  border-top: 1px solid #d5dacf;
+  margin-top: 24px;
+  padding-top: 20px;
+}
+.checkout-form > label:not(.privacy-confirmation) {
+  display: block;
+  margin: 16px 0 8px;
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+.privacy-confirmation {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 20px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.privacy-confirmation input {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  accent-color: #234f3b;
+}
+.cart-lines {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.cart-lines li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid #d5dacf;
+}
+.cart-lines li > div:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.cart-lines strong,
+.cart-lines span {
+  overflow-wrap: anywhere;
+}
+.quantity-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.compact {
+  min-width: 38px;
+  min-height: 38px;
+  padding: 4px 10px;
+}
+.cart-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 2px solid #23332b;
+}
+.notice,
+.confirmation {
+  border-left: 4px solid #a84513;
+  padding: 12px 14px;
+  background: #fff7ed;
+}
+.confirmation {
+  border-left-color: #234f3b;
+  background: #eef7f0;
+  margin-top: 20px;
+}
+.confirmation h3,
+.confirmation p:last-child {
+  margin-bottom: 0;
 }
 .field-hint {
   margin: 8px 0 22px;
@@ -287,6 +386,9 @@ footer {
   .availability-panel {
     padding: 24px;
   }
+  .cart-panel {
+    padding: 24px;
+  }
   footer {
     flex-direction: column;
     align-items: flex-start;
@@ -296,6 +398,9 @@ footer {
   .dish {
     grid-template-columns: minmax(0, 1fr);
     gap: 10px;
+  }
+  .dish-action {
+    align-items: flex-start;
   }
   .storefront {
     padding-inline: 16px;

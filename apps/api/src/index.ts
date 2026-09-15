@@ -2,6 +2,8 @@ import { isAppEnvironment } from "@provide/contracts";
 
 import { corsHeaders, parseAllowedOrigins } from "./cors.js";
 import { createRequestContext } from "./context.js";
+import { handleGuestPickupOrder, type CheckoutWriter } from "./checkout.js";
+import { postgresCheckoutWriter } from "./checkout-database.js";
 import { handleStorefront, type StorefrontReader } from "./storefront.js";
 import { postgresStorefrontReader } from "./storefront-database.js";
 import { probeDatabase } from "./database.js";
@@ -16,6 +18,9 @@ interface HyperdriveBinding {
 interface Env {
   readonly APP_ENV: string;
   readonly API_ALLOWED_ORIGINS?: string;
+  readonly CHECKOUT_WRITE_ENABLED?: string;
+  readonly CHECKOUT_PRIVACY_NOTICE_VERSION?: string;
+  readonly CHECKOUT_RETENTION_DAYS?: string;
   readonly HYPERDRIVE_CACHE_DISABLED?: string;
   readonly HYPERDRIVE?: HyperdriveBinding;
 }
@@ -26,6 +31,7 @@ export function createApiWorker(
   databaseProbe: DatabaseProbe = probeDatabase,
   logger: ApiLogger = consoleLogger,
   storefrontReader: StorefrontReader = postgresStorefrontReader,
+  checkoutWriter: CheckoutWriter = postgresCheckoutWriter,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -49,6 +55,10 @@ export function createApiWorker(
           );
         }
         return jsonError("not_found", "Resource was not found.", context.requestId, 404, cors);
+      }
+
+      if (route.name === "orders") {
+        return handleGuestPickupOrder(request, route, env, checkoutWriter, context, logger, cors);
       }
 
       if (route.name === "catalog" || route.name === "availability") {

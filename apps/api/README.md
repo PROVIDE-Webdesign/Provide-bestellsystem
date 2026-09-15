@@ -1,7 +1,8 @@
 # API
 
 Cloudflare-Worker mit einer abgesicherten Anfragegrundlage. Arbeitsblock 3.2 ergänzt öffentliche,
-ausschließlich lesende Katalog- und Bestellbarkeitsendpunkte.
+ausschließlich lesende Katalog- und Bestellbarkeitsendpunkte sowie einen standardmäßig gesperrten
+Gast-Checkout für Abholbestellungen.
 
 ## Endpunkte
 
@@ -25,7 +26,10 @@ muss sie nach dem Runbook durch die ID der getrennten Preview-Konfiguration erse
 
 1. `GET /v1/storefront/{restaurantSlug}/{locationSlug}/catalog`
 2. `GET /v1/storefront/{restaurantSlug}/{locationSlug}/availability`
+3. `POST /v1/storefront/{restaurantSlug}/{locationSlug}/orders`
 
 Parameter, Datenbank-/Cachegrenze und lokale Prüfung stehen im
-[Storefront-Runbook](../../docs/runbooks/public-storefront.md). Diese Endpunkte schreiben keine
-Bestellungen, persönlichen Daten oder Reservierungen.
+[Storefront-Runbook](../../docs/runbooks/public-storefront.md). Diese Endpunkte schreiben keine Der
+POST-Endpunkt ist nur mit `CHECKOUT_WRITE_ENABLED=true`, verifizierter Hyperdrive-Konfiguration,
+gültiger Datenschutzhinweis-Version und serverseitiger Aufbewahrungsdauer verwendbar. Er erzwingt
+Abholung und Zahlung bei Übergabe. Ohne diese Konfiguration nimmt die API keine Bestellung an.

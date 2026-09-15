@@ -16,4 +16,14 @@ describe("CORS boundary", () => {
       corsHeaders(request, ["https://storefront.example.test"]).get("access-control-allow-origin"),
     ).toBeNull();
   });
+
+  it("declares the controlled POST boundary for approved browser preflight", () => {
+    const headers = corsHeaders(
+      new Request("https://api.example.test/v1/storefront/a/b/orders", {
+        headers: { origin: "https://storefront.example.test" },
+      }),
+      ["https://storefront.example.test"],
+    );
+    expect(headers.get("access-control-allow-methods")).toContain("POST");
+  });
 });
