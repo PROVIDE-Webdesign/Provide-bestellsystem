@@ -1,11 +1,13 @@
 import type { StorefrontRoute } from "./storefront.js";
 
-export type MatchedRoute = { readonly name: "databaseHealth" | "health" } | StorefrontRoute;
+export type MatchedRoute =
+  { readonly name: "databaseHealth" | "health" | "dashboardAccess" } | StorefrontRoute;
 
 function matchPath(request: Request): MatchedRoute | undefined {
   const path = new URL(request.url).pathname;
   if (path === "/health") return { name: "health" };
   if (path === "/health/database") return { name: "databaseHealth" };
+  if (path === "/v1/dashboard/access-context") return { name: "dashboardAccess" };
   const match =
     /^\/v1\/storefront\/([^/]+)\/([^/]+)\/(catalog|availability|orders|order-status)$/.exec(path);
   if (match) {

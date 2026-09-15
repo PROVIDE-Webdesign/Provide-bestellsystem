@@ -17,7 +17,12 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       throw new Error("Integration tests require an explicit loopback test database");
     const admin = new Client({ connectionString: databaseUrl });
     await admin.connect();
-    const worker = createApiWorker(undefined, { error: vi.fn() });
+    const worker = createApiWorker(undefined, { error: vi.fn() }, undefined, undefined, undefined, {
+      verify: vi.fn().mockResolvedValue({
+        userId: "f1000000-0000-0000-0000-000000000001",
+        aal: "aal2",
+      }),
+    });
     const env = {
       APP_ENV: "test",
       HYPERDRIVE: { connectionString: databaseUrl },
@@ -27,6 +32,9 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       CHECKOUT_RETENTION_DAYS: "30",
       ORDER_STATUS_READ_ENABLED: "true",
       ORDER_STATUS_TOKEN_SECRET: "synthetic-integration-status-secret-at-least-32-bytes",
+      DASHBOARD_AUTH_ENABLED: "true",
+      SUPABASE_AUTH_ISSUER: "https://project.supabase.co/auth/v1",
+      SUPABASE_AUTH_AUDIENCE: "authenticated",
     };
     const base = "https://api.test/v1/storefront/storefront-restaurant-a/storefront-a-mitte";
     try {
@@ -117,6 +125,26 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       await admin.query("COMMIT");
       await expect((await statusRequest()).json()).resolves.toMatchObject({
         data: { status: "accepted" },
+      });
+      const dashboardAccess = await worker.fetch(
+        new Request("https://api.test/v1/dashboard/access-context", {
+          headers: { authorization: "Bearer header.payload.signature" },
+        }),
+        env,
+      );
+      expect(dashboardAccess.status).toBe(200);
+      await expect(dashboardAccess.json()).resolves.toMatchObject({
+        data: {
+          aal: "aal2",
+          memberships: [
+            {
+              access: "allowed",
+              role: "owner",
+              restaurant: { slug: "storefront-restaurant-a" },
+              locations: [{ slug: "storefront-a-mitte" }],
+            },
+          ],
+        },
       });
       const persisted = await admin.query<{ count: string }>(
         "select count(*) from public.orders where submission_key='integration-pickup-order-0001'",

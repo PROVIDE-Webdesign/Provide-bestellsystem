@@ -11,6 +11,9 @@
     "CHECKOUT_PRIVACY_NOTICE_VERSION": "preview-v1",
     "CHECKOUT_RETENTION_DAYS": "30",
     "ORDER_STATUS_READ_ENABLED": "false",
+    "DASHBOARD_AUTH_ENABLED": "false",
+    "SUPABASE_AUTH_ISSUER": "https://replace-with-preview-project.supabase.co/auth/v1",
+    "SUPABASE_AUTH_AUDIENCE": "authenticated",
     "API_ALLOWED_ORIGINS": "https://replace-with-preview-storefront.example.invalid",
   },
   "hyperdrive": [

@@ -45,3 +45,8 @@ Die öffentliche Statusmigration ergänzt eine ausschließlich serverseitige, PI
 bestehende Gast-Abholbestellungen. Sie bleibt unabhängig von einer später pausierten Speisekarte,
 endet 48 Stunden nach der Abholzeit und setzt die vorgelagerte HMAC-Prüfung der API voraus.
 Browserrollen erhalten keine zusätzlichen SQL- oder Tabellenrechte.
+
+Die Dashboard-Zugriffsmigration ergänzt eine ausschließlich serverseitige Projektion der eigenen
+Mitgliedschaften. Restaurant- und Standortprofile werden nur für aktive, rollen- und MFA-berechtigte
+Zugriffe ausgegeben; suspendierte oder noch nicht hochgestufte Sitzungen erhalten nur den minimalen
+Routingzustand.

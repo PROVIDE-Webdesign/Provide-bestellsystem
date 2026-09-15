@@ -1,0 +1,21 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "provide-bs-dashboard-preview",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "vinext/server/fetch-handler",
+  "assets": {
+    "directory": "dist/client",
+    "not_found_handling": "none",
+    "binding": "ASSETS",
+  },
+  "cache": { "enabled": false },
+  "vars": {
+    "APP_ENV": "preview",
+    "DASHBOARD_AUTH_ENABLED": "false",
+    "DASHBOARD_API_BASE_URL": "https://replace-with-preview-api.example.invalid",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://replace-with-preview-project.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "replace-before-preview",
+  },
+  "observability": { "enabled": true },
+}

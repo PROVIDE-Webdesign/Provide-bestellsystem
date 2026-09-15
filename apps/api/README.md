@@ -38,3 +38,12 @@ verwendbar. Er erzwingt Abholung und Zahlung bei Übergabe. Ohne diese Konfigura
 keine Bestellung an. Der Status-POST-Endpunkt verwendet den JSON-Körper, damit seine
 HMAC-Berechtigung nie in einer URL steht. Details stehen im
 [Status-Runbook](../../docs/runbooks/public-order-status.md).
+
+## Geschützter Dashboard-Zugang
+
+`GET /v1/dashboard/access-context` akzeptiert ausschließlich ein Supabase-Zugriffstoken im
+`Authorization: Bearer`-Header. Die API prüft Signatur und Claims gegen die konfigurierte
+Supabase-JWKS, bevor die serverexklusive Datenbankprojektion aktuelle Mitgliedschaft, MFA-Zustand
+und Standortumfang ermittelt. Ohne `DASHBOARD_AUTH_ENABLED=true`, sichere Auth-Konfiguration und
+cachedeaktivierte Hyperdrive-Verbindung bleibt der Endpunkt geschlossen. Details stehen im
+[Dashboard-Auth-Runbook](../../docs/runbooks/dashboard-authentication.md).
