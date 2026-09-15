@@ -8,9 +8,10 @@ Staging-Pilot.
 - Architektur-SoT: `PROVIDE Bestellsystem - Architektur und Arbeitsplan A2`
 - Organisatorische SoT: `PROVIDE Bestellsystem Projektprotokoll V2`
 - Arbeitsblock 3.1 ist abgeschlossen und formal freigegeben.
-- Aktiver Arbeitsblock: `3.2 - Öffentliche Storefront und Speisekarte` (PR #1 veröffentlicht;
-  Pflichtprüfungen `check` und `database` grün; technische Endfreigabe und Merge ausstehend).
+- Arbeitsblock 3.2 ist technisch endfreigegeben; die Zusammenführung von PR #1 ist freigegeben.
 - Umsetzung und Nachweise: [Arbeitsblock 3.2](docs/work-blocks/3.2-public-storefront.md).
+- Gesamtfortschritt des freigegebenen MVP-Umfangs: **45 %**.
+- Der nächste Arbeitsblock ist noch nicht geplant oder freigegeben.
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 
 ## Geplante Anwendungen
