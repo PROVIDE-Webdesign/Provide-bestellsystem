@@ -14,6 +14,7 @@ export const apiErrorCodes = [
   "order_unavailable",
   "payload_too_large",
   "service_unavailable",
+  "unauthorized",
   "unsupported_media_type",
 ] as const;
 
@@ -36,3 +37,4 @@ export * from "./storefront.js";
 export * from "./storefront-output.js";
 export * from "./checkout.js";
 export * from "./order-status.js";
+export * from "./dashboard-access.js";

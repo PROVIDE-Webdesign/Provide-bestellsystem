@@ -19,5 +19,6 @@ describe("API contracts", () => {
   it("keeps error codes explicit and stable", () => {
     expect(apiErrorCodes).toContain("bad_request");
     expect(apiErrorCodes).toContain("payload_too_large");
+    expect(apiErrorCodes).toContain("unauthorized");
   });
 });

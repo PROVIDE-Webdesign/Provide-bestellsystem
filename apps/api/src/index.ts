@@ -9,6 +9,9 @@ import { postgresStorefrontReader } from "./storefront-database.js";
 import { probeDatabase } from "./database.js";
 import { handlePublicOrderStatus, type OrderStatusReader } from "./order-status.js";
 import { postgresOrderStatusReader } from "./order-status-database.js";
+import { handleDashboardAccess, type DashboardAccessReader } from "./dashboard-access.js";
+import { postgresDashboardAccessReader } from "./dashboard-access-database.js";
+import { supabaseDashboardTokenVerifier, type DashboardTokenVerifier } from "./dashboard-auth.js";
 import { jsonError, jsonSuccess } from "./http.js";
 import { consoleLogger, type ApiLogger } from "./logger.js";
 import { isKnownPath, routeRequest } from "./router.js";
@@ -26,6 +29,9 @@ interface Env {
   readonly ORDER_STATUS_READ_ENABLED?: string;
   readonly ORDER_STATUS_TOKEN_SECRET?: string;
   readonly ORDER_STATUS_TOKEN_SECRET_PREVIOUS?: string;
+  readonly DASHBOARD_AUTH_ENABLED?: string;
+  readonly SUPABASE_AUTH_ISSUER?: string;
+  readonly SUPABASE_AUTH_AUDIENCE?: string;
   readonly HYPERDRIVE_CACHE_DISABLED?: string;
   readonly HYPERDRIVE?: HyperdriveBinding;
 }
@@ -38,6 +44,8 @@ export function createApiWorker(
   storefrontReader: StorefrontReader = postgresStorefrontReader,
   checkoutWriter: CheckoutWriter = postgresCheckoutWriter,
   orderStatusReader: OrderStatusReader = postgresOrderStatusReader,
+  dashboardTokenVerifier: DashboardTokenVerifier = supabaseDashboardTokenVerifier,
+  dashboardAccessReader: DashboardAccessReader = postgresDashboardAccessReader,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -73,6 +81,18 @@ export function createApiWorker(
           route,
           env,
           orderStatusReader,
+          context,
+          logger,
+          cors,
+        );
+      }
+
+      if (route.name === "dashboardAccess") {
+        return handleDashboardAccess(
+          request,
+          env,
+          dashboardTokenVerifier,
+          dashboardAccessReader,
           context,
           logger,
           cors,

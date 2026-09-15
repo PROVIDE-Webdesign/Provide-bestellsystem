@@ -28,3 +28,4 @@ Aktueller technischer Nachweis:
 - [Öffentliche Storefront-Lesegrenze](../decisions/0019-public-storefront-read-boundary.md)
 - [Öffentlicher Gast-Checkout für Abholung](../decisions/0020-public-guest-pickup-checkout.md)
 - [Öffentlicher Gast-Bestellstatus](../decisions/0021-public-guest-order-status.md)
+- [Dashboard-Authentifizierung und sicherer Betriebszugang](../decisions/0022-dashboard-authentication-entry.md)

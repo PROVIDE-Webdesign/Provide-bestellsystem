@@ -37,4 +37,11 @@ describe("API router", () => {
     expect(routeRequest(new Request(url))).toBeUndefined();
     expect(isKnownPath(new Request(url))).toBe(true);
   });
+
+  it("allows only GET for the dashboard access boundary", () => {
+    const url = "https://api.example.test/v1/dashboard/access-context";
+    expect(routeRequest(new Request(url))).toEqual({ name: "dashboardAccess" });
+    expect(routeRequest(new Request(url, { method: "POST" }))).toBeUndefined();
+    expect(isKnownPath(new Request(url, { method: "POST" }))).toBe(true);
+  });
 });
