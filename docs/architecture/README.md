@@ -24,3 +24,5 @@ Aktueller technischer Nachweis:
 - [Zahlungsgrundlage und sichere Zahlungsereignisse](../decisions/0016-payment-foundation-and-secure-events.md)
 - [Gast-Checkout und personenbezogene Bestelldaten](../decisions/0017-guest-checkout-and-personal-data.md)
 - [API-Grundlage und Anfragegrenzen](../decisions/0018-api-foundation-and-request-boundaries.md)
+
+- [Öffentliche Storefront-Lesegrenze](../decisions/0019-public-storefront-read-boundary.md)

@@ -10,10 +10,11 @@
     "binding": "ASSETS",
   },
   "cache": {
-    "enabled": true,
+    "enabled": false,
   },
   "vars": {
     "APP_ENV": "preview",
+    "PUBLIC_API_URL": "https://replace-with-preview-api.example.invalid",
   },
   "observability": {
     "enabled": true,

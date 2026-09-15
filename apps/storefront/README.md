@@ -1,11 +1,16 @@
-# Storefront-Spike
+# Storefront
 
-Isolierter Next.js-API-/vinext-Spike für Cloudflare Workers. Die Oberfläche dient ausschließlich der
-technischen Laufzeitprüfung; sie ist noch keine Asian-Kitchen-Kundenoberfläche.
+Die Kundenoberfläche zeigt veröffentlichte Speisekarten und prüft unverbindlich die Bestellbarkeit.
+Einstieg pro Standort: `/r/{restaurantSlug}/{locationSlug}`. Sie verwendet zentrale Contracts und
+vermittelt öffentliche GET-Anfragen an die API. Server-Geheimnisse gelangen nicht in die Oberfläche.
 
-## Befehle
-
-1. `pnpm dev` startet die vinext-Entwicklung.
+1. `pnpm dev` startet die lokale vinext-Entwicklung.
 2. `pnpm build` erzeugt das Worker-Bundle.
 3. `pnpm start` startet das gebaute Bundle lokal.
-4. `pnpm deploy:preview` veröffentlicht ausschließlich das Preview-Projekt.
+4. `pnpm deploy:preview` benötigt weiterhin eine ausdrückliche Rollout-Freigabe.
+
+Konfiguration, synthetische Fixtures und Testablauf stehen im
+[Storefront-Runbook](../../docs/runbooks/public-storefront.md).
+
+Die bestehende Asian-Kitchen-Website ist ein getrenntes Projekt. Diese Oberfläche verändert sie
+nicht.

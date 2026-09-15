@@ -33,6 +33,12 @@ Neue Variablen werden erst nach Einordnung als öffentlich oder serverseitig erg
 für Stripe, Supabase, E-Mail oder Adressprüfung werden erst mit dem jeweiligen Technikblock
 aufgenommen.
 
+Die API-Lesewege verlangen zusätzlich `HYPERDRIVE_CACHE_DISABLED=true` nach Prüfung der
+tatsächlichen Hyperdrive-Konfiguration. Die Variable enthält kein Secret und schaltet den entfernten
+Cache nicht selbst aus. Die Storefront verwendet `PUBLIC_API_URL` ausschließlich als feste
+öffentliche API-Basisadresse. Details und lokale Overrides:
+[Storefront-Runbook](public-storefront.md).
+
 ## Lokale Einrichtung
 
 1. `.env.example` nach `.env.local` kopieren.

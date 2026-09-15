@@ -1,31 +1,16 @@
-const checks = [
-  "React Server Components",
-  "Serverseitiges Rendering",
-  "Cloudflare-Workers-Bundle",
-  "Route Handler",
-];
-
 export default function Home() {
   return (
-    <main>
-      <section aria-labelledby="spike-title">
-        <p className="eyebrow">PROVIDE-BS · Arbeitsblock 1.3</p>
-        <h1 id="spike-title">Cloudflare-Laufzeitprüfung</h1>
-        <p className="intro">
-          Diese interne Vorschau prüft ausschließlich die technische Grundlage. Sie verarbeitet
-          keine echten Kunden-, Zahlungs- oder Bestelldaten.
-        </p>
-
-        <ul>
-          {checks.map((check) => (
-            <li key={check}>
-              <span aria-hidden="true">✓</span>
-              {check}
-            </li>
-          ))}
-        </ul>
-
-        <a href="/api/health">Technischen Status als JSON öffnen</a>
+    <main className="storefront">
+      <header className="brand">PROVIDE BESTELLEN</header>
+      <section>
+        <p className="eyebrow">DIREKT BEIM RESTAURANT</p>
+        <h1>
+          Deine Speisekarte.
+          <br />
+          Dein Wunschtermin.
+        </h1>
+        <p>Öffne den Link deines Restaurants, um die Speisekarte und Verfügbarkeit anzusehen.</p>
+        <p>Diese Testansicht nimmt noch keine Bestellungen entgegen.</p>
       </section>
     </main>
   );

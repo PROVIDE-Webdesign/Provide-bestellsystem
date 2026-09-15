@@ -1,0 +1,45 @@
+{
+  "restaurant": { "slug": "storefront-restaurant-a", "name": "PROVIDE Testküche" },
+  "location": {
+    "slug": "storefront-a-mitte",
+    "name": "Teststandort Mitte",
+    "timezone": "Europe/Berlin",
+    "address": {
+      "line1": "Testweg 1",
+      "line2": null,
+      "postalCode": "52062",
+      "city": "Aachen",
+      "countryCode": "DE"
+    }
+  },
+  "menus": [
+    {
+      "id": "f4000000-0000-0000-0000-000000000001",
+      "versionId": "f5000000-0000-0000-0000-000000000001",
+      "name": "Unsere Speisekarte",
+      "currency": "EUR",
+      "sections": [
+        {
+          "key": "gerichte",
+          "name": "Gerichte",
+          "items": [
+            {
+              "id": "f6000000-0000-0000-0000-000000000001",
+              "name": "Gemüsecurry",
+              "description": null,
+              "priceAmountMinor": 1250,
+              "availability": "available"
+            },
+            {
+              "id": "f6000000-0000-0000-0000-000000000002",
+              "name": "Duftreis",
+              "description": null,
+              "priceAmountMinor": 300,
+              "availability": "available"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

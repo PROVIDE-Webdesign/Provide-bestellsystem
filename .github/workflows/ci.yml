@@ -49,3 +49,23 @@ jobs:
 
       - name: Run database tests
         run: supabase test db
+
+      - name: Enable Corepack for integration tests
+        run: corepack enable
+
+      - name: Set up Node.js for integration tests
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install integration dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared contracts
+        run: pnpm --filter @provide/contracts build
+
+      - name: Test public API against the migrated database
+        run: pnpm --filter @provide/api exec vitest run src/storefront.integration.test.ts
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
