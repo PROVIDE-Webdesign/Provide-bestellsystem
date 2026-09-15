@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import fixture from "../../../../fixtures/storefront-catalog.json";
-import { fetchPublicStorefront, submitGuestPickupOrder } from "./gateway";
+import { fetchPublicOrderStatus, fetchPublicStorefront, submitGuestPickupOrder } from "./gateway";
 const params = {
   restaurantSlug: "storefront-restaurant-a",
   locationSlug: "storefront-a-mitte",
@@ -22,6 +22,8 @@ describe("guest pickup checkout gateway", () => {
   };
   const confirmation = {
     orderId: "fa000000-0000-0000-0000-000000000001",
+    statusAccessToken: "a".repeat(43),
+    statusAvailableUntil: "2026-09-17T12:00:00Z",
     status: "submitted",
     fulfillmentType: "pickup",
     paymentCollectionMode: "on_fulfillment",
@@ -82,6 +84,74 @@ describe("guest pickup checkout gateway", () => {
     );
     expect(response.status).toBe(409);
     expect(await response.text()).not.toContain("database private");
+  });
+});
+describe("public order status gateway", () => {
+  const orderId = "fa000000-0000-0000-0000-000000000001";
+  const statusAccessToken = "a".repeat(43);
+  const status = {
+    orderId,
+    status: "ready",
+    fulfillmentType: "pickup",
+    paymentCollectionMode: "on_fulfillment",
+    requestedFor: "2026-09-15T12:00:00.000Z",
+    currency: "EUR",
+    totalAmountMinor: 2500,
+    itemCount: 2,
+    updatedAt: "2026-09-15T11:30:00.000Z",
+    statusAvailableUntil: "2026-09-17T12:00:00.000Z",
+  };
+  const statusRequest = (value: unknown = { orderId, statusAccessToken }) =>
+    new Request("https://store.example.test/api/storefront/test/middle/order-status", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: "private" },
+      body: JSON.stringify(value),
+    });
+
+  it("forwards only the capability body and strips browser credentials", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: status }));
+    const response = await fetchPublicOrderStatus(
+      statusRequest(),
+      { ...params, resource: "order-status" },
+      "https://api.example.test",
+      fetcher,
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(fetcher).toHaveBeenCalledWith(
+      new URL(
+        "https://api.example.test/v1/storefront/storefront-restaurant-a/storefront-a-mitte/order-status",
+      ),
+      expect.objectContaining({
+        method: "POST",
+        headers: { accept: "application/json", "content-type": "application/json" },
+      }),
+    );
+    expect(JSON.stringify(fetcher.mock.calls)).not.toContain("private");
+  });
+
+  it("rejects extra fields and preserves only a uniform upstream 404", async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    expect(
+      (
+        await fetchPublicOrderStatus(
+          statusRequest({ orderId, statusAccessToken, phone: "+999100000001" }),
+          { ...params, resource: "order-status" },
+          "https://api.example.test",
+          fetcher,
+        )
+      ).status,
+    ).toBe(400);
+    expect(fetcher).not.toHaveBeenCalled();
+    fetcher.mockResolvedValue(Response.json({ internal: "hidden" }, { status: 404 }));
+    const response = await fetchPublicOrderStatus(
+      statusRequest(),
+      { ...params, resource: "order-status" },
+      "https://api.example.test",
+      fetcher,
+    );
+    expect(response.status).toBe(404);
+    expect(await response.text()).not.toContain("hidden");
   });
 });
 describe("storefront public gateway", () => {

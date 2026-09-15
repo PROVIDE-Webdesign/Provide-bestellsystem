@@ -34,19 +34,22 @@ export function jsonError(
   return Response.json(body, { headers: responseHeaders(requestId, headers), status });
 }
 
-export async function readJsonBody(request: Request): Promise<unknown> {
+export async function readJsonBody(
+  request: Request,
+  maximumBytes = maxJsonBodyBytes,
+): Promise<unknown> {
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().startsWith("application/json")) {
     throw new RequestBodyError("unsupported_media_type", "JSON content is required.", 415);
   }
 
   const contentLength = Number(request.headers.get("content-length") ?? "0");
-  if (Number.isFinite(contentLength) && contentLength > maxJsonBodyBytes) {
+  if (Number.isFinite(contentLength) && contentLength > maximumBytes) {
     throw new RequestBodyError("payload_too_large", "Request body is too large.", 413);
   }
 
   const bytes = await request.arrayBuffer();
-  if (bytes.byteLength > maxJsonBodyBytes) {
+  if (bytes.byteLength > maximumBytes) {
     throw new RequestBodyError("payload_too_large", "Request body is too large.", 413);
   }
 

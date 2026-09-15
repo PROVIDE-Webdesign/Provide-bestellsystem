@@ -2,7 +2,7 @@
 
 Cloudflare-Worker mit einer abgesicherten Anfragegrundlage. Arbeitsblock 3.2 ergänzt öffentliche,
 ausschließlich lesende Katalog- und Bestellbarkeitsendpunkte sowie einen standardmäßig gesperrten
-Gast-Checkout für Abholbestellungen.
+Gast-Checkout für Abholbestellungen und einen standardmäßig gesperrten Gast-Bestellstatus.
 
 ## Endpunkte
 
@@ -14,8 +14,9 @@ Gast-Checkout für Abholbestellungen.
 ## Anfragegrenzen
 
 1. CORS antwortet nur für ausdrücklich konfigurierte Origins (`API_ALLOWED_ORIGINS`).
-2. Die API-Oberfläche ist auf die dokumentierten `GET`-Endpunkte begrenzt.
-3. Zukünftige JSON-Anfragen müssen `application/json` senden und sind auf 64 KiB begrenzt.
+2. Die API-Oberfläche ist auf die dokumentierten Methoden und Endpunkte begrenzt.
+3. JSON-Anfragen müssen `application/json` senden und sind standardmäßig auf 64 KiB begrenzt; die
+   Statusanfrage besitzt eine engere 4-KiB-Grenze.
 4. Request-IDs, Sicherheits-Header und PII-freies Fehler-Logging gelten zentral für alle späteren
    Endpunkte.
 
@@ -27,9 +28,13 @@ muss sie nach dem Runbook durch die ID der getrennten Preview-Konfiguration erse
 1. `GET /v1/storefront/{restaurantSlug}/{locationSlug}/catalog`
 2. `GET /v1/storefront/{restaurantSlug}/{locationSlug}/availability`
 3. `POST /v1/storefront/{restaurantSlug}/{locationSlug}/orders`
+4. `POST /v1/storefront/{restaurantSlug}/{locationSlug}/order-status`
 
 Parameter, Datenbank-/Cachegrenze und lokale Prüfung stehen im
-[Storefront-Runbook](../../docs/runbooks/public-storefront.md). Diese Endpunkte schreiben keine Der
-POST-Endpunkt ist nur mit `CHECKOUT_WRITE_ENABLED=true`, verifizierter Hyperdrive-Konfiguration,
-gültiger Datenschutzhinweis-Version und serverseitiger Aufbewahrungsdauer verwendbar. Er erzwingt
-Abholung und Zahlung bei Übergabe. Ohne diese Konfiguration nimmt die API keine Bestellung an.
+[Storefront-Runbook](../../docs/runbooks/public-storefront.md). Der Checkout-POST-Endpunkt ist nur
+mit `CHECKOUT_WRITE_ENABLED=true`, sicher konfiguriertem Statusweg, verifizierter
+Hyperdrive-Konfiguration, gültiger Datenschutzhinweis-Version und serverseitiger Aufbewahrungsdauer
+verwendbar. Er erzwingt Abholung und Zahlung bei Übergabe. Ohne diese Konfiguration nimmt die API
+keine Bestellung an. Der Status-POST-Endpunkt verwendet den JSON-Körper, damit seine
+HMAC-Berechtigung nie in einer URL steht. Details stehen im
+[Status-Runbook](../../docs/runbooks/public-order-status.md).

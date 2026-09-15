@@ -21,7 +21,7 @@ export interface StorefrontEnvironment {
   readonly HYPERDRIVE_CACHE_DISABLED?: string;
 }
 export interface StorefrontRoute extends StorefrontScope {
-  readonly name: "catalog" | "availability" | "orders";
+  readonly name: "catalog" | "availability" | "orders" | "orderStatus";
 }
 
 export async function handleStorefront(

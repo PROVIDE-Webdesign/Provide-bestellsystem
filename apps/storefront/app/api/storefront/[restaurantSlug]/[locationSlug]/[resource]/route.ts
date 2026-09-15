@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import {
   fetchPublicStorefront,
+  fetchPublicOrderStatus,
   submitGuestPickupOrder,
   type GatewayParams,
 } from "../../../../../storefront/gateway";
@@ -22,9 +23,12 @@ export async function POST(
   context: { params: Promise<GatewayParams> },
 ): Promise<Response> {
   const binding = (env as { PUBLIC_API_URL?: unknown }).PUBLIC_API_URL;
-  return submitGuestPickupOrder(
-    request,
-    await context.params,
-    typeof binding === "string" ? binding : undefined,
-  );
+  const params = await context.params;
+  if (params.resource === "order-status")
+    return fetchPublicOrderStatus(
+      request,
+      params,
+      typeof binding === "string" ? binding : undefined,
+    );
+  return submitGuestPickupOrder(request, params, typeof binding === "string" ? binding : undefined);
 }

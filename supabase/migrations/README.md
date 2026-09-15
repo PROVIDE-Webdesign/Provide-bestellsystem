@@ -40,3 +40,8 @@ Kundendaten bleiben weiterhin gesperrt.
 
 Bereits angewendete Migrationen werden nicht nachträglich verändert. Korrekturen erfolgen immer in
 einer neuen Migration.
+
+Die öffentliche Statusmigration ergänzt eine ausschließlich serverseitige, PII-freie Projektion für
+bestehende Gast-Abholbestellungen. Sie bleibt unabhängig von einer später pausierten Speisekarte,
+endet 48 Stunden nach der Abholzeit und setzt die vorgelagerte HMAC-Prüfung der API voraus.
+Browserrollen erhalten keine zusätzlichen SQL- oder Tabellenrechte.

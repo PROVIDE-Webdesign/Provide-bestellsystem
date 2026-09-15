@@ -10,6 +10,7 @@
     "CHECKOUT_WRITE_ENABLED": "false",
     "CHECKOUT_PRIVACY_NOTICE_VERSION": "preview-v1",
     "CHECKOUT_RETENTION_DAYS": "30",
+    "ORDER_STATUS_READ_ENABLED": "false",
     "API_ALLOWED_ORIGINS": "https://replace-with-preview-storefront.example.invalid",
   },
   "hyperdrive": [

@@ -3,9 +3,11 @@
 ## Schutzstatus
 
 1. `CHECKOUT_WRITE_ENABLED` bleibt in Repository- und Preview-Vorgaben `false`.
-2. Tests verwenden ausschließlich die synthetische Storefront-Fixture.
-3. Echte Namen, Telefonnummern, E-Mail-Adressen und Bestellungen sind nicht zugelassen.
-4. Eine Aktivierung oder ein Deployment benötigt eine gesonderte Freigabe.
+2. Der Checkout benötigt zusätzlich einen freigegebenen Statusweg und ein gültiges aktuelles
+   Status-Secret; andernfalls bleibt er geschlossen.
+3. Tests verwenden ausschließlich die synthetische Storefront-Fixture.
+4. Echte Namen, Telefonnummern, E-Mail-Adressen und Bestellungen sind nicht zugelassen.
+5. Eine Aktivierung oder ein Deployment benötigt eine gesonderte Freigabe.
 
 ## Lokale Einstellungen
 
@@ -17,6 +19,8 @@ CHECKOUT_WRITE_ENABLED=true
 CHECKOUT_PRIVACY_NOTICE_VERSION=preview-v1
 CHECKOUT_RETENTION_DAYS=30
 HYPERDRIVE_CACHE_DISABLED=true
+ORDER_STATUS_READ_ENABLED=true
+ORDER_STATUS_TOKEN_SECRET=synthetic-local-status-secret-at-least-32-bytes
 ```
 
 `CHECKOUT_RETENTION_DAYS=30` ist nur ein synthetischer Testwert und keine rechtliche Empfehlung. Vor

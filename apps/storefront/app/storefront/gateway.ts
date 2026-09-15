@@ -2,6 +2,8 @@ import {
   isStorefrontScope,
   parseGuestPickupOrderConfirmation,
   parseGuestPickupOrderRequest,
+  parsePublicOrderStatus,
+  parsePublicOrderStatusRequest,
   parsePublicAvailability,
   parsePublicCatalog,
 } from "@provide/contracts";
@@ -177,6 +179,73 @@ export async function submitGuestPickupOrder(
     const confirmation = parseGuestPickupOrderConfirmation(payload.data);
     if (!confirmation) return failure(503);
     return Response.json({ data: confirmation }, { status: 201, headers });
+  } catch {
+    return failure(503);
+  }
+}
+
+export async function fetchPublicOrderStatus(
+  request: Request,
+  params: GatewayParams,
+  apiUrl: string | undefined,
+  fetcher: typeof fetch = fetch,
+): Promise<Response> {
+  const headers = {
+    "cache-control": "no-store",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+  };
+  const failure = (status: number) =>
+    Response.json(
+      {
+        error: {
+          code:
+            status === 400
+              ? "bad_request"
+              : status === 404
+                ? "not_found"
+                : status === 413
+                  ? "payload_too_large"
+                  : status === 415
+                    ? "unsupported_media_type"
+                    : "service_unavailable",
+        },
+      },
+      { status, headers },
+    );
+  if (!isStorefrontScope(params) || params.resource !== "order-status" || request.url.length > 2048)
+    return failure(400);
+  const base = safeApiBase(apiUrl);
+  if (!base) return failure(503);
+  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json"))
+    return failure(415);
+  try {
+    const bytes = await request.arrayBuffer();
+    if (bytes.byteLength > 4 * 1024) return failure(413);
+    const source = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as unknown;
+    const body = parsePublicOrderStatusRequest(source);
+    if (!body) return failure(400);
+    const upstream = new URL(
+      `/v1/storefront/${params.restaurantSlug}/${params.locationSlug}/order-status`,
+      base,
+    );
+    const response = await fetcher(upstream, {
+      method: "POST",
+      headers: { accept: "application/json", "content-type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      redirect: "error",
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok)
+      return failure([400, 404, 413, 415].includes(response.status) ? response.status : 503);
+    if (!response.headers.get("content-type")?.startsWith("application/json")) return failure(503);
+    const text = await response.text();
+    if (new TextEncoder().encode(text).byteLength > 16 * 1024) return failure(503);
+    const payload = JSON.parse(text) as { data?: unknown };
+    const status = parsePublicOrderStatus(payload.data);
+    if (!status || status.orderId !== body.orderId) return failure(503);
+    return Response.json({ data: status }, { headers });
   } catch {
     return failure(503);
   }

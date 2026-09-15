@@ -7,6 +7,8 @@ import { postgresCheckoutWriter } from "./checkout-database.js";
 import { handleStorefront, type StorefrontReader } from "./storefront.js";
 import { postgresStorefrontReader } from "./storefront-database.js";
 import { probeDatabase } from "./database.js";
+import { handlePublicOrderStatus, type OrderStatusReader } from "./order-status.js";
+import { postgresOrderStatusReader } from "./order-status-database.js";
 import { jsonError, jsonSuccess } from "./http.js";
 import { consoleLogger, type ApiLogger } from "./logger.js";
 import { isKnownPath, routeRequest } from "./router.js";
@@ -21,6 +23,9 @@ interface Env {
   readonly CHECKOUT_WRITE_ENABLED?: string;
   readonly CHECKOUT_PRIVACY_NOTICE_VERSION?: string;
   readonly CHECKOUT_RETENTION_DAYS?: string;
+  readonly ORDER_STATUS_READ_ENABLED?: string;
+  readonly ORDER_STATUS_TOKEN_SECRET?: string;
+  readonly ORDER_STATUS_TOKEN_SECRET_PREVIOUS?: string;
   readonly HYPERDRIVE_CACHE_DISABLED?: string;
   readonly HYPERDRIVE?: HyperdriveBinding;
 }
@@ -32,6 +37,7 @@ export function createApiWorker(
   logger: ApiLogger = consoleLogger,
   storefrontReader: StorefrontReader = postgresStorefrontReader,
   checkoutWriter: CheckoutWriter = postgresCheckoutWriter,
+  orderStatusReader: OrderStatusReader = postgresOrderStatusReader,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -59,6 +65,18 @@ export function createApiWorker(
 
       if (route.name === "orders") {
         return handleGuestPickupOrder(request, route, env, checkoutWriter, context, logger, cors);
+      }
+
+      if (route.name === "orderStatus") {
+        return handlePublicOrderStatus(
+          request,
+          route,
+          env,
+          orderStatusReader,
+          context,
+          logger,
+          cors,
+        );
       }
 
       if (route.name === "catalog" || route.name === "availability") {

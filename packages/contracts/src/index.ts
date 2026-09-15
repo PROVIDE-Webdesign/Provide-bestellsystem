@@ -35,3 +35,4 @@ export interface ApiSuccessEnvelope<T> {
 export * from "./storefront.js";
 export * from "./storefront-output.js";
 export * from "./checkout.js";
+export * from "./order-status.js";
