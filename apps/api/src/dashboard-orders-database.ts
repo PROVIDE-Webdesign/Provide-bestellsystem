@@ -39,7 +39,7 @@ export const postgresDashboardOrdersReader: DashboardOrdersReader = {
     return query(
       connectionString,
       true,
-      "SELECT private.read_dashboard_orders($1::uuid,$2::text,$3::uuid,$4::uuid,$5::text,$6::timestamptz,$7::uuid,$8::integer) AS data",
+      "SELECT private.read_dashboard_fulfillment_orders($1::uuid,$2::text,$3::uuid,$4::uuid,$5::text,$6::timestamptz,$7::uuid,$8::integer,$9::text) AS data",
       [
         identity.userId,
         identity.aal,
@@ -49,6 +49,7 @@ export const postgresDashboardOrdersReader: DashboardOrdersReader = {
         filters.cursor?.requestedFor ?? null,
         filters.cursor?.orderId ?? null,
         filters.limit,
+        filters.fulfillmentType ?? null,
       ],
     );
   },

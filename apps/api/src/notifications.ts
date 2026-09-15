@@ -81,6 +81,18 @@ function pickupTime(job: NotificationDispatchJob): string {
 
 export function renderOrderNotification(job: NotificationDispatchJob): string {
   const restaurant = job.restaurantName;
+  if (job.fulfillmentType === "delivery") {
+    const texts = {
+      order_submitted: `PROVIDE: Ihre Lieferbestellung bei ${restaurant} ist eingegangen. Gewünschte Lieferung: ${pickupTime(job)}.`,
+      order_accepted: `PROVIDE: Ihre Lieferbestellung bei ${restaurant} wurde angenommen. Gewünschte Lieferung: ${pickupTime(job)}.`,
+      order_rejected: `PROVIDE: Ihre Lieferbestellung bei ${restaurant} wurde abgelehnt.`,
+      order_ready: `PROVIDE: Ihre Bestellung bei ${restaurant} ist bereit zur Auslieferung.`,
+      order_cancelled: `PROVIDE: Ihre Lieferbestellung bei ${restaurant} wurde storniert.`,
+    };
+    const message = texts[job.templateKey];
+    if (message.length > 320) throw new Error("Notification template exceeds the SMS boundary");
+    return message;
+  }
   let message: string;
   switch (job.templateKey) {
     case "order_submitted":

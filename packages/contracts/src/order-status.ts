@@ -20,7 +20,7 @@ export interface PublicOrderStatusRequest {
 export interface PublicOrderStatus {
   readonly orderId: string;
   readonly status: PublicOrderStatusName;
-  readonly fulfillmentType: "pickup";
+  readonly fulfillmentType: "pickup" | "delivery";
   readonly paymentCollectionMode: "on_fulfillment";
   readonly requestedFor: string;
   readonly currency: string;
@@ -68,7 +68,7 @@ export function parsePublicOrderStatus(value: unknown): PublicOrderStatus | unde
     !idPattern.test(source.orderId) ||
     typeof source.status !== "string" ||
     !publicOrderStatuses.some((status) => status === source.status) ||
-    source.fulfillmentType !== "pickup" ||
+    (source.fulfillmentType !== "pickup" && source.fulfillmentType !== "delivery") ||
     source.paymentCollectionMode !== "on_fulfillment" ||
     typeof source.requestedFor !== "string" ||
     !isExplicitInstant(source.requestedFor) ||
@@ -92,7 +92,7 @@ export function parsePublicOrderStatus(value: unknown): PublicOrderStatus | unde
   return {
     orderId: source.orderId,
     status: source.status as PublicOrderStatusName,
-    fulfillmentType: "pickup",
+    fulfillmentType: source.fulfillmentType,
     paymentCollectionMode: "on_fulfillment",
     requestedFor: source.requestedFor,
     currency: source.currency,

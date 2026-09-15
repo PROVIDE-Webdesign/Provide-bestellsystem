@@ -21,6 +21,7 @@ export async function GET(request: Request) {
       status: (query.get("status") || undefined) as Parameters<
         typeof fetchDashboardOrders
       >[3]["status"],
+      fulfillmentType: query.get("fulfillmentType") || undefined,
       cursor: query.get("cursor") || undefined,
       limit: limitValue === null ? undefined : Number(limitValue),
     },

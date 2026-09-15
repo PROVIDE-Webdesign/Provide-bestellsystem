@@ -72,6 +72,67 @@ describe("guest pickup checkout gateway", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it("forwards delivery quotes and accepted checkout prices through separate safe routes", async () => {
+    const quote = {
+      policyId: confirmation.orderId,
+      subtotalAmountMinor: 1250,
+      deliveryFeeAmountMinor: 350,
+      totalAmountMinor: 1600,
+      minimumAmountMinor: 0,
+      currency: "EUR",
+    };
+    const { menuId, menuVersionId, requestedFor, lines } = checkout;
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({ data: quote }))
+      .mockResolvedValueOnce(
+        Response.json({
+          data: {
+            ...confirmation,
+            fulfillmentType: "delivery",
+            subtotalAmountMinor: 1250,
+            deliveryFeeAmountMinor: 350,
+            totalAmountMinor: 1600,
+          },
+        }),
+      );
+    const preview = await submitGuestPickupOrder(
+      checkoutRequest({ menuId, menuVersionId, requestedFor, lines, postalCode: "52062" }),
+      { ...params, resource: "delivery-quote" },
+      "https://api.example.test",
+      fetcher,
+    );
+    expect(preview.status).toBe(200);
+    const submitted = await submitGuestPickupOrder(
+      checkoutRequest({
+        ...checkout,
+        expectedQuote: quote,
+        delivery: {
+          addressLine1: "Synthetic Weg 1",
+          addressLine2: null,
+          postalCode: "52062",
+          city: "Aachen",
+          countryCode: "DE",
+        },
+      }),
+      { ...params, resource: "delivery-orders" },
+      "https://api.example.test",
+      fetcher,
+    );
+    expect(submitted.status).toBe(201);
+    expect(fetcher.mock.calls[0]?.[0]).toEqual(
+      new URL(
+        "https://api.example.test/v1/storefront/storefront-restaurant-a/storefront-a-mitte/delivery-quote",
+      ),
+    );
+    expect(fetcher.mock.calls[1]?.[0]).toEqual(
+      new URL(
+        "https://api.example.test/v1/storefront/storefront-restaurant-a/storefront-a-mitte/delivery-orders",
+      ),
+    );
+    expect(JSON.stringify(fetcher.mock.calls)).not.toContain("private");
+  });
+
   it("preserves safe checkout failures while hiding upstream bodies", async () => {
     const fetcher = vi
       .fn<typeof fetch>()

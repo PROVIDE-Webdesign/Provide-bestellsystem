@@ -182,6 +182,7 @@ export function fetchDashboardOrders(
   scope: { restaurantId: string; locationId: string },
   filters: {
     status?: DashboardOrderStatus | undefined;
+    fulfillmentType?: string | undefined;
     cursor?: string | undefined;
     limit?: number | undefined;
   },
@@ -190,6 +191,8 @@ export function fetchDashboardOrders(
   if (
     !uuidPattern.test(scope.restaurantId) ||
     !uuidPattern.test(scope.locationId) ||
+    (filters.fulfillmentType !== undefined &&
+      !["pickup", "delivery"].includes(filters.fulfillmentType)) ||
     (filters.status !== undefined && !publicOrderStatuses.includes(filters.status)) ||
     (filters.cursor !== undefined && !parseDashboardOrderCursor(filters.cursor)) ||
     (filters.limit !== undefined &&
@@ -197,6 +200,7 @@ export function fetchDashboardOrders(
   )
     return Promise.resolve(operationalFailure(400));
   const query = new URLSearchParams();
+  if (filters.fulfillmentType) query.set("fulfillmentType", filters.fulfillmentType);
   if (filters.status) query.set("status", filters.status);
   if (filters.cursor) query.set("cursor", filters.cursor);
   query.set("limit", String(filters.limit ?? 25));

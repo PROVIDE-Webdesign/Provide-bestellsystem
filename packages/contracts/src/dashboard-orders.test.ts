@@ -57,6 +57,28 @@ describe("dashboard order contracts", () => {
     };
     expect(parseDashboardOrderDetail(detail)).toBeDefined();
     expect(parseDashboardOrderDetail({ ...detail, phoneE164: "+999100000001" })).toBeUndefined();
+    const deliveryDetail = {
+      ...detail,
+      fulfillmentType: "delivery",
+      totalAmountMinor: 2850,
+      deliveryFeeAmountMinor: 350,
+      delivery: {
+        recipientName: "Synthetic Guest",
+        phoneE164: "+999100000001",
+        addressLine1: "Synthetic Weg 1",
+        addressLine2: null,
+        postalCode: "52062",
+        city: "Aachen",
+        countryCode: "DE",
+      },
+    };
+    expect(parseDashboardOrderDetail(deliveryDetail)?.delivery?.phoneE164).toBe("+999100000001");
+    expect(
+      parseDashboardOrderDetail({
+        ...deliveryDetail,
+        delivery: { ...deliveryDetail.delivery, phoneE164: "invalid" },
+      }),
+    ).toBeUndefined();
   });
 
   it("allows only a valid forward transition", () => {

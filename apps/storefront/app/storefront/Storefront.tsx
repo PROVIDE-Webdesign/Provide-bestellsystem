@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   isStorefrontScope,
+  parseDeliveryQuote,
+  parseGuestDeliveryOrderConfirmation,
+  type DeliveryQuote,
+  type GuestDeliveryOrderConfirmation,
   parseGuestPickupOrderConfirmation,
   parsePublicAvailability,
   parsePublicCatalog,
@@ -62,7 +66,16 @@ export default function Storefront(scope: StorefrontProps) {
   const [email, setEmail] = useState("");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [checkoutState, setCheckoutState] = useState<"idle" | "submitting" | "error">("idle");
-  const [confirmation, setConfirmation] = useState<GuestPickupOrderConfirmation | null>(null);
+  const [confirmation, setConfirmation] = useState<
+    GuestPickupOrderConfirmation | GuestDeliveryOrderConfirmation | null
+  >(null);
+  const [postalCode, setPostalCode] = useState("");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [city, setCity] = useState("");
+  const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
+  const [quoteAccepted, setQuoteAccepted] = useState(false);
+  const [quoting, setQuoting] = useState(false);
+  const quoteRequest = useRef<AbortController | null>(null);
   const [orderStatus, setOrderStatus] = useState<PublicOrderStatus | null>(null);
   const [statusAccess, setStatusAccess] = useState<StoredOrderStatusAccess | null>(null);
   const [statusState, setStatusState] = useState<"idle" | "loading" | "error">("idle");
@@ -82,7 +95,14 @@ export default function Storefront(scope: StorefrontProps) {
       amountMinor / 100,
     );
 
-  function invalidateSubmission() {
+  function invalidateSubmission(invalidateQuote = true) {
+    if (invalidateQuote) {
+      quoteRequest.current?.abort();
+      quoteRequest.current = null;
+      setQuoting(false);
+      setDeliveryQuote(null);
+      setQuoteAccepted(false);
+    }
     submissionKey.current = null;
     setCheckoutState("idle");
     setConfirmation(null);
@@ -190,6 +210,9 @@ export default function Storefront(scope: StorefrontProps) {
     checkoutRequest.current?.abort();
     availabilityRequest.current = null;
     checkoutRequest.current = null;
+    quoteRequest.current?.abort();
+    setDeliveryQuote(null);
+    setQuoteAccepted(false);
     setCatalog(null);
     setCart([]);
     setAnswer("");
@@ -224,6 +247,7 @@ export default function Storefront(scope: StorefrontProps) {
     })();
     return () => {
       controller.abort();
+      quoteRequest.current?.abort();
       availabilityRequest.current?.abort();
       checkoutRequest.current?.abort();
       statusRequest.current?.abort();
@@ -283,16 +307,68 @@ export default function Storefront(scope: StorefrontProps) {
     }
   }
 
+  async function requestDeliveryQuote() {
+    if (!catalog || !cart.length || !/^[0-9]{5}$/.test(postalCode)) {
+      setCartMessage("Bitte wähle Gerichte und gib eine fünfstellige deutsche Postleitzahl ein.");
+      return;
+    }
+    const requestedFor = locationTimeToInstant(localTime, catalog.location.timezone);
+    if (!requestedFor) {
+      setCartMessage("Bitte wähle einen gültigen Lieferzeitpunkt.");
+      return;
+    }
+    const controller = new AbortController();
+    quoteRequest.current?.abort();
+    quoteRequest.current = controller;
+    setQuoting(true);
+    setDeliveryQuote(null);
+    setQuoteAccepted(false);
+    setCartMessage("");
+    try {
+      const response = await fetch(`${base}/delivery-quote`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        cache: "no-store",
+        signal: controller.signal,
+        body: JSON.stringify({
+          menuId: cart[0]!.menuId,
+          menuVersionId: cart[0]!.menuVersionId,
+          requestedFor,
+          lines: cart.map((l) => ({ menuItemId: l.menuItemId, quantity: l.quantity })),
+          postalCode,
+        }),
+      });
+      if (!response.ok) throw new Error("Delivery unavailable");
+      const body = (await response.json()) as { data?: unknown };
+      const quote = parseDeliveryQuote(body.data);
+      if (!quote) throw new Error("Invalid quote");
+      if (!controller.signal.aborted) {
+        setDeliveryQuote(quote);
+        submissionKey.current = null;
+      }
+    } catch {
+      if (!controller.signal.aborted)
+        setCartMessage(
+          "Lieferung aktuell nicht möglich. Bitte prüfe PLZ, Mindestbestellwert und Lieferzeit oder wähle Abholung.",
+        );
+    } finally {
+      if (quoteRequest.current === controller) {
+        setQuoting(false);
+        quoteRequest.current = null;
+      }
+    }
+  }
+
   async function submitCheckout() {
     if (!catalog || cart.length === 0 || checkoutState === "submitting") return;
     setConfirmation(null);
     const requestedFor = locationTimeToInstant(localTime, catalog.location.timezone);
     if (!requestedFor) {
-      setCartMessage("Bitte wähle zuerst einen eindeutigen, gültigen Abholzeitpunkt.");
+      setCartMessage("Bitte wähle zuerst einen eindeutigen, gültigen Bestellzeitpunkt.");
       return;
     }
-    if (fulfillmentType !== "pickup") {
-      setCartMessage("Der Checkout für Lieferung folgt in einem späteren Arbeitsblock.");
+    if (fulfillmentType === "delivery" && (!deliveryQuote || !quoteAccepted)) {
+      setCartMessage("Bitte prüfe und bestätige zuerst die Lieferkosten.");
       return;
     }
     if (!contactName.trim() || !/^\+[1-9][0-9]{7,14}$/.test(phoneE164.trim())) {
@@ -315,40 +391,62 @@ export default function Storefront(scope: StorefrontProps) {
     setCheckoutState("submitting");
     setCartMessage("");
     try {
-      const response = await fetch(`${base}/orders`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        cache: "no-store",
-        signal: controller.signal,
-        body: JSON.stringify({
-          menuId: cart[0]!.menuId,
-          menuVersionId: cart[0]!.menuVersionId,
-          requestedFor,
-          lines: cart.map((line) => ({
-            menuItemId: line.menuItemId,
-            quantity: line.quantity,
-          })),
-          submissionKey: key,
-          customer: {
-            contactName: contactName.trim(),
-            phoneE164: phoneE164.trim(),
-            email: email.trim() ? email.trim().toLowerCase() : null,
-          },
-          privacyNoticeVersion: scope.privacyNoticeVersion,
-        }),
-      });
+      const response = await fetch(
+        `${base}/${fulfillmentType === "delivery" ? "delivery-orders" : "orders"}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          cache: "no-store",
+          signal: controller.signal,
+          body: JSON.stringify({
+            menuId: cart[0]!.menuId,
+            menuVersionId: cart[0]!.menuVersionId,
+            requestedFor,
+            lines: cart.map((line) => ({
+              menuItemId: line.menuItemId,
+              quantity: line.quantity,
+            })),
+            submissionKey: key,
+            customer: {
+              contactName: contactName.trim(),
+              phoneE164: phoneE164.trim(),
+              email: email.trim() ? email.trim().toLowerCase() : null,
+            },
+            privacyNoticeVersion: scope.privacyNoticeVersion,
+            ...(fulfillmentType === "delivery"
+              ? {
+                  delivery: {
+                    addressLine1,
+                    addressLine2: null,
+                    postalCode,
+                    city,
+                    countryCode: "DE",
+                  },
+                  expectedQuote: deliveryQuote,
+                }
+              : {}),
+          }),
+        },
+      );
       if (controller.signal.aborted) return;
       if (!response.ok) {
         setCheckoutState("error");
+        if (response.status === 409 && fulfillmentType === "delivery") {
+          setDeliveryQuote(null);
+          setQuoteAccepted(false);
+        }
         setCartMessage(
           response.status === 409
-            ? "Die Bestellung konnte nicht angenommen werden. Bitte aktualisiere Speisekarte und Abholzeit."
+            ? "Die Bestellung konnte nicht angenommen werden. Bitte prüfe Speisekarte, Bestellzeit und gegebenenfalls die Lieferkosten erneut."
             : "Der Checkout ist derzeit nicht verfügbar. Es wurde keine bestätigte Bestellung angezeigt.",
         );
         return;
       }
       const payload = (await response.json()) as { data?: unknown };
-      const result = parseGuestPickupOrderConfirmation(payload.data);
+      const result =
+        fulfillmentType === "delivery"
+          ? parseGuestDeliveryOrderConfirmation(payload.data)
+          : parseGuestPickupOrderConfirmation(payload.data);
       if (!result) throw new Error("Invalid confirmation");
       setConfirmation(result);
       setOrderStatus(null);
@@ -371,6 +469,11 @@ export default function Storefront(scope: StorefrontProps) {
       setContactName("");
       setPhoneE164("");
       setEmail("");
+      setAddressLine1("");
+      setPostalCode("");
+      setCity("");
+      setDeliveryQuote(null);
+      setQuoteAccepted(false);
       setPrivacyAccepted(false);
       submissionKey.current = null;
     } catch {
@@ -398,10 +501,14 @@ export default function Storefront(scope: StorefrontProps) {
       </header>
       {(confirmation || orderStatus || statusMessage) && (
         <section className="order-status" aria-labelledby="order-status-title" aria-live="polite">
-          <p className="eyebrow">DEINE ABHOLBESTELLUNG</p>
+          <p className="eyebrow">DEINE BESTELLUNG</p>
           <h2 id="order-status-title">
             {orderStatus
-              ? statusLabels[orderStatus.status]
+              ? orderStatus.fulfillmentType === "delivery" && orderStatus.status === "ready"
+                ? "Bereit zur Auslieferung"
+                : orderStatus.fulfillmentType === "delivery" && orderStatus.status === "completed"
+                  ? "Zugestellt"
+                  : statusLabels[orderStatus.status]
               : confirmation
                 ? statusLabels[confirmation.status]
                 : "Bestellstatus"}
@@ -413,7 +520,10 @@ export default function Storefront(scope: StorefrontProps) {
                 (orderStatus ?? confirmation)!.totalAmountMinor,
                 (orderStatus ?? confirmation)!.currency,
               )}{" "}
-              · Zahlung bei Abholung
+              · Zahlung bei{" "}
+              {(orderStatus ?? confirmation)?.fulfillmentType === "delivery"
+                ? "Lieferung"
+                : "Abholung"}
             </p>
           )}
           {confirmation && !orderStatus && (
@@ -474,278 +584,354 @@ export default function Storefront(scope: StorefrontProps) {
               {catalog.location.address.countryCode}
             </address>
           </section>
-          <div className="storefront-grid">
-            <div id="menu" tabIndex={-1}>
-              {catalog.menus.length === 0 && (
-                <p>Hier sind derzeit keine Gerichte veröffentlicht.</p>
-              )}
-              {catalog.menus.map((menu) => (
-                <section className="menu" key={menu.id} aria-label={menu.name}>
-                  <h2>{menu.name}</h2>
-                  {menu.sections.map((section) => (
-                    <div className="menu-section" key={section.key}>
-                      <h3>{section.name}</h3>
-                      <ul className="dishes">
-                        {section.items.map((item) => (
-                          <li key={item.id} className="dish">
-                            <div>
-                              <h4>{item.name}</h4>
-                              {item.description && <p>{item.description}</p>}
-                              {item.availability !== "available" && (
-                                <span className="availability-badge">
-                                  {item.availability === "sold_out"
-                                    ? "Ausverkauft"
-                                    : "Nicht verfügbar"}
+          <fieldset
+            disabled={checkoutState === "submitting"}
+            style={{ border: 0, padding: 0, minWidth: 0 }}
+          >
+            <div className="storefront-grid">
+              <div id="menu" tabIndex={-1}>
+                {catalog.menus.length === 0 && (
+                  <p>Hier sind derzeit keine Gerichte veröffentlicht.</p>
+                )}
+                {catalog.menus.map((menu) => (
+                  <section className="menu" key={menu.id} aria-label={menu.name}>
+                    <h2>{menu.name}</h2>
+                    {menu.sections.map((section) => (
+                      <div className="menu-section" key={section.key}>
+                        <h3>{section.name}</h3>
+                        <ul className="dishes">
+                          {section.items.map((item) => (
+                            <li key={item.id} className="dish">
+                              <div>
+                                <h4>{item.name}</h4>
+                                {item.description && <p>{item.description}</p>}
+                                {item.availability !== "available" && (
+                                  <span className="availability-badge">
+                                    {item.availability === "sold_out"
+                                      ? "Ausverkauft"
+                                      : "Nicht verfügbar"}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="dish-action">
+                                <span className="price">
+                                  {new Intl.NumberFormat("de-DE", {
+                                    style: "currency",
+                                    currency: menu.currency,
+                                  }).format(item.priceAmountMinor / 100)}
                                 </span>
-                              )}
+                                <button
+                                  type="button"
+                                  className="add-button"
+                                  disabled={item.availability !== "available"}
+                                  onClick={() => {
+                                    const next = addCartItem(cart, menu, item);
+                                    if (next === cart)
+                                      setCartMessage(
+                                        "Gerichte aus verschiedenen Speisekarten können noch nicht gemeinsam bestellt werden.",
+                                      );
+                                    else {
+                                      setCart(next);
+                                      setCartMessage("");
+                                      invalidateSubmission();
+                                    }
+                                  }}
+                                >
+                                  Hinzufügen
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </section>
+                ))}
+              </div>
+              <div className="side-column">
+                <aside className="availability-panel" aria-labelledby="availability-title">
+                  <p className="eyebrow">DEIN WUNSCHTERMIN</p>
+                  <h2 id="availability-title">Wann passt es dir?</h2>
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void checkAvailability();
+                    }}
+                  >
+                    <fieldset>
+                      <legend>Bestellart</legend>
+                      <div className="fulfillment-options">
+                        {(["pickup", "delivery"] as const).map((type) => (
+                          <label key={type}>
+                            <input
+                              type="radio"
+                              name="fulfillment"
+                              value={type}
+                              checked={fulfillmentType === type}
+                              onChange={() => {
+                                clearAnswer();
+                                invalidateSubmission();
+                                setFulfillmentType(type);
+                              }}
+                            />
+                            {type === "pickup" ? "Abholung" : "Lieferung"}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                    <label htmlFor="requested-time">Datum und Uhrzeit</label>
+                    <input
+                      id="requested-time"
+                      type="datetime-local"
+                      required
+                      value={localTime}
+                      onChange={(event) => {
+                        clearAnswer();
+                        invalidateSubmission();
+                        setLocalTime(event.target.value);
+                      }}
+                      aria-describedby="timezone-note"
+                    />
+                    <p id="timezone-note" className="field-hint">
+                      Ortszeit des Restaurants: {catalog.location.timezone}
+                    </p>
+                    {totalQuantity === 0 ? (
+                      <>
+                        <label htmlFor="item-count">Anzahl der Gerichte</label>
+                        <input
+                          id="item-count"
+                          type="number"
+                          min="1"
+                          max="1000"
+                          step="1"
+                          required
+                          value={itemCount}
+                          onChange={(event) => {
+                            clearAnswer();
+                            setItemCount(event.target.value);
+                          }}
+                        />
+                      </>
+                    ) : (
+                      <p>Geprüfte Warenkorbmenge: {totalQuantity}</p>
+                    )}
+                    <button type="submit" disabled={checking}>
+                      {checking ? "Wird geprüft …" : "Verfügbarkeit prüfen"}
+                    </button>
+                    <p className="answer" role="status" aria-live="polite">
+                      {answer}
+                    </p>
+                  </form>
+                </aside>
+
+                <aside className="cart-panel" aria-labelledby="cart-title">
+                  <p className="eyebrow">DEIN WARENKORB</p>
+                  <h2 id="cart-title">{totalQuantity} Gerichte</h2>
+                  {cart.length === 0 ? (
+                    <p>Wähle verfügbare Gerichte aus der Speisekarte.</p>
+                  ) : (
+                    <>
+                      <ul className="cart-lines">
+                        {cart.map((line) => (
+                          <li key={line.menuItemId}>
+                            <div>
+                              <strong>{line.name}</strong>
+                              <span>{money(line.unitPriceAmountMinor * line.quantity)}</span>
                             </div>
-                            <div className="dish-action">
-                              <span className="price">
-                                {new Intl.NumberFormat("de-DE", {
-                                  style: "currency",
-                                  currency: menu.currency,
-                                }).format(item.priceAmountMinor / 100)}
-                              </span>
+                            <div className="quantity-controls">
                               <button
                                 type="button"
-                                className="add-button"
-                                disabled={item.availability !== "available"}
+                                className="secondary compact"
+                                aria-label={`${line.name} einmal weniger`}
                                 onClick={() => {
-                                  const next = addCartItem(cart, menu, item);
-                                  if (next === cart)
-                                    setCartMessage(
-                                      "Gerichte aus verschiedenen Speisekarten können noch nicht gemeinsam bestellt werden.",
-                                    );
-                                  else {
-                                    setCart(next);
-                                    setCartMessage("");
-                                    invalidateSubmission();
-                                  }
+                                  setCart(
+                                    setCartItemQuantity(cart, line.menuItemId, line.quantity - 1),
+                                  );
+                                  invalidateSubmission();
                                 }}
                               >
-                                Hinzufügen
+                                −
+                              </button>
+                              <span aria-label={`${line.quantity} Stück`}>{line.quantity}</span>
+                              <button
+                                type="button"
+                                className="secondary compact"
+                                aria-label={`${line.name} einmal mehr`}
+                                onClick={() => {
+                                  setCart(
+                                    setCartItemQuantity(cart, line.menuItemId, line.quantity + 1),
+                                  );
+                                  invalidateSubmission();
+                                }}
+                              >
+                                +
                               </button>
                             </div>
                           </li>
                         ))}
                       </ul>
-                    </div>
-                  ))}
-                </section>
-              ))}
-            </div>
-            <div className="side-column">
-              <aside className="availability-panel" aria-labelledby="availability-title">
-                <p className="eyebrow">DEIN WUNSCHTERMIN</p>
-                <h2 id="availability-title">Wann passt es dir?</h2>
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void checkAvailability();
-                  }}
-                >
-                  <fieldset>
-                    <legend>Bestellart</legend>
-                    <div className="fulfillment-options">
-                      {(["pickup", "delivery"] as const).map((type) => (
-                        <label key={type}>
-                          <input
-                            type="radio"
-                            name="fulfillment"
-                            value={type}
-                            checked={fulfillmentType === type}
-                            onChange={() => {
-                              clearAnswer();
-                              invalidateSubmission();
-                              setFulfillmentType(type);
-                            }}
-                          />
-                          {type === "pickup" ? "Abholung" : "Lieferung"}
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                  <label htmlFor="requested-time">Datum und Uhrzeit</label>
-                  <input
-                    id="requested-time"
-                    type="datetime-local"
-                    required
-                    value={localTime}
-                    onChange={(event) => {
-                      clearAnswer();
-                      invalidateSubmission();
-                      setLocalTime(event.target.value);
-                    }}
-                    aria-describedby="timezone-note"
-                  />
-                  <p id="timezone-note" className="field-hint">
-                    Ortszeit des Restaurants: {catalog.location.timezone}
-                  </p>
-                  {totalQuantity === 0 ? (
-                    <>
-                      <label htmlFor="item-count">Anzahl der Gerichte</label>
+                      <p className="cart-total">
+                        <span>Zwischensumme</span>
+                        <strong>{money(displayTotal)}</strong>
+                      </p>
+                      <p className="fine-print">
+                        Verbindliche Preise und Verfügbarkeit werden beim Absenden erneut geprüft.
+                      </p>
+                    </>
+                  )}
+
+                  {fulfillmentType === "delivery" && (
+                    <section aria-label="Liefergebiet und Lieferkosten">
+                      <label htmlFor="delivery-postal">Postleitzahl (Deutschland)</label>
                       <input
-                        id="item-count"
-                        type="number"
-                        min="1"
-                        max="1000"
-                        step="1"
-                        required
-                        value={itemCount}
-                        onChange={(event) => {
-                          clearAnswer();
-                          setItemCount(event.target.value);
+                        id="delivery-postal"
+                        inputMode="numeric"
+                        autoComplete="postal-code"
+                        maxLength={5}
+                        value={postalCode}
+                        onChange={(e) => {
+                          invalidateSubmission();
+                          setPostalCode(e.target.value);
                         }}
                       />
-                    </>
-                  ) : (
-                    <p>Geprüfte Warenkorbmenge: {totalQuantity}</p>
+                      <p>
+                        Wir prüfen vollständige Postleitzahlgebiete. Bitte kontrolliere Straße und
+                        Hausnummer selbst.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={quoting || !cart.length}
+                        onClick={() => void requestDeliveryQuote()}
+                      >
+                        {quoting ? "Wird geprüft …" : "Liefergebiet und Kosten prüfen"}
+                      </button>
+                      {deliveryQuote && (
+                        <div aria-live="polite">
+                          <p>Mindestbestellwert: {money(deliveryQuote.minimumAmountMinor)}</p>
+                          <p>Artikel: {money(deliveryQuote.subtotalAmountMinor)}</p>
+                          <p>Liefergebühr: {money(deliveryQuote.deliveryFeeAmountMinor)}</p>
+                          <p>
+                            <strong>Gesamt: {money(deliveryQuote.totalAmountMinor)}</strong> ·
+                            Zahlung bei Lieferung
+                          </p>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={quoteAccepted}
+                              onChange={(e) => setQuoteAccepted(e.target.checked)}
+                            />
+                            Ich bestätige diese Preisübersicht.
+                          </label>
+                        </div>
+                      )}
+                    </section>
                   )}
-                  <button type="submit" disabled={checking}>
-                    {checking ? "Wird geprüft …" : "Verfügbarkeit prüfen"}
-                  </button>
-                  <p className="answer" role="status" aria-live="polite">
-                    {answer}
-                  </p>
-                </form>
-              </aside>
-
-              <aside className="cart-panel" aria-labelledby="cart-title">
-                <p className="eyebrow">DEIN WARENKORB</p>
-                <h2 id="cart-title">{totalQuantity} Gerichte</h2>
-                {cart.length === 0 ? (
-                  <p>Wähle verfügbare Gerichte aus der Speisekarte.</p>
-                ) : (
-                  <>
-                    <ul className="cart-lines">
-                      {cart.map((line) => (
-                        <li key={line.menuItemId}>
-                          <div>
-                            <strong>{line.name}</strong>
-                            <span>{money(line.unitPriceAmountMinor * line.quantity)}</span>
-                          </div>
-                          <div className="quantity-controls">
-                            <button
-                              type="button"
-                              className="secondary compact"
-                              aria-label={`${line.name} einmal weniger`}
-                              onClick={() => {
-                                setCart(
-                                  setCartItemQuantity(cart, line.menuItemId, line.quantity - 1),
-                                );
-                                invalidateSubmission();
-                              }}
-                            >
-                              −
-                            </button>
-                            <span aria-label={`${line.quantity} Stück`}>{line.quantity}</span>
-                            <button
-                              type="button"
-                              className="secondary compact"
-                              aria-label={`${line.name} einmal mehr`}
-                              onClick={() => {
-                                setCart(
-                                  setCartItemQuantity(cart, line.menuItemId, line.quantity + 1),
-                                );
-                                invalidateSubmission();
-                              }}
-                            >
-                              +
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="cart-total">
-                      <span>Zwischensumme</span>
-                      <strong>{money(displayTotal)}</strong>
-                    </p>
-                    <p className="fine-print">
-                      Verbindliche Preise und Verfügbarkeit werden beim Absenden erneut geprüft.
-                    </p>
-                  </>
-                )}
-
-                {fulfillmentType === "delivery" && (
-                  <p className="notice">
-                    Der Checkout für Lieferung folgt in einem späteren Arbeitsblock.
-                  </p>
-                )}
-                <form
-                  className="checkout-form"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void submitCheckout();
-                  }}
-                >
-                  <label htmlFor="contact-name">Name</label>
-                  <input
-                    id="contact-name"
-                    autoComplete="name"
-                    maxLength={120}
-                    required
-                    value={contactName}
-                    onChange={(event) => {
-                      invalidateSubmission();
-                      setContactName(event.target.value);
+                  <form
+                    className="checkout-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void submitCheckout();
                     }}
-                  />
-                  <label htmlFor="contact-phone">Telefonnummer</label>
-                  <input
-                    id="contact-phone"
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    placeholder="+491701234567"
-                    required
-                    value={phoneE164}
-                    onChange={(event) => {
-                      invalidateSubmission();
-                      setPhoneE164(event.target.value);
-                    }}
-                  />
-                  <label htmlFor="contact-email">E-Mail-Adresse (optional)</label>
-                  <input
-                    id="contact-email"
-                    type="email"
-                    autoComplete="email"
-                    maxLength={254}
-                    value={email}
-                    onChange={(event) => {
-                      invalidateSubmission();
-                      setEmail(event.target.value);
-                    }}
-                  />
-                  <label className="privacy-confirmation">
+                  >
+                    {fulfillmentType === "delivery" && (
+                      <>
+                        <label htmlFor="delivery-address">Straße und Hausnummer</label>
+                        <input
+                          id="delivery-address"
+                          autoComplete="address-line1"
+                          maxLength={200}
+                          required
+                          value={addressLine1}
+                          onChange={(e) => {
+                            invalidateSubmission(false);
+                            setAddressLine1(e.target.value);
+                          }}
+                        />
+                        <label htmlFor="delivery-city">Ort</label>
+                        <input
+                          id="delivery-city"
+                          autoComplete="address-level2"
+                          maxLength={120}
+                          required
+                          value={city}
+                          onChange={(e) => {
+                            invalidateSubmission(false);
+                            setCity(e.target.value);
+                          }}
+                        />
+                      </>
+                    )}
+                    <label htmlFor="contact-name">Name</label>
                     <input
-                      type="checkbox"
-                      checked={privacyAccepted}
+                      id="contact-name"
+                      autoComplete="name"
+                      maxLength={120}
+                      required
+                      value={contactName}
                       onChange={(event) => {
-                        invalidateSubmission();
-                        setPrivacyAccepted(event.target.checked);
+                        invalidateSubmission(false);
+                        setContactName(event.target.value);
                       }}
                     />
-                    Ich habe den Datenschutzhinweis für den Test-Checkout gesehen.
-                  </label>
-                  <button
-                    type="submit"
-                    disabled={
-                      cart.length === 0 ||
-                      fulfillmentType !== "pickup" ||
-                      checkoutState === "submitting"
-                    }
-                  >
-                    {checkoutState === "submitting"
-                      ? "Wird übermittelt …"
-                      : "Abholbestellung absenden"}
-                  </button>
-                  <p className="answer" role="status" aria-live="polite">
-                    {cartMessage}
-                  </p>
-                </form>
-              </aside>
+                    <label htmlFor="contact-phone">Telefonnummer</label>
+                    <input
+                      id="contact-phone"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      placeholder="+491701234567"
+                      required
+                      value={phoneE164}
+                      onChange={(event) => {
+                        invalidateSubmission(false);
+                        setPhoneE164(event.target.value);
+                      }}
+                    />
+                    <label htmlFor="contact-email">E-Mail-Adresse (optional)</label>
+                    <input
+                      id="contact-email"
+                      type="email"
+                      autoComplete="email"
+                      maxLength={254}
+                      value={email}
+                      onChange={(event) => {
+                        invalidateSubmission(false);
+                        setEmail(event.target.value);
+                      }}
+                    />
+                    <label className="privacy-confirmation">
+                      <input
+                        type="checkbox"
+                        checked={privacyAccepted}
+                        onChange={(event) => {
+                          invalidateSubmission(false);
+                          setPrivacyAccepted(event.target.checked);
+                        }}
+                      />
+                      Ich habe den Datenschutzhinweis für den Test-Checkout gesehen.
+                    </label>
+                    <button
+                      type="submit"
+                      disabled={
+                        cart.length === 0 ||
+                        (fulfillmentType === "delivery" && (!deliveryQuote || !quoteAccepted)) ||
+                        checkoutState === "submitting"
+                      }
+                    >
+                      {checkoutState === "submitting"
+                        ? "Wird übermittelt …"
+                        : fulfillmentType === "delivery"
+                          ? "Lieferbestellung absenden"
+                          : "Abholbestellung absenden"}
+                    </button>
+                    <p className="answer" role="status" aria-live="polite">
+                      {cartMessage}
+                    </p>
+                  </form>
+                </aside>
+              </div>
             </div>
-          </div>
+          </fieldset>
           <footer>
             <span>Testsystem · keine Livezahlung und kein produktiver Bestellbetrieb.</span>
             <button

@@ -1,4 +1,10 @@
 import {
+  parseDeliveryQuote,
+  parseDeliveryQuoteRequest,
+  parseGuestDeliveryOrderRequest,
+  parseGuestDeliveryOrderConfirmation,
+} from "@provide/contracts";
+import {
   isStorefrontScope,
   parseGuestPickupOrderConfirmation,
   parseGuestPickupOrderRequest,
@@ -146,7 +152,11 @@ export async function submitGuestPickupOrder(
       },
       { status, headers },
     );
-  if (!isStorefrontScope(params) || params.resource !== "orders" || request.url.length > 2048)
+  if (
+    !isStorefrontScope(params) ||
+    !["orders", "delivery-quote", "delivery-orders"].includes(params.resource) ||
+    request.url.length > 2048
+  )
     return failure(400);
   const base = safeApiBase(apiUrl);
   if (!base) return failure(503);
@@ -156,10 +166,15 @@ export async function submitGuestPickupOrder(
     const bytes = await request.arrayBuffer();
     if (bytes.byteLength > 64 * 1024) return failure(413);
     const source = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as unknown;
-    const body = parseGuestPickupOrderRequest(source);
+    const body =
+      params.resource === "delivery-quote"
+        ? parseDeliveryQuoteRequest(source)
+        : params.resource === "delivery-orders"
+          ? parseGuestDeliveryOrderRequest(source)
+          : parseGuestPickupOrderRequest(source);
     if (!body) return failure(400);
     const upstream = new URL(
-      `/v1/storefront/${params.restaurantSlug}/${params.locationSlug}/orders`,
+      `/v1/storefront/${params.restaurantSlug}/${params.locationSlug}/${params.resource}`,
       base,
     );
     const response = await fetcher(upstream, {
@@ -176,9 +191,17 @@ export async function submitGuestPickupOrder(
     const text = await response.text();
     if (new TextEncoder().encode(text).byteLength > 16 * 1024) return failure(503);
     const payload = JSON.parse(text) as { data?: unknown };
-    const confirmation = parseGuestPickupOrderConfirmation(payload.data);
+    const confirmation =
+      params.resource === "delivery-quote"
+        ? parseDeliveryQuote(payload.data)
+        : params.resource === "delivery-orders"
+          ? parseGuestDeliveryOrderConfirmation(payload.data)
+          : parseGuestPickupOrderConfirmation(payload.data);
     if (!confirmation) return failure(503);
-    return Response.json({ data: confirmation }, { status: 201, headers });
+    return Response.json(
+      { data: confirmation },
+      { status: params.resource === "delivery-quote" ? 200 : 201, headers },
+    );
   } catch {
     return failure(503);
   }

@@ -41,7 +41,9 @@ function matchPath(request: Request): MatchedRoute | undefined {
     }
   }
   const match =
-    /^\/v1\/storefront\/([^/]+)\/([^/]+)\/(catalog|availability|orders|order-status)$/.exec(path);
+    /^\/v1\/storefront\/([^/]+)\/([^/]+)\/(catalog|availability|orders|order-status|delivery-quote|delivery-orders)$/.exec(
+      path,
+    );
   if (match) {
     const [, restaurantSlug, locationSlug, name] = match;
     if (
@@ -50,7 +52,9 @@ function matchPath(request: Request): MatchedRoute | undefined {
       (name === "catalog" ||
         name === "availability" ||
         name === "orders" ||
-        name === "order-status")
+        name === "order-status" ||
+        name === "delivery-quote" ||
+        name === "delivery-orders")
     )
       return {
         name: name === "order-status" ? "orderStatus" : name,
@@ -63,7 +67,12 @@ function matchPath(request: Request): MatchedRoute | undefined {
 export function routeRequest(request: Request): MatchedRoute | undefined {
   const match = matchPath(request);
   if (!match) return undefined;
-  if (match.name === "orders" || match.name === "orderStatus")
+  if (
+    match.name === "orders" ||
+    match.name === "orderStatus" ||
+    match.name === "delivery-quote" ||
+    match.name === "delivery-orders"
+  )
     return request.method === "POST" ? match : undefined;
   if (match.name === "dashboardOrderStatus") return request.method === "POST" ? match : undefined;
   return request.method === "GET" ? match : undefined;

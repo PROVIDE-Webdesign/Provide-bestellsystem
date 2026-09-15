@@ -22,10 +22,13 @@ Staging-Pilot.
 - Arbeitsblock 3.6 – operative Bestellübersicht und Statusbearbeitung – ist technisch endfreigegeben
   und über PR #5 in `main` zusammengeführt.
 - Umsetzung und Nachweise: [Arbeitsblock 3.6](docs/work-blocks/3.6-dashboard-order-operations.md).
-- Arbeitsblock 3.7 – zuverlässige transaktionale Gast-Bestellbenachrichtigungen – ist im Umfang
-  formal freigegeben und befindet sich in der technischen Prüfung.
+- Arbeitsblock 3.7 – zuverlässige transaktionale Gast-Bestellbenachrichtigungen – ist technisch
+  endfreigegeben und über PR #6 in `main` zusammengeführt.
 - Umsetzung und Nachweise: [Arbeitsblock 3.7](docs/work-blocks/3.7-order-notifications.md).
-- Gesamtfortschritt des freigegebenen MVP-Umfangs: **72 %**.
+- Arbeitsblock 3.8 – sichere Lieferbestellungen und Liefergebietsprüfung – ist formal freigegeben
+  und befindet sich in der technischen Prüfung.
+- Umsetzung und Nachweise: [Arbeitsblock 3.8](docs/work-blocks/3.8-secure-delivery-orders.md).
+- Gesamtfortschritt des freigegebenen MVP-Umfangs: **78 %**.
 - Das Deployment der kundenbezogenen Arbeitsblöcke steht aus.
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 

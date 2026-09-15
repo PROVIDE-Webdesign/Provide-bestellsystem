@@ -6,6 +6,7 @@ import fixture from "../../../fixtures/storefront-catalog.json" with { type: "js
 import { parseGuestPickupOrderConfirmation } from "@provide/contracts";
 import { createApiWorker } from "./index.js";
 import type { NotificationAdapter } from "./notifications.js";
+import { verifyDeliveryIntegration } from "./delivery.integration.js";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 // A fresh, migrated disposable database is mandatory; the shared fixture commits synthetic data.
@@ -256,6 +257,17 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
         "select count(*) from public.ordering_capacity_claims where restaurant_id='f2000000-0000-0000-0000-000000000001'",
       );
       expect(claims.rows[0]?.count).toBe("1");
+      await verifyDeliveryIntegration(admin, worker, env);
+      expect(
+        sendNotification.mock.calls.some(([command]) =>
+          command.body.includes("bereit zur Auslieferung"),
+        ),
+      ).toBe(true);
+      expect(
+        sendNotification.mock.calls
+          .filter(([command]) => command.destination === "+999100000031")
+          .every(([command]) => !command.body.includes("Abhol")),
+      ).toBe(true);
     } finally {
       await admin.end();
     }

@@ -13,6 +13,7 @@ const job: NotificationDispatchJob = {
   lockToken: "fa000000-0000-0000-0000-000000000002",
   orderId: "fa000000-0000-0000-0000-000000000003",
   channel: "sms",
+  fulfillmentType: "pickup",
   templateKey: "order_ready",
   templateVersion: 1,
   targetStatus: "ready",
