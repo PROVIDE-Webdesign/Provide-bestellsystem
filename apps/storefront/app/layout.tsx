@@ -3,12 +3,12 @@ import type { ReactNode } from "react";
 import "./styles.css";
 
 export const metadata = {
-  description: "Technischer Cloudflare-Laufzeitnachweis des PROVIDE-Bestellsystems",
+  description: "Speisekarte und Verfügbarkeit direkt beim Restaurant",
   robots: {
     follow: false,
     index: false,
   },
-  title: "PROVIDE Bestellsystem – Technik-Spike",
+  title: "PROVIDE – Speisekarte",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

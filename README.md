@@ -7,7 +7,10 @@ Staging-Pilot.
 
 - Architektur-SoT: `PROVIDE Bestellsystem - Architektur und Arbeitsplan A2`
 - Organisatorische SoT: `PROVIDE Bestellsystem Projektprotokoll V2`
-- Aktiver Arbeitsblock: `3.1 - Sichere API-Anfragegrundlage`
+- Arbeitsblock 3.1 ist abgeschlossen und formal freigegeben.
+- Aktiver Arbeitsblock: `3.2 - Öffentliche Storefront und Speisekarte` (Umfang freigegeben, lokale
+  Umsetzung; GitHub-Gates ausstehend).
+- Umsetzung und Nachweise: [Arbeitsblock 3.2](docs/work-blocks/3.2-public-storefront.md).
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 
 ## Geplante Anwendungen
@@ -45,6 +48,13 @@ Produktionskonfigurationen werden getrennt in der jeweiligen Plattform hinterleg
 Die versionierte Datenbankstruktur wird mit der Supabase CLI verwaltet. Der Einstieg und die Regeln
 für lokale sowie entfernte Migrationen stehen im
 [Datenbankmigrations-Runbook](docs/runbooks/database-migrations.md).
+
+## Verbindliche Abschlussregel
+
+Nach jedem technisch abgeschlossenen Arbeitsblock nennt der Abschlussbericht den Gesamtfortschritt
+des PROVIDE Bestellsystems in Prozent, einschließlich Berechnungsgrundlage und verbleibender
+Unsicherheit. Ein Arbeitsblock zählt erst nach erfolgreicher lokaler Prüfung, Commit, Push und grünen
+Pflichtprüfungen als technisch abgeschlossen.
 
 ## Sicherheit
 

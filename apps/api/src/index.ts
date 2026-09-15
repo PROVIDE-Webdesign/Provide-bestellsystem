@@ -2,6 +2,8 @@ import { isAppEnvironment } from "@provide/contracts";
 
 import { corsHeaders, parseAllowedOrigins } from "./cors.js";
 import { createRequestContext } from "./context.js";
+import { handleStorefront, type StorefrontReader } from "./storefront.js";
+import { postgresStorefrontReader } from "./storefront-database.js";
 import { probeDatabase } from "./database.js";
 import { jsonError, jsonSuccess } from "./http.js";
 import { consoleLogger, type ApiLogger } from "./logger.js";
@@ -14,6 +16,7 @@ interface HyperdriveBinding {
 interface Env {
   readonly APP_ENV: string;
   readonly API_ALLOWED_ORIGINS?: string;
+  readonly HYPERDRIVE_CACHE_DISABLED?: string;
   readonly HYPERDRIVE?: HyperdriveBinding;
 }
 
@@ -22,6 +25,7 @@ type DatabaseProbe = (connectionString: string) => Promise<void>;
 export function createApiWorker(
   databaseProbe: DatabaseProbe = probeDatabase,
   logger: ApiLogger = consoleLogger,
+  storefrontReader: StorefrontReader = postgresStorefrontReader,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -45,6 +49,10 @@ export function createApiWorker(
           );
         }
         return jsonError("not_found", "Resource was not found.", context.requestId, 404, cors);
+      }
+
+      if (route.name === "catalog" || route.name === "availability") {
+        return handleStorefront(request, route, env, storefrontReader, context, logger, cors);
       }
 
       if (route.name === "health") {
