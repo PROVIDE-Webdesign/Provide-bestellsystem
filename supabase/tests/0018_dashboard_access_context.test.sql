@@ -124,11 +124,12 @@ select is(
   0,
   'unassigned manager receives no location'
 );
-select unlike(
-  private.read_dashboard_access_context(
-    'f1000000-0000-0000-0000-000000000001','aal2'
-  )::text,
-  '%storefront-restaurant-b%',
+select ok(
+  position(
+    'storefront-restaurant-b' in private.read_dashboard_access_context(
+      'f1000000-0000-0000-0000-000000000001','aal2'
+    )::text
+  ) = 0,
   'dashboard context cannot cross the tenant boundary'
 );
 
