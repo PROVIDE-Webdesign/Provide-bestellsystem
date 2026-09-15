@@ -346,3 +346,17 @@ Alle neuen Features starten deaktiviert. Browserrollen besitzen keine direkten R
 Tabellen oder die interne Auflösungsfunktion. Änderungen erfolgen später ausschließlich über einen
 freigegebenen serverseitigen Administrationsablauf. Feature-Flags steuern die Einführung einer
 Funktion, ersetzen aber niemals deren Autorisierung oder fachliche Validierung.
+
+## Transaktionale Gast-Bestellbenachrichtigungen
+
+Geeignete Bestellereignisse erzeugen über einen Datenbanktrigger einen getrennten, PII-freien
+Zustellauftrag. Der allgemeine Outbox-Datensatz wird dabei nicht als ausschließlich von der
+Benachrichtigung verbraucht behandelt und bleibt für spätere Integrationen erhalten.
+
+Nur die Service-Rolle darf die begrenzten Funktionen `private.claim_notification_deliveries` und
+`private.finish_notification_delivery` aufrufen. Die Zustelltabelle besitzt auch für die
+Service-Rolle keine direkten Tabellenrechte. Telefonnummern werden ausschließlich für aktuell
+gültige, gesperrte Aufträge projiziert; sie werden nie in der Zustelltabelle gespeichert.
+
+Vor einer realen Aktivierung müssen Anbieter, Datenschutz, Secrets, Idempotenz und Sandboxnachweis
+separat freigegeben werden. Arbeitsblock 3.7 verarbeitet ausschließlich synthetische Ziele.

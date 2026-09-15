@@ -33,6 +33,7 @@ Produktionsdaten in Development, Test oder Preview ist ausgeschlossen.
 | `ORDER_STATUS_TOKEN_SECRET_PREVIOUS`   | Nur Server   | Optionales vorheriges Secret während Rotation         |
 | `DASHBOARD_AUTH_ENABLED`               | Nur Server   | Explizites Laufzeit-Gate für den Personalzugang       |
 | `DASHBOARD_ORDER_OPERATIONS_ENABLED`   | Nur Server   | Separates Gate für operative Dashboard-Bestellungen   |
+| `NOTIFICATION_DISPATCH_ENABLED`        | Nur Server   | Explizites Gate für den Benachrichtigungs-Worker      |
 | `SUPABASE_AUTH_ISSUER`                 | Nur Server   | Erwarteter Aussteller der Supabase-Zugriffstokens     |
 | `SUPABASE_AUTH_AUDIENCE`               | Nur Server   | Erwartetes Publikum der Supabase-Zugriffstokens       |
 | `NEXT_PUBLIC_SUPABASE_URL`             | Öffentlich   | Reine HTTPS-Origin des Supabase-Projekts              |
@@ -58,6 +59,12 @@ Der Dashboard-Publishable-Key ist ausdrücklich kein Secret; Service-Role-Key, Z
 Refresh-Tokens und TOTP-Daten bleiben hingegen geheim. Das Dashboard vertraut keinem ungeprüften
 Cookie und verwendet die öffentliche Supabase-JWKS zur Signaturprüfung. Einrichtung und
 Fehlergrenzen stehen im [Dashboard-Auth-Runbook](dashboard-authentication.md).
+
+Der Benachrichtigungs-Worker bleibt ohne explizites Gate und konfigurierten Adapter geschlossen.
+Anbieterkennung, API-Schlüssel und andere spätere Versandwerte sind serverseitige Secrets und werden
+erst in einem getrennt freigegebenen Anbieterblock ergänzt. Das Repository enthält weder echte
+Empfänger noch Anbieterzugangsdaten. Details stehen im
+[Benachrichtigungs-Runbook](order-notifications.md).
 
 ## Lokale Einrichtung
 

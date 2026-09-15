@@ -19,10 +19,13 @@ Staging-Pilot.
 - Arbeitsblock 3.5 – sichere Dashboard-Anmeldung und MFA-Zugangsgrenze – ist technisch
   endfreigegeben und über PR #4 in `main` zusammengeführt.
 - Umsetzung und Nachweise: [Arbeitsblock 3.5](docs/work-blocks/3.5-dashboard-authentication.md).
-- Arbeitsblock 3.6 – operative Bestellübersicht und Statusbearbeitung – ist im Umfang formal
-  freigegeben und befindet sich in der technischen Prüfung.
+- Arbeitsblock 3.6 – operative Bestellübersicht und Statusbearbeitung – ist technisch endfreigegeben
+  und über PR #5 in `main` zusammengeführt.
 - Umsetzung und Nachweise: [Arbeitsblock 3.6](docs/work-blocks/3.6-dashboard-order-operations.md).
-- Gesamtfortschritt des freigegebenen MVP-Umfangs: **65 %**.
+- Arbeitsblock 3.7 – zuverlässige transaktionale Gast-Bestellbenachrichtigungen – ist im Umfang
+  formal freigegeben und befindet sich in der technischen Prüfung.
+- Umsetzung und Nachweise: [Arbeitsblock 3.7](docs/work-blocks/3.7-order-notifications.md).
+- Gesamtfortschritt des freigegebenen MVP-Umfangs: **72 %**.
 - Das Deployment der kundenbezogenen Arbeitsblöcke steht aus.
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 
@@ -64,6 +67,9 @@ für lokale sowie entfernte Migrationen stehen im
 
 Der standardmäßig deaktivierte Gast-Abholcheckout und seine synthetische Prüfkette stehen im
 [Checkout-Runbook](docs/runbooks/guest-pickup-checkout.md).
+
+Die standardmäßig deaktivierte Benachrichtigungsverarbeitung und ihre ausschließlich synthetische
+Adapterprüfung stehen im [Benachrichtigungs-Runbook](docs/runbooks/order-notifications.md).
 
 ## Verbindliche Abschlussregel
 
