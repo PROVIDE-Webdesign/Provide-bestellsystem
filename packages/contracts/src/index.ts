@@ -8,6 +8,8 @@ export function isAppEnvironment(value: string): value is AppEnvironment {
 
 export const apiErrorCodes = [
   "bad_request",
+  "conflict",
+  "forbidden",
   "internal_error",
   "method_not_allowed",
   "not_found",
@@ -38,3 +40,4 @@ export * from "./storefront-output.js";
 export * from "./checkout.js";
 export * from "./order-status.js";
 export * from "./dashboard-access.js";
+export * from "./dashboard-orders.js";

@@ -47,3 +47,12 @@ Supabase-JWKS, bevor die serverexklusive Datenbankprojektion aktuelle Mitgliedsc
 und Standortumfang ermittelt. Ohne `DASHBOARD_AUTH_ENABLED=true`, sichere Auth-Konfiguration und
 cachedeaktivierte Hyperdrive-Verbindung bleibt der Endpunkt geschlossen. Details stehen im
 [Dashboard-Auth-Runbook](../../docs/runbooks/dashboard-authentication.md).
+
+## Operative Dashboard-Bestellungen
+
+Die standortbezogenen Listen-, Detail- und Statusendpunkte liegen unter
+`/v1/dashboard/restaurants/{restaurantId}/locations/{locationId}/orders`. Sie wiederholen die JWT-,
+AAL-, Rollen-, Mandanten- und Standortprüfung je Anfrage und bleiben ohne
+`DASHBOARD_ORDER_OPERATIONS_ENABLED=true` geschlossen. Statusänderungen verlangen den erwarteten
+Ausgangsstatus und verwenden die bestehende transaktionale Statusmaschine. Details stehen im
+[Dashboard-Bestell-Runbook](../../docs/runbooks/dashboard-order-operations.md).

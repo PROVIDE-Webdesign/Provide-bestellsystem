@@ -44,4 +44,27 @@ describe("API router", () => {
     expect(routeRequest(new Request(url, { method: "POST" }))).toBeUndefined();
     expect(isKnownPath(new Request(url, { method: "POST" }))).toBe(true);
   });
+
+  it("routes dashboard order reads and status commands separately", () => {
+    const root = "https://api.example.test/v1/dashboard/restaurants/r-1/locations/l-1/orders";
+    expect(routeRequest(new Request(root))).toEqual({
+      name: "dashboardOrders",
+      restaurantId: "r-1",
+      locationId: "l-1",
+    });
+    expect(routeRequest(new Request(`${root}/o-1`))).toEqual({
+      name: "dashboardOrder",
+      restaurantId: "r-1",
+      locationId: "l-1",
+      orderId: "o-1",
+    });
+    expect(routeRequest(new Request(`${root}/o-1/status`, { method: "POST" }))).toEqual({
+      name: "dashboardOrderStatus",
+      restaurantId: "r-1",
+      locationId: "l-1",
+      orderId: "o-1",
+    });
+    expect(routeRequest(new Request(`${root}/o-1/status`))).toBeUndefined();
+    expect(isKnownPath(new Request(`${root}/o-1/status`))).toBe(true);
+  });
 });

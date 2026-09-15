@@ -12,6 +12,8 @@ import { postgresOrderStatusReader } from "./order-status-database.js";
 import { handleDashboardAccess, type DashboardAccessReader } from "./dashboard-access.js";
 import { postgresDashboardAccessReader } from "./dashboard-access-database.js";
 import { supabaseDashboardTokenVerifier, type DashboardTokenVerifier } from "./dashboard-auth.js";
+import { handleDashboardOrders, type DashboardOrdersReader } from "./dashboard-orders.js";
+import { postgresDashboardOrdersReader } from "./dashboard-orders-database.js";
 import { jsonError, jsonSuccess } from "./http.js";
 import { consoleLogger, type ApiLogger } from "./logger.js";
 import { isKnownPath, routeRequest } from "./router.js";
@@ -30,6 +32,7 @@ interface Env {
   readonly ORDER_STATUS_TOKEN_SECRET?: string;
   readonly ORDER_STATUS_TOKEN_SECRET_PREVIOUS?: string;
   readonly DASHBOARD_AUTH_ENABLED?: string;
+  readonly DASHBOARD_ORDER_OPERATIONS_ENABLED?: string;
   readonly SUPABASE_AUTH_ISSUER?: string;
   readonly SUPABASE_AUTH_AUDIENCE?: string;
   readonly HYPERDRIVE_CACHE_DISABLED?: string;
@@ -46,6 +49,7 @@ export function createApiWorker(
   orderStatusReader: OrderStatusReader = postgresOrderStatusReader,
   dashboardTokenVerifier: DashboardTokenVerifier = supabaseDashboardTokenVerifier,
   dashboardAccessReader: DashboardAccessReader = postgresDashboardAccessReader,
+  dashboardOrdersReader: DashboardOrdersReader = postgresDashboardOrdersReader,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -93,6 +97,23 @@ export function createApiWorker(
           env,
           dashboardTokenVerifier,
           dashboardAccessReader,
+          context,
+          logger,
+          cors,
+        );
+      }
+
+      if (
+        route.name === "dashboardOrders" ||
+        route.name === "dashboardOrder" ||
+        route.name === "dashboardOrderStatus"
+      ) {
+        return handleDashboardOrders(
+          request,
+          route,
+          env,
+          dashboardTokenVerifier,
+          dashboardOrdersReader,
           context,
           logger,
           cors,

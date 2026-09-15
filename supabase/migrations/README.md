@@ -50,3 +50,7 @@ Die Dashboard-Zugriffsmigration ergänzt eine ausschließlich serverseitige Proj
 Mitgliedschaften. Restaurant- und Standortprofile werden nur für aktive, rollen- und MFA-berechtigte
 Zugriffe ausgegeben; suspendierte oder noch nicht hochgestufte Sitzungen erhalten nur den minimalen
 Routingzustand.
+
+Die Dashboard-Bestellmigration ergänzt begrenzte, service-only Listen- und Detailprojektionen sowie
+einen gegen veraltete Ansichten geschützten Statusbefehl. Rollen-, MFA-, Standort- und
+Mandantengrenzen werden in jeder Funktion erneut geprüft; Küche erhält keine Kontaktdaten.

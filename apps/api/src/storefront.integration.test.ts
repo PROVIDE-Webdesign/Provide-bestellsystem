@@ -33,6 +33,7 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       ORDER_STATUS_READ_ENABLED: "true",
       ORDER_STATUS_TOKEN_SECRET: "synthetic-integration-status-secret-at-least-32-bytes",
       DASHBOARD_AUTH_ENABLED: "true",
+      DASHBOARD_ORDER_OPERATIONS_ENABLED: "true",
       SUPABASE_AUTH_ISSUER: "https://project.supabase.co/auth/v1",
       SUPABASE_AUTH_AUDIENCE: "authenticated",
     };
@@ -146,6 +147,38 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
           ],
         },
       });
+      const dashboardBase =
+        "https://api.test/v1/dashboard/restaurants/f2000000-0000-0000-0000-000000000001/locations/f3000000-0000-0000-0000-000000000001/orders";
+      const dashboardRequest = (path: string, init?: RequestInit) => {
+        const headers = new Headers(init?.headers);
+        headers.set("authorization", "Bearer header.payload.signature");
+        return worker.fetch(new Request(path, { ...init, headers }), env);
+      };
+      const dashboardOrders = await dashboardRequest(`${dashboardBase}?status=accepted&limit=25`);
+      expect(dashboardOrders.status).toBe(200);
+      await expect(dashboardOrders.json()).resolves.toMatchObject({
+        data: { orders: [{ orderId: orderPayload.orderId, status: "accepted" }] },
+      });
+      const dashboardDetail = await dashboardRequest(`${dashboardBase}/${orderPayload.orderId}`);
+      expect(dashboardDetail.status).toBe(200);
+      await expect(dashboardDetail.json()).resolves.toMatchObject({
+        data: {
+          contactName: "Synthetic Integration Guest",
+          lines: [{ displayName: "Gemüsecurry", quantity: 2 }],
+        },
+      });
+      const dashboardTransition = await dashboardRequest(
+        `${dashboardBase}/${orderPayload.orderId}/status`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ expectedStatus: "accepted", targetStatus: "preparing" }),
+        },
+      );
+      expect(dashboardTransition.status).toBe(200);
+      await expect(dashboardTransition.json()).resolves.toMatchObject({
+        data: { status: "preparing" },
+      });
       const persisted = await admin.query<{ count: string }>(
         "select count(*) from public.orders where submission_key='integration-pickup-order-0001'",
       );
@@ -172,7 +205,7 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       expect((await read(`${base}/catalog`)).status).toBe(404);
       expect((await read(`${base}/availability?${query.toString()}`)).status).toBe(404);
       await expect((await statusRequest()).json()).resolves.toMatchObject({
-        data: { status: "accepted" },
+        data: { status: "preparing" },
       });
       const claims = await admin.query<{ count: string }>(
         "select count(*) from public.ordering_capacity_claims where restaurant_id='f2000000-0000-0000-0000-000000000001'",

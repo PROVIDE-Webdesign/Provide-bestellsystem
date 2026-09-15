@@ -16,10 +16,13 @@ Staging-Pilot.
 - Arbeitsblock 3.4 – sicherer öffentlicher Gast-Bestellstatus – ist technisch endfreigegeben und
   über PR #3 in `main` zusammengeführt.
 - Umsetzung und Nachweise: [Arbeitsblock 3.4](docs/work-blocks/3.4-public-order-status.md).
-- Arbeitsblock 3.5 – sichere Dashboard-Anmeldung und MFA-Zugangsgrenze – ist im Umfang formal
-  freigegeben und befindet sich in der technischen Prüfung.
+- Arbeitsblock 3.5 – sichere Dashboard-Anmeldung und MFA-Zugangsgrenze – ist technisch
+  endfreigegeben und über PR #4 in `main` zusammengeführt.
 - Umsetzung und Nachweise: [Arbeitsblock 3.5](docs/work-blocks/3.5-dashboard-authentication.md).
-- Gesamtfortschritt des freigegebenen MVP-Umfangs: **60 %**.
+- Arbeitsblock 3.6 – operative Bestellübersicht und Statusbearbeitung – ist im Umfang formal
+  freigegeben und befindet sich in der technischen Prüfung.
+- Umsetzung und Nachweise: [Arbeitsblock 3.6](docs/work-blocks/3.6-dashboard-order-operations.md).
+- Gesamtfortschritt des freigegebenen MVP-Umfangs: **65 %**.
 - Das Deployment der kundenbezogenen Arbeitsblöcke steht aus.
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 

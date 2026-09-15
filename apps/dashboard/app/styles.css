@@ -25,7 +25,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -146,7 +147,17 @@ input {
   padding: 0.7rem 0.85rem;
 }
 
+select {
+  min-height: 3rem;
+  border: 1px solid rgba(246, 242, 232, 0.3);
+  border-radius: 0.7rem;
+  background: #07130f;
+  color: #f6f2e8;
+  padding: 0.7rem 2.2rem 0.7rem 0.85rem;
+}
+
 input:focus-visible,
+select:focus-visible,
 button:focus-visible,
 a:focus-visible {
   outline: 3px solid #f2cf84;
@@ -177,6 +188,71 @@ a:focus-visible {
 .notice {
   color: #aebbb3;
 }
+.order-board {
+  margin-top: 1.5rem;
+}
+.order-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 0.8rem;
+}
+.order-list,
+.line-list {
+  padding: 0;
+  list-style: none;
+}
+.order-list {
+  display: grid;
+  gap: 0.7rem;
+}
+.order-card {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.7fr) repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  align-items: center;
+  text-align: left;
+  border: 1px solid rgba(246, 242, 232, 0.16);
+  background: rgba(7, 19, 15, 0.72);
+  color: #f6f2e8;
+}
+.order-number {
+  color: #f2cf84;
+  font-variant-numeric: tabular-nums;
+}
+.order-detail {
+  margin-top: 1rem;
+  border-top: 1px solid rgba(214, 179, 106, 0.3);
+  padding-top: 1.5rem;
+}
+.detail-heading,
+.line-list li,
+.status-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.detail-heading {
+  align-items: flex-start;
+}
+.detail-heading h3 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+.line-list li {
+  border-bottom: 1px solid rgba(246, 242, 232, 0.1);
+  padding: 0.75rem 0;
+}
+.order-total {
+  text-align: right;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+.status-actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
 .warning {
   border-left: 0.3rem solid #f2cf84;
   padding: 0.8rem 1rem;
@@ -195,6 +271,13 @@ a:focus-visible {
     flex-direction: column;
   }
   .toolbar button {
+    width: 100%;
+  }
+  .order-controls,
+  .order-card {
+    grid-template-columns: 1fr;
+  }
+  .order-controls button {
     width: 100%;
   }
 }

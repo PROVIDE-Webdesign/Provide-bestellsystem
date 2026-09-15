@@ -32,6 +32,7 @@ Produktionsdaten in Development, Test oder Preview ist ausgeschlossen.
 | `ORDER_STATUS_TOKEN_SECRET`            | Nur Server   | Aktuelles HMAC-Secret für Statusberechtigungen        |
 | `ORDER_STATUS_TOKEN_SECRET_PREVIOUS`   | Nur Server   | Optionales vorheriges Secret während Rotation         |
 | `DASHBOARD_AUTH_ENABLED`               | Nur Server   | Explizites Laufzeit-Gate für den Personalzugang       |
+| `DASHBOARD_ORDER_OPERATIONS_ENABLED`   | Nur Server   | Separates Gate für operative Dashboard-Bestellungen   |
 | `SUPABASE_AUTH_ISSUER`                 | Nur Server   | Erwarteter Aussteller der Supabase-Zugriffstokens     |
 | `SUPABASE_AUTH_AUDIENCE`               | Nur Server   | Erwartetes Publikum der Supabase-Zugriffstokens       |
 | `NEXT_PUBLIC_SUPABASE_URL`             | Öffentlich   | Reine HTTPS-Origin des Supabase-Projekts              |
