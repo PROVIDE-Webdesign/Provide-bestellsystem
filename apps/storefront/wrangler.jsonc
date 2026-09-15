@@ -15,6 +15,7 @@
   "vars": {
     "APP_ENV": "preview",
     "PUBLIC_API_URL": "https://replace-with-preview-api.example.invalid",
+    "PUBLIC_CHECKOUT_PRIVACY_NOTICE_VERSION": "preview-v1",
   },
   "observability": {
     "enabled": true,

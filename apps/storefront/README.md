@@ -1,8 +1,10 @@
 # Storefront
 
-Die Kundenoberfläche zeigt veröffentlichte Speisekarten und prüft unverbindlich die Bestellbarkeit.
-Einstieg pro Standort: `/r/{restaurantSlug}/{locationSlug}`. Sie verwendet zentrale Contracts und
-vermittelt öffentliche GET-Anfragen an die API. Server-Geheimnisse gelangen nicht in die Oberfläche.
+Die Kundenoberfläche zeigt veröffentlichte Speisekarten, prüft die Bestellbarkeit und enthält einen
+Warenkorb mit Gast-Checkout für Abholbestellungen. Der API-Schreibweg bleibt standardmäßig gesperrt;
+es gibt weiterhin keinen produktiven Bestellbetrieb. Einstieg pro Standort:
+`/r/{restaurantSlug}/{locationSlug}`. Sie verwendet zentrale Contracts und vermittelt öffentliche
+GET-Anfragen an die API. Server-Geheimnisse gelangen nicht in die Oberfläche.
 
 1. `pnpm dev` startet die lokale vinext-Entwicklung.
 2. `pnpm build` erzeugt das Worker-Bundle.

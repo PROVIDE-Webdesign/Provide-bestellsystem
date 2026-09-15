@@ -10,7 +10,7 @@ export default function Home() {
           Dein Wunschtermin.
         </h1>
         <p>Öffne den Link deines Restaurants, um die Speisekarte und Verfügbarkeit anzusehen.</p>
-        <p>Diese Testansicht nimmt noch keine Bestellungen entgegen.</p>
+        <p>Der Test-Checkout ist ohne gesonderte serverseitige Freigabe deaktiviert.</p>
       </section>
     </main>
   );

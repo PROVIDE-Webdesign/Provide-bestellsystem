@@ -15,4 +15,15 @@ describe("API router", () => {
       true,
     );
   });
+
+  it("allows only POST for the pickup order boundary", () => {
+    const url = "https://api.example.test/v1/storefront/restaurant-a/location-a/orders";
+    expect(routeRequest(new Request(url, { method: "POST" }))).toEqual({
+      name: "orders",
+      restaurantSlug: "restaurant-a",
+      locationSlug: "location-a",
+    });
+    expect(routeRequest(new Request(url))).toBeUndefined();
+    expect(isKnownPath(new Request(url))).toBe(true);
+  });
 });

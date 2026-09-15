@@ -7,6 +7,9 @@
   "vars": {
     "APP_ENV": "preview",
     "HYPERDRIVE_CACHE_DISABLED": "false",
+    "CHECKOUT_WRITE_ENABLED": "false",
+    "CHECKOUT_PRIVACY_NOTICE_VERSION": "preview-v1",
+    "CHECKOUT_RETENTION_DAYS": "30",
     "API_ALLOWED_ORIGINS": "https://replace-with-preview-storefront.example.invalid",
   },
   "hyperdrive": [

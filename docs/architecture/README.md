@@ -26,3 +26,4 @@ Aktueller technischer Nachweis:
 - [API-Grundlage und Anfragegrenzen](../decisions/0018-api-foundation-and-request-boundaries.md)
 
 - [Öffentliche Storefront-Lesegrenze](../decisions/0019-public-storefront-read-boundary.md)
+- [Öffentlicher Gast-Checkout für Abholung](../decisions/0020-public-guest-pickup-checkout.md)

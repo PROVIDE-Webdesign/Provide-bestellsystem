@@ -8,10 +8,13 @@ Staging-Pilot.
 - Architektur-SoT: `PROVIDE Bestellsystem - Architektur und Arbeitsplan A2`
 - Organisatorische SoT: `PROVIDE Bestellsystem Projektprotokoll V2`
 - Arbeitsblock 3.1 ist abgeschlossen und formal freigegeben.
-- Arbeitsblock 3.2 ist technisch endfreigegeben; die Zusammenführung von PR #1 ist freigegeben.
+- Arbeitsblock 3.2 ist technisch endfreigegeben und über PR #1 in `main` zusammengeführt.
 - Umsetzung und Nachweise: [Arbeitsblock 3.2](docs/work-blocks/3.2-public-storefront.md).
-- Gesamtfortschritt des freigegebenen MVP-Umfangs: **45 %**.
-- Der nächste Arbeitsblock ist noch nicht geplant oder freigegeben.
+- Arbeitsblock 3.3 – Warenkorb und sicherer Gast-Abholcheckout – ist technisch endfreigegeben; die
+  Zusammenführung von PR #2 ist freigegeben.
+- Umsetzung und Nachweise: [Arbeitsblock 3.3](docs/work-blocks/3.3-guest-pickup-checkout.md).
+- Gesamtfortschritt des freigegebenen MVP-Umfangs: **55 %**.
+- Das Deployment von Arbeitsblock 3.3 steht aus.
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 
 ## Geplante Anwendungen
@@ -49,6 +52,9 @@ Produktionskonfigurationen werden getrennt in der jeweiligen Plattform hinterleg
 Die versionierte Datenbankstruktur wird mit der Supabase CLI verwaltet. Der Einstieg und die Regeln
 für lokale sowie entfernte Migrationen stehen im
 [Datenbankmigrations-Runbook](docs/runbooks/database-migrations.md).
+
+Der standardmäßig deaktivierte Gast-Abholcheckout und seine synthetische Prüfkette stehen im
+[Checkout-Runbook](docs/runbooks/guest-pickup-checkout.md).
 
 ## Verbindliche Abschlussregel
 
