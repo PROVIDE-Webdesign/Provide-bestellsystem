@@ -30,3 +30,20 @@ export function formatOrderTime(value: string): string {
     timeZone: "Europe/Berlin",
   }).format(new Date(value));
 }
+
+export function fulfillmentStatusLabel(
+  status: DashboardOrderStatus,
+  fulfillmentType: "pickup" | "delivery",
+) {
+  if (fulfillmentType === "delivery" && status === "ready") return "Bereit zur Auslieferung";
+  if (fulfillmentType === "delivery" && status === "completed") return "Zugestellt";
+  return orderStatusLabels[status];
+}
+export function fulfillmentTransitionLabel(
+  status: DashboardOrderStatus,
+  fulfillmentType: "pickup" | "delivery",
+) {
+  if (fulfillmentType === "delivery" && status === "ready") return "Zur Auslieferung bereit";
+  if (fulfillmentType === "delivery" && status === "completed") return "Als zugestellt bestätigen";
+  return transitionLabels[status];
+}

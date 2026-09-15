@@ -1,3 +1,4 @@
+import { parseDeliveryAddress, type DeliveryAddress } from "./delivery.js";
 import { isExplicitInstant } from "./storefront.js";
 import { publicOrderStatuses, type PublicOrderStatusName } from "./order-status.js";
 
@@ -6,7 +7,7 @@ export type DashboardOrderStatus = PublicOrderStatusName;
 export interface DashboardOrderSummary {
   readonly orderId: string;
   readonly status: DashboardOrderStatus;
-  readonly fulfillmentType: "pickup";
+  readonly fulfillmentType: "pickup" | "delivery";
   readonly paymentCollectionMode: "on_fulfillment";
   readonly requestedFor: string;
   readonly currency: string;
@@ -32,6 +33,8 @@ export interface DashboardOrderLine {
 }
 
 export interface DashboardOrderDetail extends DashboardOrderSummary {
+  readonly delivery?: (DeliveryAddress & { recipientName: string; phoneE164: string }) | null;
+  readonly deliveryFeeAmountMinor?: number;
   readonly restaurantId: string;
   readonly locationId: string;
   readonly contactName: string | null;
@@ -117,7 +120,7 @@ function parseSummary(value: unknown): DashboardOrderSummary | undefined {
     typeof source.orderId !== "string" ||
     !uuidPattern.test(source.orderId) ||
     !isStatus(source.status) ||
-    source.fulfillmentType !== "pickup" ||
+    (source.fulfillmentType !== "pickup" && source.fulfillmentType !== "delivery") ||
     source.paymentCollectionMode !== "on_fulfillment" ||
     typeof source.requestedFor !== "string" ||
     !isExplicitInstant(source.requestedFor) ||
@@ -139,7 +142,7 @@ function parseSummary(value: unknown): DashboardOrderSummary | undefined {
   return {
     orderId: source.orderId,
     status: source.status,
-    fulfillmentType: "pickup",
+    fulfillmentType: source.fulfillmentType,
     paymentCollectionMode: "on_fulfillment",
     requestedFor: source.requestedFor,
     currency: source.currency,
@@ -224,7 +227,14 @@ export function parseDashboardOrderDetail(value: unknown): DashboardOrderDetail 
     "allowedTransitions",
   ];
   if (
-    !exactKeys(source, [...summaryKeys, "restaurantId", "locationId", "contactName", "lines"]) ||
+    !exactKeys(source, [
+      ...summaryKeys,
+      "restaurantId",
+      "locationId",
+      "contactName",
+      "lines",
+      ...("delivery" in source ? ["delivery", "deliveryFeeAmountMinor"] : []),
+    ]) ||
     typeof source.restaurantId !== "string" ||
     !uuidPattern.test(source.restaurantId) ||
     typeof source.locationId !== "string" ||
@@ -242,8 +252,36 @@ export function parseDashboardOrderDetail(value: unknown): DashboardOrderDetail 
   const summary = parseSummary(Object.fromEntries(summaryKeys.map((key) => [key, source[key]])));
   const lines = source.lines.map(parseLine);
   if (!summary || lines.some((line) => !line)) return undefined;
+  let delivery: DashboardOrderDetail["delivery"] = null;
+  if (source.delivery !== undefined && source.delivery !== null) {
+    const d = record(source.delivery);
+    if (
+      !d ||
+      typeof d.recipientName !== "string" ||
+      !d.recipientName.trim() ||
+      d.recipientName.length > 120 ||
+      typeof d.phoneE164 !== "string" ||
+      !/^\\+[1-9][0-9]{7,14}$/.test(d.phoneE164)
+    )
+      return undefined;
+    const { recipientName, phoneE164, ...address } = d;
+    const parsed = parseDeliveryAddress(address);
+    if (!parsed || summary.fulfillmentType !== "delivery") return undefined;
+    delivery = { ...parsed, recipientName, phoneE164 };
+  }
+  if (
+    source.deliveryFeeAmountMinor !== undefined &&
+    (typeof source.deliveryFeeAmountMinor !== "number" ||
+      !Number.isSafeInteger(source.deliveryFeeAmountMinor) ||
+      source.deliveryFeeAmountMinor < 0 ||
+      source.deliveryFeeAmountMinor > summary.totalAmountMinor)
+  )
+    return undefined;
   return {
     ...summary,
+    ...("delivery" in source
+      ? { delivery, deliveryFeeAmountMinor: source.deliveryFeeAmountMinor as number }
+      : {}),
     restaurantId: source.restaurantId,
     locationId: source.locationId,
     contactName: source.contactName,

@@ -88,3 +88,11 @@ Empfänger noch Anbieterzugangsdaten. Details stehen im
 `@provide/config/public`; Serverprozesse verwenden `@provide/config/server`. Die getrennten
 Einstiegspunkte und zugehörigen Tests verhindern, dass serverseitige Werte versehentlich in die
 öffentliche Konfiguration gelangen.
+
+## Lieferbestellungen
+
+`DELIVERY_ORDERING_ENABLED=false` sperrt standardmäßig die Lieferpreisvorschau und den
+Liefercheckout. Für die Übermittlung müssen zusätzlich Checkout, Gaststatus und eine überprüft
+cachedeaktivierte Hyperdrive-Verbindung verfügbar sein. Regeln und Feature-Flags im Datenbankstand
+bleiben weitere Voraussetzungen. In AB3.8 werden ausschließlich synthetische lokale/CI-Daten
+verwendet.

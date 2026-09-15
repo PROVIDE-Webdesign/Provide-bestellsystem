@@ -58,4 +58,9 @@ Mandantengrenzen werden in jeder Funktion erneut geprüft; Küche erhält keine 
 Die Benachrichtigungsmigration leitet ausgewählte Bestellereignisse transaktional in einen
 PII-freien Zustellnachweis. Ausschließlich begrenzte Service-Funktionen dürfen Aufträge sperren und
 abschließen; Telefonnummern werden nur kurzzeitig für den aktuell gesperrten SMS-Versuch projiziert.
-Wiederholungen, veraltete Meldungen und Dead Letters besitzen explizite Zustände.
+Wiederholungen, veraltete Meldungen und Dead Letters besitzen explizite Zustände. Die
+Liefermigrationen ergänzen versionierte vollständige deutsche PLZ-Gebiete, Mindestartikelwerte,
+feste Liefergebühren und eine transaktionale öffentliche Lieferbestellgrenze. Gebühren und
+Regelversion werden unveränderlich am Bestellkopf gespeichert; die Zahlungsanforderung übernimmt den
+Gesamtbetrag. Die Lieferprojektionen erweitern Dashboard, Gaststatus und synthetische
+Benachrichtigungen.

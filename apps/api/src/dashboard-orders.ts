@@ -35,6 +35,7 @@ export interface DashboardOrdersReader {
     scope: { restaurantId: string; locationId: string },
     filters: {
       status: DashboardOrderStatus | undefined;
+      fulfillmentType?: "pickup" | "delivery";
       cursor: { requestedFor: string; orderId: string } | undefined;
       limit: number;
     },
@@ -102,11 +103,15 @@ async function authenticate(
   }
 }
 
-function parseFilters(request: Request) {
+function parseFilters(request: Request): Parameters<DashboardOrdersReader["list"]>[3] | undefined {
   const parameters = new URL(request.url).searchParams;
   if (
-    [...parameters.keys()].some((key) => !["status", "cursor", "limit"].includes(key)) ||
-    ["status", "cursor", "limit"].some((key) => parameters.getAll(key).length > 1)
+    [...parameters.keys()].some(
+      (key) => !["status", "cursor", "limit", "fulfillmentType"].includes(key),
+    ) ||
+    ["status", "cursor", "limit", "fulfillmentType"].some(
+      (key) => parameters.getAll(key).length > 1,
+    )
   )
     return undefined;
   const statusValue = parameters.get("status");
@@ -121,7 +126,15 @@ function parseFilters(request: Request) {
   const limit =
     limitValue === null ? 25 : /^[1-9][0-9]?$/.test(limitValue) ? Number(limitValue) : 0;
   if (limit < 1 || limit > 50) return undefined;
-  return { status, cursor, limit };
+  const fulfillmentType = parameters.get("fulfillmentType");
+  if (fulfillmentType !== null && fulfillmentType !== "pickup" && fulfillmentType !== "delivery")
+    return undefined;
+  return {
+    status,
+    cursor,
+    limit,
+    ...(fulfillmentType ? { fulfillmentType } : {}),
+  };
 }
 
 export async function handleDashboardOrders(

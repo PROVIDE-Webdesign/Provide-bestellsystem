@@ -1,3 +1,5 @@
+import { handleDelivery, type DeliveryRepository } from "./delivery.js";
+import { postgresDeliveryRepository } from "./delivery-database.js";
 import { isAppEnvironment } from "@provide/contracts";
 
 import { corsHeaders, parseAllowedOrigins } from "./cors.js";
@@ -30,6 +32,7 @@ interface HyperdriveBinding {
 }
 
 interface Env {
+  readonly DELIVERY_ORDERING_ENABLED?: string;
   readonly APP_ENV: string;
   readonly API_ALLOWED_ORIGINS?: string;
   readonly CHECKOUT_WRITE_ENABLED?: string;
@@ -60,6 +63,7 @@ export function createApiWorker(
   dashboardOrdersReader: DashboardOrdersReader = postgresDashboardOrdersReader,
   notificationRepository: NotificationRepository = postgresNotificationRepository,
   notificationAdapter: NotificationAdapter = unconfiguredNotificationAdapter,
+  deliveryRepository: DeliveryRepository = postgresDeliveryRepository,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -85,6 +89,18 @@ export function createApiWorker(
         return jsonError("not_found", "Resource was not found.", context.requestId, 404, cors);
       }
 
+      if (route.name === "delivery-quote" || route.name === "delivery-orders") {
+        return handleDelivery(
+          request,
+          route,
+          route.name === "delivery-quote",
+          env,
+          deliveryRepository,
+          context,
+          logger,
+          cors,
+        );
+      }
       if (route.name === "orders") {
         return handleGuestPickupOrder(request, route, env, checkoutWriter, context, logger, cors);
       }

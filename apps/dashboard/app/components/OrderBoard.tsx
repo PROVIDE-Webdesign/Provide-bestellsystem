@@ -11,13 +11,14 @@ import {
   type DashboardOrderStatus,
   type RestaurantRole,
 } from "@provide/contracts";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   formatMoney,
   formatOrderTime,
   orderStatusLabels,
-  transitionLabels,
+  fulfillmentStatusLabel,
+  fulfillmentTransitionLabel,
 } from "@/lib/order-ui.js";
 
 interface OrderBoardProps {
@@ -35,53 +36,78 @@ function envelopeData(value: unknown): unknown {
 export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
   const [locationId, setLocationId] = useState(locations[0]?.id ?? "");
   const [status, setStatus] = useState<DashboardOrderStatus | "">("");
+  const [fulfillment, setFulfillment] = useState("");
   const [orders, setOrders] = useState<DashboardOrderList>();
   const [detail, setDetail] = useState<DashboardOrderDetail>();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const listRequest = useRef<AbortController | null>(null);
+  const detailRequest = useRef<AbortController | null>(null);
 
   const loadOrders = useCallback(
     async (cursor?: string) => {
       if (!locationId || document.visibilityState === "hidden") return;
+      listRequest.current?.abort();
+      const controller = new AbortController();
+      listRequest.current = controller;
       setLoading(true);
       try {
         const query = new URLSearchParams({ restaurantId, locationId, limit: "25" });
+        if (fulfillment) query.set("fulfillmentType", fulfillment);
         if (status) query.set("status", status);
         if (cursor) query.set("cursor", cursor);
-        const response = await fetch(`/api/orders?${query}`, { cache: "no-store" });
+        const response = await fetch(`/api/orders?${query}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
         if (!response.ok) throw new Error();
         const parsed = parseDashboardOrderList(envelopeData(await response.json()));
         if (!parsed) throw new Error();
+        if (controller.signal.aborted) return;
         setOrders((current) =>
           cursor && current ? { ...parsed, orders: [...current.orders, ...parsed.orders] } : parsed,
         );
         setMessage("");
       } catch {
+        if (controller.signal.aborted) return;
         setMessage("Die Bestellungen konnten nicht sicher aktualisiert werden.");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     },
-    [locationId, restaurantId, status],
+    [locationId, restaurantId, status, fulfillment],
   );
 
   useEffect(() => {
     void loadOrders();
     const interval = window.setInterval(() => void loadOrders(), 15_000);
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearInterval(interval);
+      listRequest.current?.abort();
+      detailRequest.current?.abort();
+    };
   }, [loadOrders]);
 
   async function loadDetail(orderId: string) {
+    detailRequest.current?.abort();
+    const controller = new AbortController();
+    detailRequest.current = controller;
+    setDetail(undefined);
     setMessage("");
     try {
       const query = new URLSearchParams({ restaurantId, locationId });
-      const response = await fetch(`/api/orders/${orderId}?${query}`, { cache: "no-store" });
+      const response = await fetch(`/api/orders/${orderId}?${query}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
       if (!response.ok) throw new Error();
       const parsed = parseDashboardOrderDetail(envelopeData(await response.json()));
       if (!parsed) throw new Error();
+      if (controller.signal.aborted) return;
       setDetail(parsed);
     } catch {
+      if (controller.signal.aborted) return;
       setMessage("Die Bestelldetails konnten nicht sicher geladen werden.");
     }
   }
@@ -123,12 +149,30 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
     <div className="order-board">
       <div className="order-controls">
         <label>
+          Bestellart
+          <select
+            disabled={updating}
+            value={fulfillment}
+            onChange={(e) => {
+              setFulfillment(e.target.value);
+              setDetail(undefined);
+              setOrders(undefined);
+            }}
+          >
+            <option value="">Alle Bestellarten</option>
+            <option value="pickup">Abholung</option>
+            <option value="delivery">Lieferung</option>
+          </select>
+        </label>
+        <label>
           Standort
           <select
+            disabled={updating}
             value={locationId}
             onChange={(event) => {
               setLocationId(event.target.value);
               setDetail(undefined);
+              setOrders(undefined);
             }}
           >
             {locations.map((location) => (
@@ -141,16 +185,18 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
         <label>
           Status
           <select
+            disabled={updating}
             value={status}
             onChange={(event) => {
               setStatus(event.target.value as DashboardOrderStatus | "");
               setDetail(undefined);
+              setOrders(undefined);
             }}
           >
             <option value="">Alle Bestellungen</option>
             {publicOrderStatuses.map((value) => (
               <option key={value} value={value}>
-                {orderStatusLabels[value]}
+                {value === "ready" ? "Bereit" : orderStatusLabels[value]}
               </option>
             ))}
           </select>
@@ -181,8 +227,11 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
                 onClick={() => void loadDetail(order.orderId)}
               >
                 <span className="order-number">#{order.orderId.slice(-8).toUpperCase()}</span>
-                <strong>{orderStatusLabels[order.status]}</strong>
-                <span>Abholung {formatOrderTime(order.requestedFor)}</span>
+                <strong>{fulfillmentStatusLabel(order.status, order.fulfillmentType)}</strong>
+                <span>
+                  {order.fulfillmentType === "delivery" ? "Lieferung" : "Abholung"}{" "}
+                  {formatOrderTime(order.requestedFor)}
+                </span>
                 <span>
                   {order.itemCount} Artikel · {formatMoney(order.totalAmountMinor, order.currency)}
                 </span>
@@ -214,13 +263,34 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
             </button>
           </div>
           <p>
-            <strong>{orderStatusLabels[detail.status]}</strong> · Abholung{" "}
+            <strong>{fulfillmentStatusLabel(detail.status, detail.fulfillmentType)}</strong> ·{" "}
+            {detail.fulfillmentType === "delivery" ? "Lieferung" : "Abholung"}{" "}
             {formatOrderTime(detail.requestedFor)}
           </p>
           {detail.contactName && (
             <p>
-              Abholname: <strong>{detail.contactName}</strong>
+              Name: <strong>{detail.contactName}</strong>
             </p>
+          )}
+          {detail.delivery && (
+            <address>
+              {detail.delivery.recipientName}
+              <br />
+              {detail.delivery.addressLine1}
+              <br />
+              {detail.delivery.addressLine2 && (
+                <>
+                  {detail.delivery.addressLine2}
+                  <br />
+                </>
+              )}
+              {detail.delivery.postalCode} {detail.delivery.city}
+              <br />
+              {detail.delivery.phoneE164}
+            </address>
+          )}
+          {detail.fulfillmentType === "delivery" && (
+            <p>Liefergebühr: {formatMoney(detail.deliveryFeeAmountMinor ?? 0, detail.currency)}</p>
           )}
           <ul className="line-list">
             {detail.lines.map((line) => (
@@ -244,7 +314,7 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
                   disabled={updating}
                   onClick={() => void transition(target)}
                 >
-                  {transitionLabels[target]}
+                  {fulfillmentTransitionLabel(target, detail.fulfillmentType)}
                 </button>
               ))}
             </div>

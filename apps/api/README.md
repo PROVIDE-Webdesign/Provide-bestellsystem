@@ -64,3 +64,12 @@ Der Scheduled Handler verarbeitet einmal pro Minute einen auf 25 Einträge begre
 beansprucht er keine Aufträge. Das Repository enthält nur einen synthetischen Testadapter und führt
 keinen echten SMS-Versand aus. Details stehen im
 [Benachrichtigungs-Runbook](../../docs/runbooks/order-notifications.md).
+
+# Lieferbestellungen
+
+Die neuen POST-Ressourcen `delivery-quote` und `delivery-orders` unter dem bestehenden
+Storefront-Pfad bleiben ohne `DELIVERY_ORDERING_ENABLED=true` gesperrt. Der Liefercheckout verlangt
+zusätzlich sämtliche bisherigen Checkout-Gates. Die Quote ist nicht reservierend; Regelversion,
+Preise und Kapazität werden beim Absenden erneut geprüft. Das Dashboard unterstützt den Filter
+`fulfillmentType` und gibt Lieferdetails nur an berechtigte Leitung aus. Siehe
+[Liefer-Runbook](../../docs/runbooks/delivery-orders.md).

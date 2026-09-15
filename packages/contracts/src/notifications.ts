@@ -15,6 +15,7 @@ export interface NotificationDispatchJob {
   readonly lockToken: string;
   readonly orderId: string;
   readonly channel: "sms";
+  readonly fulfillmentType: "pickup" | "delivery";
   readonly templateKey: OrderNotificationTemplateKey;
   readonly templateVersion: 1;
   readonly targetStatus: "submitted" | "accepted" | "rejected" | "ready" | "cancelled";
@@ -37,10 +38,11 @@ export function parseNotificationDispatchJob(value: unknown): NotificationDispat
   const source = record(value);
   if (
     !source ||
-    Object.keys(source).length !== 11 ||
+    Object.keys(source).length !== 12 ||
     !Object.keys(source).every((key) =>
       [
         "deliveryId",
+        "fulfillmentType",
         "lockToken",
         "orderId",
         "channel",
@@ -60,6 +62,7 @@ export function parseNotificationDispatchJob(value: unknown): NotificationDispat
     typeof source.orderId !== "string" ||
     !uuidPattern.test(source.orderId) ||
     source.channel !== "sms" ||
+    (source.fulfillmentType !== "pickup" && source.fulfillmentType !== "delivery") ||
     typeof source.templateKey !== "string" ||
     !orderNotificationTemplateKeys.some((key) => key === source.templateKey) ||
     source.templateVersion !== 1 ||
