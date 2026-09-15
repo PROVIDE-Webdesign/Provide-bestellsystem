@@ -53,8 +53,8 @@ für lokale sowie entfernte Migrationen stehen im
 
 Nach jedem technisch abgeschlossenen Arbeitsblock nennt der Abschlussbericht den Gesamtfortschritt
 des PROVIDE Bestellsystems in Prozent, einschließlich Berechnungsgrundlage und verbleibender
-Unsicherheit. Ein Arbeitsblock zählt erst nach erfolgreicher lokaler Prüfung, Commit, Push und grünen
-Pflichtprüfungen als technisch abgeschlossen.
+Unsicherheit. Ein Arbeitsblock zählt erst nach erfolgreicher lokaler Prüfung, Commit, Push und
+grünen Pflichtprüfungen als technisch abgeschlossen.
 
 ## Sicherheit
 
