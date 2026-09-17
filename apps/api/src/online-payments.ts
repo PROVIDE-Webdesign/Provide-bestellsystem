@@ -36,10 +36,12 @@ export interface OnlineEnvironment extends CheckoutEnvironment {
   PAYMENT_RETURN_ORIGIN?: string;
 }
 export function sandboxConfig(env: OnlineEnvironment): SandboxConfig | undefined {
+  const key = env.STRIPE_TEST_SECRET_KEY;
   if (
     !["test", "local", "preview"].includes(env.APP_ENV) ||
     env.ONLINE_PAYMENT_PROCESSING_ENABLED !== "true" ||
-    !env.STRIPE_TEST_SECRET_KEY?.startsWith("sk_test_") ||
+    !key ||
+    !/^(?:sk|rk)_test_[A-Za-z0-9_]+$/.test(key) ||
     !/^acct_[A-Za-z0-9]+$/.test(env.STRIPE_TEST_ACCOUNT_ID ?? "") ||
     !env.STRIPE_TEST_WEBHOOK_SECRET?.startsWith("whsec_") ||
     !hasValidStatusSecret(env.PAYMENT_ACCESS_SECRET) ||
@@ -62,7 +64,7 @@ export function sandboxConfig(env: OnlineEnvironment): SandboxConfig | undefined
     )
       return;
     return {
-      key: env.STRIPE_TEST_SECRET_KEY,
+      key,
       account: env.STRIPE_TEST_ACCOUNT_ID!,
       webhookSecret: env.STRIPE_TEST_WEBHOOK_SECRET,
       returnOrigin: u.origin,

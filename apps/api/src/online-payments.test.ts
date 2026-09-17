@@ -108,9 +108,13 @@ describe("online payment boundaries", () => {
       HYPERDRIVE_CACHE_DISABLED: "true",
     };
     expect(sandboxConfig(env)).toEqual(config);
+    expect(
+      sandboxConfig({ ...env, STRIPE_TEST_SECRET_KEY: "rk_test_synthetic_restricted" }),
+    ).toEqual({ ...config, key: "rk_test_synthetic_restricted" });
     for (const change of [
       { APP_ENV: "production" },
       { STRIPE_TEST_SECRET_KEY: "sk_live_fake" },
+      { STRIPE_TEST_SECRET_KEY: "rk_live_fake" },
       { ONLINE_PAYMENT_PROCESSING_ENABLED: "false" },
       { PAYMENT_RETURN_ORIGIN: "https://store.example.test/path" },
       { HYPERDRIVE_CACHE_DISABLED: "false" },

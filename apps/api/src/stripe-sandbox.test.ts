@@ -52,6 +52,8 @@ describe("Stripe sandbox HTTP adapter", () => {
     if (typeof body !== "string") throw new Error("Missing encoded request body");
     const payload = new URLSearchParams(body);
     expect(payload.get("line_items[0][price_data][unit_amount]")).toBe("2950");
+    expect(payload.has("payment_method_types[0]")).toBe(false);
+    expect(payload.get("integration_identifier")).toMatch(/^provide_ab39_[a-p]{8}$/);
     expect(payload.get("payment_intent_data[metadata][provide_job]")).toBe(job.id);
     expect(payload.has("customer_email")).toBe(false);
     expect(payload.get("success_url")).toBe(config.returnOrigin + "/r/restaurant-a/location-a");

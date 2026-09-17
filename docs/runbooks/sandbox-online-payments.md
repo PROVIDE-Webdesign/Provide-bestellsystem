@@ -17,13 +17,13 @@ eingerichtet; ein lokaler Test benötigt diese nicht.
 
 Serverseitig im lokalen ignorierten Secret-Speicher oder im freigegebenen Test-Secret-Store setzen:
 
-| Name                         | Inhalt                                                              |
-| ---------------------------- | ------------------------------------------------------------------- |
-| `STRIPE_TEST_SECRET_KEY`     | Geheimschlüssel des gewählten Testkontos mit Präfix `sk_test_`      |
-| `STRIPE_TEST_ACCOUNT_ID`     | Zugehöriges Konto mit Präfix `acct_`                                |
-| `STRIPE_TEST_WEBHOOK_SECRET` | Signiergeheimnis des tatsächlich verwendeten Webhook-Endpunkts      |
-| `PAYMENT_ACCESS_SECRET`      | Eigenes zufälliges Geheimnis mit mindestens 32 Zeichen              |
-| `PAYMENT_RETURN_ORIGIN`      | Exakter Ursprung der Storefront ohne Pfad oder abschließenden Slash |
+| Name                         | Inhalt                                                                                                               |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `STRIPE_TEST_SECRET_KEY`     | Bevorzugt minimal berechtigter Schlüssel mit Präfix `rk_test_`; ein `sk_test_`-Schlüssel ist nur zulässiger Fallback |
+| `STRIPE_TEST_ACCOUNT_ID`     | Zugehöriges Konto mit Präfix `acct_`                                                                                 |
+| `STRIPE_TEST_WEBHOOK_SECRET` | Signiergeheimnis des tatsächlich verwendeten Webhook-Endpunkts                                                       |
+| `PAYMENT_ACCESS_SECRET`      | Eigenes zufälliges Geheimnis mit mindestens 32 Zeichen                                                               |
+| `PAYMENT_RETURN_ORIGIN`      | Exakter Ursprung der Storefront ohne Pfad oder abschließenden Slash                                                  |
 
 Keine Geheimnisse in Chat, Repository, Browser-Variablen, Screenshots oder Logs übernehmen. Für die
 API sind `APP_ENV=test`, `ONLINE_PAYMENT_PROCESSING_ENABLED=true`, `ONLINE_PAYMENT_ENABLED=true`,

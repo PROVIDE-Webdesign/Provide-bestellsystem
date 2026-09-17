@@ -70,9 +70,15 @@ async function verifyAccount(c: SandboxConfig) {
 export const stripeSandboxProvider: SandboxProvider = {
   async session(c, j) {
     await verifyAccount(c);
+    // Derive a stable eight-letter suffix from the random job UUID so retries keep identical
+    // Checkout parameters while each integration identifier remains unique to this payment job.
+    const integrationSuffix = j.id
+      .replaceAll("-", "")
+      .slice(0, 8)
+      .replace(/[0-9a-f]/g, (value) => String.fromCharCode(97 + Number.parseInt(value, 16)));
     const body = new URLSearchParams({
       mode: "payment",
-      "payment_method_types[0]": "card",
+      integration_identifier: `provide_ab39_${integrationSuffix}`,
       locale: "de",
       "line_items[0][price_data][currency]": "eur",
       "line_items[0][price_data][unit_amount]": String(j.amount),
