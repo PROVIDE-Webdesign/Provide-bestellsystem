@@ -25,10 +25,14 @@ Staging-Pilot.
 - Arbeitsblock 3.7 – zuverlässige transaktionale Gast-Bestellbenachrichtigungen – ist technisch
   endfreigegeben und über PR #6 in `main` zusammengeführt.
 - Umsetzung und Nachweise: [Arbeitsblock 3.7](docs/work-blocks/3.7-order-notifications.md).
-- Arbeitsblock 3.8 – sichere Lieferbestellungen und Liefergebietsprüfung – ist formal freigegeben
-  und befindet sich in der technischen Prüfung.
+- Arbeitsblock 3.8 – sichere Lieferbestellungen und Liefergebietsprüfung – ist technisch
+  endfreigegeben und über PR #7 in `main` zusammengeführt.
 - Umsetzung und Nachweise: [Arbeitsblock 3.8](docs/work-blocks/3.8-secure-delivery-orders.md).
-- Gesamtfortschritt des freigegebenen MVP-Umfangs: **78 %**.
+- Arbeitsblock 3.9 – Onlinezahlungen im Testbetrieb – ist formal freigegeben und umgesetzt;
+  automatisierte Prüfungen sind erfolgreich, der echte Stripe-Sandbox-Nachweis steht noch aus.
+- Umsetzung und Nachweise: [Arbeitsblock 3.9](docs/work-blocks/3.9-sandbox-online-payments.md).
+- Gesamtfortschritt des freigegebenen MVP-Umfangs: **84 %** (gewichtete Schätzung, etwa ±2
+  Prozentpunkte).
 - Das Deployment der kundenbezogenen Arbeitsblöcke steht aus.
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 

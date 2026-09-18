@@ -216,7 +216,7 @@ describe("public order status gateway", () => {
   });
 });
 describe("storefront public gateway", () => {
-  it("uses only the configured upstream with no cookies, authorization, redirects or cache", async () => {
+  it("uses only the configured upstream without unsupported Worker fetch options", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: fixture }));
     const response = await fetchPublicStorefront(
       request,
@@ -231,14 +231,15 @@ describe("storefront public gateway", () => {
         "https://api.example.test/v1/storefront/storefront-restaurant-a/storefront-a-mitte/catalog",
       ),
       expect.objectContaining({
-        cache: "no-store",
         redirect: "error",
         headers: { accept: "application/json" },
       }),
     );
+    expect(fetcher.mock.calls[0]?.[1]).not.toHaveProperty("cache");
     expect(JSON.stringify(fetcher.mock.calls)).not.toContain("private");
   });
   it("hides upstream exceptions and malformed output", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new Error("private"));
     expect(
       (await fetchPublicStorefront(request, params, "https://api.example.test", fetcher)).status,
@@ -252,6 +253,12 @@ describe("storefront public gateway", () => {
     );
     expect(response.status).toBe(503);
     expect(await response.text()).not.toContain("private");
+    expect(warning).toHaveBeenCalledWith(
+      "storefront_gateway_failure",
+      expect.objectContaining({ resource: "catalog", stage: "contract-validation" }),
+    );
+    expect(JSON.stringify(warning.mock.calls)).not.toContain("private");
+    warning.mockRestore();
   });
   it("rejects unconfigured or unsafe upstream URLs", async () => {
     const fetcher = vi.fn<typeof fetch>();
