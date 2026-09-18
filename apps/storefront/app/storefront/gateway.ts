@@ -24,6 +24,14 @@ export interface GatewayParams {
   resource: string;
 }
 
+function reportGatewayFailure(resource: string, stage: string, error?: unknown): void {
+  console.warn("storefront_gateway_failure", {
+    resource,
+    stage,
+    errorName: error instanceof Error ? error.name : "none",
+  });
+}
+
 function safeApiBase(apiUrl: string | undefined): URL | undefined {
   if (!apiUrl) return undefined;
   try {
@@ -72,6 +80,7 @@ export async function fetchPublicStorefront(
   )
     return failure(400);
   if (!apiUrl) return failure(503);
+  let stage = "configuration";
   try {
     const base = safeApiBase(apiUrl);
     if (!base) return failure(503);
@@ -80,17 +89,29 @@ export async function fetchPublicStorefront(
       base,
     );
     upstream.search = new URL(request.url).search;
+    stage = "upstream-fetch";
     const response = await fetcher(upstream, {
       method: "GET",
       headers: { accept: "application/json" },
       redirect: "error",
       signal: AbortSignal.timeout(8000),
     });
-    if (!response.ok)
+    stage = "upstream-status";
+    if (!response.ok) {
+      reportGatewayFailure(params.resource, stage);
       return failure(response.status === 404 || response.status === 400 ? response.status : 503);
-    if (!response.headers.get("content-type")?.startsWith("application/json")) return failure(503);
+    }
+    stage = "content-type";
+    if (!response.headers.get("content-type")?.startsWith("application/json")) {
+      reportGatewayFailure(params.resource, stage);
+      return failure(503);
+    }
+    stage = "response-body";
     const reader = response.body?.getReader();
-    if (!reader) return failure(503);
+    if (!reader) {
+      reportGatewayFailure(params.resource, stage);
+      return failure(503);
+    }
     const chunks: Uint8Array[] = [];
     let size = 0;
     try {
@@ -116,12 +137,14 @@ export async function fetchPublicStorefront(
     const body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as {
       data?: unknown;
     };
+    stage = "contract-validation";
     const data =
       params.resource === "catalog"
         ? parsePublicCatalog(body.data)
         : parsePublicAvailability(body.data);
     return Response.json({ data }, { headers });
-  } catch {
+  } catch (error) {
+    reportGatewayFailure(params.resource, stage, error);
     return failure(503);
   }
 }
