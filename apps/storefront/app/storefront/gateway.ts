@@ -83,7 +83,6 @@ export async function fetchPublicStorefront(
     const response = await fetcher(upstream, {
       method: "GET",
       headers: { accept: "application/json" },
-      cache: "no-store",
       redirect: "error",
       signal: AbortSignal.timeout(8000),
     });
@@ -191,7 +190,6 @@ export async function submitGuestPickupOrder(
       method: "POST",
       headers: { accept: "application/json", "content-type": "application/json" },
       body: JSON.stringify(body),
-      cache: "no-store",
       redirect: "error",
       signal: AbortSignal.timeout(10_000),
     });
@@ -273,7 +271,6 @@ export async function fetchPublicOrderStatus(
       method: "POST",
       headers: { accept: "application/json", "content-type": "application/json" },
       body: JSON.stringify(body),
-      cache: "no-store",
       redirect: "error",
       signal: AbortSignal.timeout(8000),
     });
