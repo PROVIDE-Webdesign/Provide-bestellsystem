@@ -11,3 +11,7 @@ major_version = 15
 [db.seed]
 enabled = false
 sql_paths = []
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true

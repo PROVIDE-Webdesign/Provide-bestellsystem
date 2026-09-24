@@ -56,7 +56,7 @@ export async function fetchDashboardAccess(
       method: "GET",
       headers: { accept: "application/json", authorization: `Bearer ${accessToken}` },
       cache: "no-store",
-      redirect: "error",
+      redirect: "manual",
       signal: AbortSignal.timeout(8000),
     });
     if (response.status === 401) return failure(401);
@@ -162,7 +162,7 @@ async function operationalRequest(
       },
       ...(method === "POST" ? { body: JSON.stringify(body) } : {}),
       cache: "no-store",
-      redirect: "error",
+      redirect: "manual",
       signal: AbortSignal.timeout(8000),
     });
     if ([400, 401, 403, 404, 409].includes(response.status))
@@ -256,6 +256,28 @@ export function transitionDashboardOrder(
     "POST",
     parsed,
     parseDashboardOrderStatusResult,
+    fetcher,
+  );
+}
+
+export function retryDashboardRefund(
+  accessToken: string,
+  apiBaseUrl: string | undefined,
+  scope: { restaurantId: string; locationId: string; orderId: string },
+  fetcher: typeof fetch = fetch,
+) {
+  if (![scope.restaurantId, scope.locationId, scope.orderId].every((v) => uuidPattern.test(v)))
+    return Promise.resolve(operationalFailure(400));
+  return operationalRequest(
+    accessToken,
+    apiBaseUrl,
+    `/v1/dashboard/restaurants/${scope.restaurantId}/locations/${scope.locationId}/orders/${scope.orderId}/refund-retry`,
+    "POST",
+    {},
+    (v: unknown) =>
+      v !== null && typeof v === "object" && "retryRequested" in v && v.retryRequested === true
+        ? { retryRequested: true }
+        : undefined,
     fetcher,
   );
 }

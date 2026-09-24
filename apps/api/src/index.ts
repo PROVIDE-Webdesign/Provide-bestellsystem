@@ -1,4 +1,12 @@
 import { handleDelivery, type DeliveryRepository } from "./delivery.js";
+import {
+  handleOnlinePayment,
+  handleStripeWebhook,
+  dispatchOnlinePayments,
+  type OnlineEnvironment,
+} from "./online-payments.js";
+import { postgresOnlineRepository, type OnlineRepository } from "./online-payments-database.js";
+import { stripeSandboxProvider, type SandboxProvider } from "./stripe-sandbox.js";
 import { postgresDeliveryRepository } from "./delivery-database.js";
 import { isAppEnvironment } from "@provide/contracts";
 
@@ -31,7 +39,7 @@ interface HyperdriveBinding {
   readonly connectionString: string;
 }
 
-interface Env {
+interface Env extends OnlineEnvironment {
   readonly DELIVERY_ORDERING_ENABLED?: string;
   readonly APP_ENV: string;
   readonly API_ALLOWED_ORIGINS?: string;
@@ -64,6 +72,8 @@ export function createApiWorker(
   notificationRepository: NotificationRepository = postgresNotificationRepository,
   notificationAdapter: NotificationAdapter = unconfiguredNotificationAdapter,
   deliveryRepository: DeliveryRepository = postgresDeliveryRepository,
+  onlineRepository: OnlineRepository = postgresOnlineRepository,
+  onlineProvider: SandboxProvider = stripeSandboxProvider,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -101,6 +111,19 @@ export function createApiWorker(
           cors,
         );
       }
+      if (route.name === "stripeWebhook")
+        return handleStripeWebhook(request, env, onlineRepository, context);
+      if (route.name === "online-orders" || route.name === "payment-session")
+        return handleOnlinePayment(
+          request,
+          route,
+          route.name === "online-orders",
+          env,
+          onlineRepository,
+          onlineProvider,
+          context,
+          cors,
+        );
       if (route.name === "orders") {
         return handleGuestPickupOrder(request, route, env, checkoutWriter, context, logger, cors);
       }
@@ -132,7 +155,8 @@ export function createApiWorker(
       if (
         route.name === "dashboardOrders" ||
         route.name === "dashboardOrder" ||
-        route.name === "dashboardOrderStatus"
+        route.name === "dashboardOrderStatus" ||
+        route.name === "dashboardRefundRetry"
       ) {
         return handleDashboardOrders(
           request,
@@ -190,6 +214,7 @@ export function createApiWorker(
       }
     },
     scheduled(_controller: ScheduledController, env: Env, context: ExecutionContext) {
+      context.waitUntil(dispatchOnlinePayments(env, onlineRepository, onlineProvider));
       context.waitUntil(
         dispatchOrderNotifications(env, notificationRepository, notificationAdapter, logger),
       );

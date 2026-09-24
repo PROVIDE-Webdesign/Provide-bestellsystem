@@ -32,3 +32,4 @@ Aktueller technischer Nachweis:
 - [Dashboard-Bestellübersicht und kontrollierte Statusbefehle](../decisions/0023-dashboard-order-operations.md)
 - [Zuverlässige transaktionale Gast-Bestellbenachrichtigungen](../decisions/0024-order-notification-dispatch.md)
 - [Sichere Lieferbestellungen und PLZ-Gebiete](../decisions/0025-secure-delivery-orders.md)
+- [Onlinezahlungen im Testbetrieb](../decisions/0026-sandbox-online-payments.md)

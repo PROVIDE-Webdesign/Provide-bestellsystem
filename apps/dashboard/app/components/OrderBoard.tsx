@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  paymentStateLabels,
   parseDashboardOrderDetail,
   parseDashboardOrderList,
   parseDashboardOrderStatusResult,
@@ -140,6 +141,30 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
     }
   }
 
+  async function retryRefund() {
+    if (!detail || updating) return;
+    setUpdating(true);
+    setMessage("");
+    try {
+      const r = await fetch(
+        `/api/orders/${detail.orderId}/refund-retry?${new URLSearchParams({ restaurantId, locationId })}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: "{}",
+        },
+      );
+      if (!r.ok) throw new Error("Refund retry failed");
+      await loadDetail(detail.orderId);
+    } catch {
+      setMessage(
+        "Die Erstattung konnte nicht erneut angefordert werden. Bitte aktualisiere den Zahlungsstatus.",
+      );
+    } finally {
+      setUpdating(false);
+    }
+  }
+
   if (role === "driver")
     return <p className="notice">Für Fahrer ist die Bestellbearbeitung gesperrt.</p>;
   if (locations.length === 0)
@@ -228,6 +253,7 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
               >
                 <span className="order-number">#{order.orderId.slice(-8).toUpperCase()}</span>
                 <strong>{fulfillmentStatusLabel(order.status, order.fulfillmentType)}</strong>
+                {order.paymentState && <span>{paymentStateLabels[order.paymentState]}</span>}
                 <span>
                   {order.fulfillmentType === "delivery" ? "Lieferung" : "Abholung"}{" "}
                   {formatOrderTime(order.requestedFor)}
@@ -271,6 +297,16 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
             <p>
               Name: <strong>{detail.contactName}</strong>
             </p>
+          )}
+          {detail.paymentState && (
+            <p>
+              Zahlung: <strong>{paymentStateLabels[detail.paymentState]}</strong>
+            </p>
+          )}
+          {detail.paymentState === "refund_failed" && (
+            <button type="button" disabled={updating} onClick={() => void retryRefund()}>
+              Vollerstattung nach Prüfung erneut anfordern
+            </button>
           )}
           {detail.delivery && (
             <address>

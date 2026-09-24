@@ -22,7 +22,14 @@ export interface StorefrontEnvironment {
 }
 export interface StorefrontRoute extends StorefrontScope {
   readonly name:
-    "catalog" | "availability" | "orders" | "orderStatus" | "delivery-quote" | "delivery-orders";
+    | "catalog"
+    | "availability"
+    | "orders"
+    | "orderStatus"
+    | "delivery-quote"
+    | "delivery-orders"
+    | "online-orders"
+    | "payment-session";
 }
 
 export async function handleStorefront(
