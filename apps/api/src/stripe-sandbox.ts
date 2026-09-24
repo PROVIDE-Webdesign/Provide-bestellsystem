@@ -53,7 +53,7 @@ async function request(
       ...(idempotency ? { "idempotency-key": idempotency } : {}),
     },
     body: body?.toString() ?? null,
-    redirect: "error",
+    redirect: "manual",
     signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) throw new Error("Provider unavailable");

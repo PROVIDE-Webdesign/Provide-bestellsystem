@@ -56,7 +56,7 @@ export async function fetchDashboardAccess(
       method: "GET",
       headers: { accept: "application/json", authorization: `Bearer ${accessToken}` },
       cache: "no-store",
-      redirect: "error",
+      redirect: "manual",
       signal: AbortSignal.timeout(8000),
     });
     if (response.status === 401) return failure(401);
@@ -162,7 +162,7 @@ async function operationalRequest(
       },
       ...(method === "POST" ? { body: JSON.stringify(body) } : {}),
       cache: "no-store",
-      redirect: "error",
+      redirect: "manual",
       signal: AbortSignal.timeout(8000),
     });
     if ([400, 401, 403, 404, 409].includes(response.status))

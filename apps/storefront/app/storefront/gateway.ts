@@ -93,7 +93,7 @@ export async function fetchPublicStorefront(
     const response = await fetcher(upstream, {
       method: "GET",
       headers: { accept: "application/json" },
-      redirect: "error",
+      redirect: "manual",
       signal: AbortSignal.timeout(8000),
     });
     stage = "upstream-status";
@@ -213,7 +213,7 @@ export async function submitGuestPickupOrder(
       method: "POST",
       headers: { accept: "application/json", "content-type": "application/json" },
       body: JSON.stringify(body),
-      redirect: "error",
+      redirect: "manual",
       signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok)
@@ -294,7 +294,7 @@ export async function fetchPublicOrderStatus(
       method: "POST",
       headers: { accept: "application/json", "content-type": "application/json" },
       body: JSON.stringify(body),
-      redirect: "error",
+      redirect: "manual",
       signal: AbortSignal.timeout(8000),
     });
     if (!response.ok)

@@ -231,12 +231,31 @@ describe("storefront public gateway", () => {
         "https://api.example.test/v1/storefront/storefront-restaurant-a/storefront-a-mitte/catalog",
       ),
       expect.objectContaining({
-        redirect: "error",
+        redirect: "manual",
         headers: { accept: "application/json" },
       }),
     );
     expect(fetcher.mock.calls[0]?.[1]).not.toHaveProperty("cache");
     expect(JSON.stringify(fetcher.mock.calls)).not.toContain("private");
+  });
+  it.each([301, 302, 303, 307, 308])("rejects upstream redirect %i", async (status) => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response("private", {
+        status,
+        headers: { location: "https://redirect.example.test" },
+      }),
+    );
+    const response = await fetchPublicStorefront(
+      request,
+      params,
+      "https://api.example.test",
+      fetcher,
+    );
+    expect(response.status).toBe(503);
+    expect(response.headers.get("location")).toBeNull();
+    expect(await response.text()).not.toContain("private");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0]?.[1]?.redirect).toBe("manual");
   });
   it("hides upstream exceptions and malformed output", async () => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
