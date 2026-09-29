@@ -322,6 +322,7 @@ export async function handleStripeWebhook(
   env: OnlineEnvironment,
   repo: OnlineRepository,
   ctx: RequestContext,
+  provider: SandboxProvider,
 ) {
   const config = sandboxConfig(env);
   if (!config) return jsonError("service_unavailable", "Webhook unavailable.", ctx.requestId, 503);
@@ -379,6 +380,13 @@ export async function handleStripeWebhook(
     )
       return new Response(null, { status: 400 });
     if (
+      typeof event.created !== "number" ||
+      !Number.isSafeInteger(event.created) ||
+      event.created < 0 ||
+      event.created * 1000 > Date.now() + 5 * 60 * 1000
+    )
+      return new Response(null, { status: 400 });
+    if (
       typeof event.type !== "string" ||
       ![
         "checkout.session.completed",
@@ -398,14 +406,19 @@ export async function handleStripeWebhook(
     )
       return new Response(null, { status: 400 });
     // Acknowledge only after durable storage. Raw provider payloads never enter the database.
-    await repo.event(
+    const order = await repo.event(
       env.HYPERDRIVE!.connectionString,
       config.account,
       event.id,
       event.type,
       value.id,
       await digest(raw),
+      new Date(event.created * 1000).toISOString(),
     );
+    if (order) {
+      // Storage is durable even if provider reconciliation fails; the cron retries it.
+      await processOnlinePayment(env.HYPERDRIVE!.connectionString, config, repo, provider, order);
+    }
     return new Response(null, { status: 204 });
   } catch {
     return jsonError("service_unavailable", "Webhook could not be recorded.", ctx.requestId, 503);

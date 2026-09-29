@@ -55,7 +55,8 @@ export interface OnlineRepository {
     type: string,
     object: string,
     digest: string,
-  ): Promise<void>;
+    occurredAt: string,
+  ): Promise<string | null>;
 }
 async function query<T>(connectionString: string, sql: string, values: unknown[]): Promise<T> {
   const client = new Client({
@@ -125,12 +126,13 @@ export const postgresOnlineRepository: OnlineRepository = {
     query(c, "select private.sync_online_payment($1,$2,$3,$4,$5,$6) as data", [j, l, s, i, r, d]),
   fail: (c, j, l, m) =>
     query(c, "select private.fail_online_payment_job($1,$2,$3) as data", [j, l, m]),
-  event: (c, a, e, t, o, d) =>
-    query(c, "select private.receive_online_payment_event($1,$2,$3,$4,$5) as data", [
+  event: (c, a, e, t, o, d, occurredAt) =>
+    query(c, "select private.receive_online_payment_event($1,$2,$3,$4,$5,$6) as data", [
       a,
       e,
       t,
       o,
       d,
+      occurredAt,
     ]),
 };

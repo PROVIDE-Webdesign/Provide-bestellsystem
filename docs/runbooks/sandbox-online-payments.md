@@ -3,9 +3,10 @@
 ## Stand und Voraussetzung
 
 Die Implementierung ist ausschließlich für synthetische Bestellungen in einem Stripe-Testkonto
-bestimmt. Ein echter Anbieter-Durchlauf ist noch **nicht nachgewiesen**. In der Arbeitsumgebung sind
-keine Stripe-Testzugänge konfiguriert. CI verwendet einen kontrollierten Anbieterersatz und ruft
-Stripe nicht auf. Die technische Endfreigabe bleibt bis zum dokumentierten echten Test offen.
+bestimmt. Einzelne echte lokale Sandbox-Erfolgsfälle für Abholung, Lieferung und Erstattung wurden
+beobachtet; die vollständige Abnahmematrix ist noch offen. In CI wird ein kontrollierter
+Anbieterersatz verwendet und Stripe nicht aufgerufen. Die technische Endfreigabe bleibt bis zum
+dokumentierten vollständigen Anbieter-Durchlauf offen.
 
 Voraussetzungen: isolierte migrierte Testdatenbank, synthetisch veröffentlichter Standort samt Menü
 und Kapazität, Stripe-Sandbox-Zugang sowie lokal laufende Storefront, API und Dashboard. Die
@@ -43,11 +44,29 @@ stripe listen --forward-to http://localhost:8787/v1/payments/stripe/webhook
 Das von diesem Listener ausgegebene Signiergeheimnis lokal hinterlegen. Bei einem konfigurierten
 Test-Webhooks-Endpunkt dessen eigenes Geheimnis verwenden. Erlaubte Events:
 `checkout.session.completed`, `checkout.session.expired`, `payment_intent.succeeded`,
-`payment_intent.payment_failed`, `refund.created`, `refund.updated`, `refund.failed`. Den Scheduled
-Handler lokal regelmäßig auslösen; im Preview ist der vorhandene Minuten-Cron erforderlich. Nur
-Webhook-Zustellung genügt nicht, weil auch Fristablauf und verlorene Events abgeglichen werden
-müssen. Wiederaufnahme über die Storefront verarbeitet den eigenen Auftrag ebenfalls, ersetzt aber
-den Scheduled Handler nicht.
+`payment_intent.payment_failed`, `refund.created`, `refund.updated`, `refund.failed`. Ein
+zugeordnetes Webhook-Ereignis stößt nach dauerhafter Speicherung einen unmittelbaren Abgleich an.
+Den Scheduled Handler lokal dennoch regelmäßig auslösen; im Preview ist der vorhandene Minuten-Cron
+erforderlich. Nur Webhook-Zustellung genügt nicht, weil auch Fristablauf und verlorene Events
+abgeglichen werden müssen. Wiederaufnahme über die Storefront verarbeitet den eigenen Auftrag
+ebenfalls, ersetzt aber den Scheduled Handler nicht.
+
+### Vorfall vom 20.09.2026 und Korrekturstand
+
+Bei einer synthetischen Bestellung lag die Zahlungsfrist bei 08:17:29 UTC. Signiert empfangene
+Erfolgsereignisse wurden um 08:10:33 UTC gespeichert; die Bestellung wurde erst um 08:23:17 UTC
+systemseitig storniert und anschließend vollständig erstattet. Der damalige Abgleich nutzte die
+Verarbeitungszeit statt der belegten Zahlungszeit. Eine weitere bezahlte Bestellung wurde vier Tage
+später durch Personal storniert und vollständig erstattet; ein dritter Auftrag lief ohne Zahlung ab.
+Diese drei Abläufe sind getrennt zu bewerten.
+
+Die Korrektur verwendet bei später Verarbeitung den vor der Frist empfangenen Erfolg oder den
+Zeitpunkt eines signierten Stripe-Ereignisses. Ohne eindeutigen Zeitbeleg bleibt die Bestellung
+gesperrt in `manual_review`, bis ein späteres Ereignis oder eine berechtigte Prüfung den Zustand
+klärt. Ein nachweislich später Erfolg wird geschlossen und vollständig erstattet. Ein
+Regressionstest deckt den vor der Frist empfangenen Erfolg bei späterem Abgleich und den unklaren
+Zeitpunkt ab. Diese Codeänderung ist bis zur grünen Datenbankintegration und einem erneuten
+Sandbox-Durchlauf **nicht abgenommen**.
 
 ## Auszuführende Abnahmematrix
 
@@ -72,7 +91,9 @@ Anbieterreferenzen gehören ausschließlich in ein zugriffsbeschränktes Nachwei
    angezeigt.
 7. Webhook mehrfach und nach Unterbrechung zustellen; einmalige Buchung und Erstattung nachweisen.
    Zustellung mit falscher Signatur ablehnen. Nach absichtlich verpasstem Event muss der periodische
-   Abgleich denselben Zustand herstellen. Browser-Erfolgsrückkehr allein darf nichts buchen.
+   Abgleich denselben Zustand herstellen. Einen vor der Frist bezahlten, aber erst danach
+   verarbeiteten Auftrag prüfen; er darf nicht automatisch storniert werden. Browser-Erfolgsrückkehr
+   allein darf nichts buchen.
 8. Neuerstellung über `ONLINE_PAYMENT_ENABLED=false` sperren. Vorhandene Zahlung und Erstattung
    müssen bei weiterhin aktivem Processing-Gate fertig verarbeitet werden.
 

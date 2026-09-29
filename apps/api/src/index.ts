@@ -112,7 +112,7 @@ export function createApiWorker(
         );
       }
       if (route.name === "stripeWebhook")
-        return handleStripeWebhook(request, env, onlineRepository, context);
+        return handleStripeWebhook(request, env, onlineRepository, context, onlineProvider);
       if (route.name === "online-orders" || route.name === "payment-session")
         return handleOnlinePayment(
           request,

@@ -47,9 +47,9 @@ select private.claim_online_payment_job('acct_synthetic',(:'confirmation'::jsonb
 select is((:'retry_job'::jsonb->>'refund_sequence')::integer,1,'new refund command has a new stable generation');
 select private.sync_online_payment((:'job'::jsonb->>'id')::uuid,'fc100000-0000-0000-0000-000000000005','refunded','pi_one','re_two',repeat('c',64));
 select is(private.read_public_guest_order_status('storefront-restaurant-a','storefront-a-mitte',(:'confirmation'::jsonb->>'orderId')::uuid)->>'paymentState','refunded','successful full refund is displayed');
-select private.receive_online_payment_event('acct_synthetic','evt_one','refund.updated','re_two',repeat('d',64));
-select lives_ok($$select private.receive_online_payment_event('acct_synthetic','evt_one','refund.updated','re_two',repeat('d',64))$$,'duplicate webhook is harmless');
-select throws_ok($$select private.receive_online_payment_event('acct_synthetic','evt_one','refund.updated','re_two',repeat('e',64))$$,'P0001','conflicting payment event','changed duplicate rejected');
+select private.receive_online_payment_event('acct_synthetic','evt_one','refund.updated','re_two',repeat('d',64),statement_timestamp());
+select lives_ok($$select private.receive_online_payment_event('acct_synthetic','evt_one','refund.updated','re_two',repeat('d',64),(select provider_created_at from public.online_payment_inbox where event_id='evt_one'))$$,'duplicate webhook is harmless');
+select throws_ok($$select private.receive_online_payment_event('acct_synthetic','evt_one','refund.updated','re_two',repeat('e',64),(select provider_created_at from public.online_payment_inbox where event_id='evt_one'))$$,'P0001','conflicting payment event','changed duplicate rejected');
 select pg_temp.submit('online-expire-order',7) as exp_confirmation \gset
 select private.transition_dashboard_order_status('f1000000-0000-0000-0000-000000000001','aal2',
  'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',(:'exp_confirmation'::jsonb->>'orderId')::uuid,'submitted','cancelled') as requested \gset

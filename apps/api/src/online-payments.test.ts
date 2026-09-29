@@ -49,6 +49,7 @@ describe("online payment boundaries", () => {
       id: "evt_synthetic",
       livemode: false,
       type: "checkout.session.completed",
+      created: Math.floor(Date.now() / 1000),
       data: { object: { id: "cs_test_synthetic" } },
     });
     const timestamp = Math.floor(Date.now() / 1000);
@@ -79,6 +80,7 @@ describe("online payment boundaries", () => {
         env,
         repo,
         { requestId: id },
+        { session: vi.fn(), expire: vi.fn(), refund: vi.fn() },
       );
     expect((await send(raw)).status).toBe(503);
     expect((await send(raw)).status).toBe(204);
@@ -92,6 +94,7 @@ describe("online payment boundaries", () => {
       "checkout.session.completed",
       "cs_test_synthetic",
     ]);
+    expect(event.mock.calls[1]?.[6]).toBe(new Date(timestamp * 1000).toISOString());
     expect(JSON.stringify(event.mock.calls)).not.toContain(raw);
   });
   it("rejects live keys and production while accepting an explicit sandbox configuration", () => {

@@ -307,6 +307,115 @@ export async function verifyOnlineIntegration(
   );
   expect(compensated?.order_status).toBe("cancelled");
   expect(compensated?.refund_state).toBe("succeeded");
+
+  // A signed success received before the deadline remains payable when reconciliation runs later.
+  const timelyRaw: unknown = await (
+    await post("online-orders", {
+      ...command,
+      submissionKey: "online-timely-delayed-reconciliation",
+      requestedFor: when(8),
+    })
+  ).json();
+  const timelyOrder = parseOnlineOrderConfirmation(object(timelyRaw)?.data);
+  if (!timelyOrder) throw new Error("Timely order missing");
+  await post("payment-session", {
+    orderId: timelyOrder.orderId,
+    paymentAccessToken: timelyOrder.paymentAccessToken,
+    paymentDeadline: timelyOrder.paymentDeadline,
+  });
+  const timelyJob = await postgresOnlineRepository.read(
+    env.HYPERDRIVE!.connectionString,
+    config.account,
+    timelyOrder.orderId,
+  );
+  if (!timelyJob?.session_id) throw new Error("Timely session missing");
+  await admin.query(
+    "update public.online_payment_jobs set deadline=statement_timestamp()+interval '1 second' where order_id=$1",
+    [timelyOrder.orderId],
+  );
+  await postgresOnlineRepository.event(
+    env.HYPERDRIVE!.connectionString,
+    config.account,
+    "evt_timely_synthetic",
+    "checkout.session.completed",
+    timelyJob.session_id,
+    "a".repeat(64),
+    new Date().toISOString(),
+  );
+  const timelySession = sessions.get(timelyJob.id)!;
+  timelySession.paid = true;
+  timelySession.status = "complete";
+  timelySession.intent = "pi_" + timelyJob.id.replaceAll("-", "");
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+  await run(timelyOrder.orderId);
+  const reconciled = await postgresOnlineRepository.read(
+    env.HYPERDRIVE!.connectionString,
+    config.account,
+    timelyOrder.orderId,
+  );
+  expect(reconciled?.order_status).toBe("submitted");
+  expect(reconciled?.payment_status).toBe("captured");
+  expect(reconciled?.refund_state).toBe("none");
+
+  // Without reliable success time the order remains blocked for manual review.
+  const uncertainRaw: unknown = await (
+    await post("online-orders", {
+      ...command,
+      submissionKey: "online-uncertain-delayed-reconciliation",
+      requestedFor: when(9),
+    })
+  ).json();
+  const uncertainOrder = parseOnlineOrderConfirmation(object(uncertainRaw)?.data);
+  if (!uncertainOrder) throw new Error("Uncertain order missing");
+  await post("payment-session", {
+    orderId: uncertainOrder.orderId,
+    paymentAccessToken: uncertainOrder.paymentAccessToken,
+    paymentDeadline: uncertainOrder.paymentDeadline,
+  });
+  const uncertainJob = await postgresOnlineRepository.read(
+    env.HYPERDRIVE!.connectionString,
+    config.account,
+    uncertainOrder.orderId,
+  );
+  if (!uncertainJob?.session_id) throw new Error("Uncertain session missing");
+  const uncertainSession = sessions.get(uncertainJob.id)!;
+  uncertainSession.paid = true;
+  uncertainSession.status = "complete";
+  uncertainSession.intent = "pi_" + uncertainJob.id.replaceAll("-", "");
+  const confirmedBeforeDeadline = new Date().toISOString();
+  await admin.query(
+    "update public.online_payment_jobs set deadline=statement_timestamp()+interval '2 seconds' where order_id=$1",
+    [uncertainOrder.orderId],
+  );
+  await new Promise((resolve) => setTimeout(resolve, 2200));
+  await run(uncertainOrder.orderId);
+  const held = await postgresOnlineRepository.read(
+    env.HYPERDRIVE!.connectionString,
+    config.account,
+    uncertainOrder.orderId,
+  );
+  expect(held?.order_status).toBe("submitted");
+  expect(held?.payment_status).toBe("pending_customer");
+  expect(held?.last_error).toBe("manual_review");
+  await postgresOnlineRepository.event(
+    env.HYPERDRIVE!.connectionString,
+    config.account,
+    "evt_uncertain_synthetic",
+    "payment_intent.succeeded",
+    uncertainSession.intent,
+    "b".repeat(64),
+    confirmedBeforeDeadline,
+  );
+  await run(uncertainOrder.orderId);
+  const recovered = await postgresOnlineRepository.read(
+    env.HYPERDRIVE!.connectionString,
+    config.account,
+    uncertainOrder.orderId,
+  );
+  expect(recovered?.order_status).toBe("submitted");
+  expect(recovered?.payment_status).toBe("captured");
+  expect(recovered?.last_error).toBeNull();
+
   const audit = await admin.query<{ count: string }>(
     "select count(*) from public.online_refund_retries",
   );
