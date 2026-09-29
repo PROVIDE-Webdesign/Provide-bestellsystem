@@ -43,3 +43,4 @@ export * from "./dashboard-access.js";
 export * from "./dashboard-orders.js";
 export * from "./notifications.js";
 export * from "./delivery.js";
+export * from "./online-payment.js";

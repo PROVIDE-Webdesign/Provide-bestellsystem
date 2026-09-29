@@ -2,8 +2,8 @@
 
 ## Status
 
-Umfang für Arbeitsblock 3.8 vom Nutzer formal freigegeben. Technische Endfreigabe und Merge folgen
-nach den Pflichtprüfungen separat.
+Arbeitsblock 3.8 ist vom Nutzer technisch endfreigegeben und mit erteilter Merge-Erlaubnis über PR
+#7 in `main` zusammengeführt (`c3530b2dacdb814cfc2cc47664ab23b11ce878d0`).
 
 ## Entscheidung
 

@@ -1,3 +1,4 @@
+import { isPaymentState, type PaymentState } from "./online-payment.js";
 import { parseDeliveryAddress, type DeliveryAddress } from "./delivery.js";
 import { isExplicitInstant } from "./storefront.js";
 import { publicOrderStatuses, type PublicOrderStatusName } from "./order-status.js";
@@ -8,7 +9,8 @@ export interface DashboardOrderSummary {
   readonly orderId: string;
   readonly status: DashboardOrderStatus;
   readonly fulfillmentType: "pickup" | "delivery";
-  readonly paymentCollectionMode: "on_fulfillment";
+  readonly paymentCollectionMode: "on_fulfillment" | "online";
+  readonly paymentState?: PaymentState | null;
   readonly requestedFor: string;
   readonly currency: string;
   readonly totalAmountMinor: number;
@@ -116,12 +118,17 @@ function parseSummary(value: unknown): DashboardOrderSummary | undefined {
       "itemCount",
       "updatedAt",
       "allowedTransitions",
+      ...("paymentState" in source ? ["paymentState"] : []),
     ]) ||
     typeof source.orderId !== "string" ||
     !uuidPattern.test(source.orderId) ||
     !isStatus(source.status) ||
     (source.fulfillmentType !== "pickup" && source.fulfillmentType !== "delivery") ||
-    source.paymentCollectionMode !== "on_fulfillment" ||
+    (source.paymentCollectionMode !== "on_fulfillment" &&
+      source.paymentCollectionMode !== "online") ||
+    (source.paymentState !== undefined &&
+      source.paymentState !== null &&
+      !isPaymentState(source.paymentState)) ||
     typeof source.requestedFor !== "string" ||
     !isExplicitInstant(source.requestedFor) ||
     typeof source.currency !== "string" ||
@@ -143,7 +150,10 @@ function parseSummary(value: unknown): DashboardOrderSummary | undefined {
     orderId: source.orderId,
     status: source.status,
     fulfillmentType: source.fulfillmentType,
-    paymentCollectionMode: "on_fulfillment",
+    paymentCollectionMode: source.paymentCollectionMode,
+    ...("paymentState" in source
+      ? { paymentState: source.paymentState as PaymentState | null }
+      : {}),
     requestedFor: source.requestedFor,
     currency: source.currency,
     totalAmountMinor: source.totalAmountMinor,
@@ -225,6 +235,7 @@ export function parseDashboardOrderDetail(value: unknown): DashboardOrderDetail 
     "itemCount",
     "updatedAt",
     "allowedTransitions",
+    ...("paymentState" in source ? ["paymentState"] : []),
   ];
   if (
     !exactKeys(source, [

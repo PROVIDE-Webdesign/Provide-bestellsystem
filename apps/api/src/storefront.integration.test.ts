@@ -7,6 +7,7 @@ import { parseGuestPickupOrderConfirmation } from "@provide/contracts";
 import { createApiWorker } from "./index.js";
 import type { NotificationAdapter } from "./notifications.js";
 import { verifyDeliveryIntegration } from "./delivery.integration.js";
+import { verifyOnlineIntegration } from "./online-payments.integration.js";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 // A fresh, migrated disposable database is mandatory; the shared fixture commits synthetic data.
@@ -258,6 +259,7 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       );
       expect(claims.rows[0]?.count).toBe("1");
       await verifyDeliveryIntegration(admin, worker, env);
+      await verifyOnlineIntegration(admin, env);
       expect(
         sendNotification.mock.calls.some(([command]) =>
           command.body.includes("bereit zur Auslieferung"),

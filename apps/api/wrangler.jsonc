@@ -15,6 +15,8 @@
     "DASHBOARD_ORDER_OPERATIONS_ENABLED": "false",
     "NOTIFICATION_DISPATCH_ENABLED": "false",
     "DELIVERY_ORDERING_ENABLED": "false",
+    "ONLINE_PAYMENT_ENABLED": "false",
+    "ONLINE_PAYMENT_PROCESSING_ENABLED": "false",
     "SUPABASE_AUTH_ISSUER": "https://replace-with-preview-project.supabase.co/auth/v1",
     "SUPABASE_AUTH_AUDIENCE": "authenticated",
     "API_ALLOWED_ORIGINS": "https://replace-with-preview-storefront.example.invalid",

@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  parseOnlineOrderConfirmation,
+  parsePaymentAction,
+  parsePaymentSession,
+  paymentStateLabels,
+  type PaymentAction,
   isStorefrontScope,
   parseDeliveryQuote,
   parseGuestDeliveryOrderConfirmation,
@@ -32,6 +37,7 @@ import {
 } from "./status-storage";
 
 interface StorefrontProps extends StorefrontScope {
+  readonly onlinePaymentEnabled?: boolean;
   readonly privacyNoticeVersion: string;
 }
 
@@ -67,8 +73,14 @@ export default function Storefront(scope: StorefrontProps) {
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [checkoutState, setCheckoutState] = useState<"idle" | "submitting" | "error">("idle");
   const [confirmation, setConfirmation] = useState<
-    GuestPickupOrderConfirmation | GuestDeliveryOrderConfirmation | null
+    | GuestPickupOrderConfirmation
+    | GuestDeliveryOrderConfirmation
+    | ReturnType<typeof parseOnlineOrderConfirmation>
+    | null
   >(null);
+  const [onlinePayment, setOnlinePayment] = useState(false);
+  const [paymentAction, setPaymentAction] = useState<PaymentAction | null>(null);
+  const [openingPayment, setOpeningPayment] = useState(false);
   const [postalCode, setPostalCode] = useState("");
   const [addressLine1, setAddressLine1] = useState("");
   const [city, setCity] = useState("");
@@ -87,6 +99,45 @@ export default function Storefront(scope: StorefrontProps) {
   const base = `/api/storefront/${encodeURIComponent(scope.restaurantSlug)}/${encodeURIComponent(scope.locationSlug)}`;
   const validScope = isStorefrontScope(scope);
   const totalQuantity = cartItemCount(cart);
+  const paymentStorageKey = `provide-payment-action:${base}`;
+  useEffect(() => {
+    try {
+      const parsed = parsePaymentAction(
+        JSON.parse(sessionStorage.getItem(paymentStorageKey) ?? "null"),
+      );
+      setPaymentAction(parsed && Date.parse(parsed.paymentDeadline) > Date.now() ? parsed : null);
+    } catch {
+      setPaymentAction(null);
+    }
+  }, [paymentStorageKey]);
+
+  async function openPayment() {
+    if (!paymentAction || openingPayment) return;
+    setOpeningPayment(true);
+    setStatusMessage("");
+    try {
+      const r = await fetch(`${base}/payment-session`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(paymentAction),
+        cache: "no-store",
+      });
+      const body = (await r.json()) as { data?: unknown };
+      const session = parsePaymentSession(body.data);
+      if (!r.ok || !session) throw new Error("Payment unavailable");
+      if (session.checkoutUrl) {
+        window.location.assign(session.checkoutUrl);
+        return;
+      }
+      setStatusMessage(paymentStateLabels[session.paymentState]);
+    } catch {
+      setStatusMessage(
+        "Die Zahlung konnte nicht geöffnet werden. Bitte prüfe den Bestellstatus und versuche es erneut.",
+      );
+    } finally {
+      setOpeningPayment(false);
+    }
+  }
   const displayTotal = cartTotalAmountMinor(cart);
   const currency = cart[0]?.currency ?? catalog?.menus[0]?.currency ?? "EUR";
 
@@ -194,7 +245,12 @@ export default function Storefront(scope: StorefrontProps) {
       if (document.visibilityState === "visible") void refreshOrderStatus(statusAccess);
     };
     refreshVisible();
-    if (orderStatus && terminalStatuses.includes(orderStatus.status)) return;
+    if (
+      orderStatus &&
+      terminalStatuses.includes(orderStatus.status) &&
+      !["refund_pending", "checking", "cancelling"].includes(orderStatus.paymentState ?? "")
+    )
+      return;
     const interval = window.setInterval(refreshVisible, 20_000);
     document.addEventListener("visibilitychange", refreshVisible);
     return () => {
@@ -392,13 +448,14 @@ export default function Storefront(scope: StorefrontProps) {
     setCartMessage("");
     try {
       const response = await fetch(
-        `${base}/${fulfillmentType === "delivery" ? "delivery-orders" : "orders"}`,
+        `${base}/${onlinePayment ? "online-orders" : fulfillmentType === "delivery" ? "delivery-orders" : "orders"}`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
           cache: "no-store",
           signal: controller.signal,
           body: JSON.stringify({
+            ...(onlinePayment ? { fulfillmentType } : {}),
             menuId: cart[0]!.menuId,
             menuVersionId: cart[0]!.menuVersionId,
             requestedFor,
@@ -443,12 +500,33 @@ export default function Storefront(scope: StorefrontProps) {
         return;
       }
       const payload = (await response.json()) as { data?: unknown };
-      const result =
-        fulfillmentType === "delivery"
+      const result = onlinePayment
+        ? parseOnlineOrderConfirmation(payload.data)
+        : fulfillmentType === "delivery"
           ? parseGuestDeliveryOrderConfirmation(payload.data)
           : parseGuestPickupOrderConfirmation(payload.data);
       if (!result) throw new Error("Invalid confirmation");
       setConfirmation(result);
+      if (result.paymentCollectionMode === "online") {
+        const action = {
+          orderId: result.orderId,
+          paymentAccessToken: result.paymentAccessToken,
+          paymentDeadline: result.paymentDeadline,
+        };
+        setPaymentAction(action);
+        try {
+          sessionStorage.setItem(paymentStorageKey, JSON.stringify(action));
+        } catch {
+          /* in-memory fallback */
+        }
+      } else {
+        setPaymentAction(null);
+        try {
+          sessionStorage.removeItem(paymentStorageKey);
+        } catch {
+          /* optional storage */
+        }
+      }
       setOrderStatus(null);
       setStatusMessage("");
       const access = {
@@ -503,15 +581,22 @@ export default function Storefront(scope: StorefrontProps) {
         <section className="order-status" aria-labelledby="order-status-title" aria-live="polite">
           <p className="eyebrow">DEINE BESTELLUNG</p>
           <h2 id="order-status-title">
-            {orderStatus
-              ? orderStatus.fulfillmentType === "delivery" && orderStatus.status === "ready"
-                ? "Bereit zur Auslieferung"
-                : orderStatus.fulfillmentType === "delivery" && orderStatus.status === "completed"
-                  ? "Zugestellt"
-                  : statusLabels[orderStatus.status]
-              : confirmation
-                ? statusLabels[confirmation.status]
-                : "Bestellstatus"}
+            {orderStatus?.paymentState &&
+            orderStatus.status === "submitted" &&
+            orderStatus.paymentState !== "paid"
+              ? paymentStateLabels[orderStatus.paymentState]
+              : confirmation?.paymentCollectionMode === "online" && !orderStatus
+                ? "Zahlung offen"
+                : orderStatus
+                  ? orderStatus.fulfillmentType === "delivery" && orderStatus.status === "ready"
+                    ? "Bereit zur Auslieferung"
+                    : orderStatus.fulfillmentType === "delivery" &&
+                        orderStatus.status === "completed"
+                      ? "Zugestellt"
+                      : statusLabels[orderStatus.status]
+                  : confirmation
+                    ? statusLabels[confirmation.status]
+                    : "Bestellstatus"}
           </h2>
           {(orderStatus || confirmation) && (
             <p>
@@ -520,15 +605,35 @@ export default function Storefront(scope: StorefrontProps) {
                 (orderStatus ?? confirmation)!.totalAmountMinor,
                 (orderStatus ?? confirmation)!.currency,
               )}{" "}
-              · Zahlung bei{" "}
-              {(orderStatus ?? confirmation)?.fulfillmentType === "delivery"
-                ? "Lieferung"
-                : "Abholung"}
+              ·{" "}
+              {(orderStatus ?? confirmation)?.paymentCollectionMode === "online"
+                ? "Onlinezahlung im Testbetrieb"
+                : "Zahlung bei "}
+              {(orderStatus ?? confirmation)?.paymentCollectionMode === "online"
+                ? ""
+                : (orderStatus ?? confirmation)?.fulfillmentType === "delivery"
+                  ? "Lieferung"
+                  : "Abholung"}
             </p>
           )}
           {confirmation && !orderStatus && (
-            <p>Das Restaurant muss die Bestellung im nächsten Prozessschritt noch annehmen.</p>
+            <p>
+              {confirmation.paymentCollectionMode === "online"
+                ? "Bitte schließe die Testzahlung ab. Erst danach kann das Restaurant die Bestellung annehmen."
+                : "Das Restaurant muss die Bestellung im nächsten Prozessschritt noch annehmen."}
+            </p>
           )}
+          {orderStatus?.paymentState && <p>{paymentStateLabels[orderStatus.paymentState]}</p>}
+          {paymentAction &&
+            paymentAction.orderId === (orderStatus ?? confirmation)?.orderId &&
+            Date.parse(paymentAction.paymentDeadline) > Date.now() &&
+            (!orderStatus?.paymentState ||
+              orderStatus.paymentState === "open" ||
+              orderStatus.paymentState === "checking") && (
+              <button type="button" disabled={openingPayment} onClick={() => void openPayment()}>
+                {openingPayment ? "Zahlung wird geöffnet …" : "Testzahlung öffnen oder fortsetzen"}
+              </button>
+            )}
           {statusMessage && (
             <p role="alert" className="status-message">
               {statusMessage}
@@ -833,6 +938,21 @@ export default function Storefront(scope: StorefrontProps) {
                       void submitCheckout();
                     }}
                   >
+                    {scope.onlinePaymentEnabled && (
+                      <label>
+                        Zahlungsart
+                        <select
+                          value={onlinePayment ? "online" : "on_fulfillment"}
+                          onChange={(e) => {
+                            invalidateSubmission(false);
+                            setOnlinePayment(e.target.value === "online");
+                          }}
+                        >
+                          <option value="on_fulfillment">Zahlung bei Übergabe</option>
+                          <option value="online">Online bezahlen – Testzahlung</option>
+                        </select>
+                      </label>
+                    )}
                     {fulfillmentType === "delivery" && (
                       <>
                         <label htmlFor="delivery-address">Straße und Hausnummer</label>
@@ -920,9 +1040,11 @@ export default function Storefront(scope: StorefrontProps) {
                     >
                       {checkoutState === "submitting"
                         ? "Wird übermittelt …"
-                        : fulfillmentType === "delivery"
-                          ? "Lieferbestellung absenden"
-                          : "Abholbestellung absenden"}
+                        : onlinePayment
+                          ? "Bestellung für Testzahlung reservieren"
+                          : fulfillmentType === "delivery"
+                            ? "Lieferbestellung absenden"
+                            : "Abholbestellung absenden"}
                     </button>
                     <p className="answer" role="status" aria-live="polite">
                       {cartMessage}

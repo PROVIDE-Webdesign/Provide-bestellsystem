@@ -1,3 +1,4 @@
+import { isPaymentState, type PaymentState } from "./online-payment.js";
 import { isExplicitInstant } from "./storefront.js";
 
 export const publicOrderStatuses = [
@@ -21,7 +22,8 @@ export interface PublicOrderStatus {
   readonly orderId: string;
   readonly status: PublicOrderStatusName;
   readonly fulfillmentType: "pickup" | "delivery";
-  readonly paymentCollectionMode: "on_fulfillment";
+  readonly paymentCollectionMode: "on_fulfillment" | "online";
+  readonly paymentState?: PaymentState | null;
   readonly requestedFor: string;
   readonly currency: string;
   readonly totalAmountMinor: number;
@@ -69,7 +71,11 @@ export function parsePublicOrderStatus(value: unknown): PublicOrderStatus | unde
     typeof source.status !== "string" ||
     !publicOrderStatuses.some((status) => status === source.status) ||
     (source.fulfillmentType !== "pickup" && source.fulfillmentType !== "delivery") ||
-    source.paymentCollectionMode !== "on_fulfillment" ||
+    (source.paymentCollectionMode !== "on_fulfillment" &&
+      source.paymentCollectionMode !== "online") ||
+    (source.paymentState !== undefined &&
+      source.paymentState !== null &&
+      !isPaymentState(source.paymentState)) ||
     typeof source.requestedFor !== "string" ||
     !isExplicitInstant(source.requestedFor) ||
     typeof source.currency !== "string" ||
@@ -93,7 +99,10 @@ export function parsePublicOrderStatus(value: unknown): PublicOrderStatus | unde
     orderId: source.orderId,
     status: source.status as PublicOrderStatusName,
     fulfillmentType: source.fulfillmentType,
-    paymentCollectionMode: "on_fulfillment",
+    paymentCollectionMode: source.paymentCollectionMode,
+    ...("paymentState" in source
+      ? { paymentState: source.paymentState as PaymentState | null }
+      : {}),
     requestedFor: source.requestedFor,
     currency: source.currency,
     totalAmountMinor: source.totalAmountMinor,

@@ -12,7 +12,10 @@ export function parseDashboardPublicConfig(
   try {
     const url = new URL(supabaseUrl);
     if (
-      url.protocol !== "https:" ||
+      !(
+        url.protocol === "https:" ||
+        (url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname))
+      ) ||
       url.username ||
       url.password ||
       url.search ||
