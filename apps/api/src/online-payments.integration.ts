@@ -336,7 +336,7 @@ export async function verifyOnlineIntegration(
   await postgresOnlineRepository.event(
     env.HYPERDRIVE!.connectionString,
     config.account,
-    "evt_timely_synthetic",
+    "evt_timelysynthetic",
     "checkout.session.completed",
     timelyJob.session_id,
     "a".repeat(64),
@@ -400,7 +400,7 @@ export async function verifyOnlineIntegration(
   await postgresOnlineRepository.event(
     env.HYPERDRIVE!.connectionString,
     config.account,
-    "evt_uncertain_synthetic",
+    "evt_uncertainsynthetic",
     "payment_intent.succeeded",
     uncertainSession.intent,
     "b".repeat(64),
