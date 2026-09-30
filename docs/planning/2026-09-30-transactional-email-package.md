@@ -276,9 +276,35 @@ Fault-Injection; sie ersetzen keine echte Stripe-Sandbox-Abnahme.
 Der synthetische Versand, die offenen realen Nachweise und die
 vorbehaltenen Endfreigaben bleiben unverändert.
 
+## Bestandsaufnahme Paket 2 vom 30.09.2026
+
+Die beauftragte Bestandsaufnahme ist in
+[Menüpflege bis Warenkorb](2026-09-30-menu-cart-inventory.md) dokumentiert.
+Geprüft wurde der unveränderte Codebaum von PR #10 am Commit
+`484ec2d1aa5e602f76476cc82fc65ca6692f078e`; dessen vorhandene grüne CI-Nachweise
+werden gemäß E01 wiederverwendet. Dieser Nachtrag implementiert keine Funktion.
+
+Versionierung, Veröffentlichung nach Zeitpunkt, Rollback, Standortverfügbarkeit
+für einfache Artikel und serverseitige Grundpreise sind vorhanden. Offen sind
+insbesondere Varianten/Extras samt Auswahlregeln, strukturierte Allergene und
+Steuerdaten, vollständige Positionssnapshots, Menüpflege im Dashboard,
+befristete Varianten-/Produktsperren, verständliche Warenkorb-Neubewertung,
+24-Stunden-Speicherung und tatsächliche Import-/Menüparität mit 12.0 R1.
+Die Matrix trennt vorhandene Funktionen, Teilerfüllung und fehlende Nachweise.
+
+Empfohlene Reihenfolge: gemeinsames Menü-/Auswahlfundament bis Serverpreis und
+Snapshot, darauf Menüpflege/Freigabe im Dashboard, anschließend Auswahlbedienung,
+Warenkorberhalt und Paritätsnachweis. Bereits getestete Grundlagen werden erweitert.
+Echte Geräte-, Restaurant-, Stripe- und Zustellnachweise bleiben gesondert.
+
+Fortschritt unverändert: vorläufig rund 50 % ±10 Prozentpunkte gemäß E01,
+historische Arbeitsannahme 5¾ / 12 Hauptblöcke = 47,9 %, gerundet.
+Eine Bestandsaufnahme begründet keine Fortschrittsanhebung.
+
 ## Nächster Schritt
 
-Paket 2 „Menüpflege bis Warenkorb“ beginnt mit einer Bestandsaufnahme der
-vorhandenen Funktionen und Nachweise. Erst die festgestellten Lücken bestimmen
-die nächste Umsetzung. Die übrigen Pakete folgen der oben genannten Reihenfolge.
-Für diese Vorbereitung ist keine Laptop-Aufgabe des Nutzers erforderlich.
+Die Bestandsaufnahme für Paket 2 ist abgeschlossen. Als Nächstes wird der erste
+Umsetzungsschnitt „Gemeinsames Menü- und Auswahlfundament bis Preisprüfung“
+konkret abgegrenzt und technisch umgesetzt; Work / Sol / hoch ist empfohlen.
+Die übrigen Pakete folgen der festgelegten Reihenfolge. Eine Laptop-Aufgabe
+des Nutzers ist dafür nicht erforderlich.
