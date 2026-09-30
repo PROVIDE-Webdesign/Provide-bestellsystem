@@ -224,11 +224,34 @@ Bis dahin werden keine neuen zeitabhängigen Bestellungen angelegt.
 - Routineentscheidungen folgen der dokumentierten Empfehlung; vorbehaltene
   Endfreigaben bleiben bestehen.
 
+## Umsetzungsnachweis vom 30.09.2026
+
+Paket 1 ist in [Entwurfs-PR #10](https://github.com/PROVIDE-Webdesign/Provide-bestellsystem/pull/10)
+technisch umgesetzt. Die Basis ist weiterhin der unveränderte PR-#8-Commit
+`4e422f5b9ce7324e56bdb2b4e8d4cbd76ca3c8cc`; PR #10 ist darauf gestapelt.
+
+Am endgültigen Implementierungs-Commit
+`f947b8448d56ff4bf7bb4b7e6cdbc9b5bfb2f34d` sind `check` und `database` im
+[CI-Lauf 36746300404](https://github.com/PROVIDE-Webdesign/Provide-bestellsystem/actions/runs/36746300404)
+erfolgreich: 197 Unit-/Contracttests, 1.029 Datenbanktests und ein separater
+API-Integrationslauf gegen die vollständig migrierte disposable Datenbank.
+Darin enthalten sind Pflichtkontakt, offene Onlinezahlung, bestätigter Erstattungsbetrag,
+zeitliche Konflikte, expliziter Lieferdispatch, Anbieterannahme versus Zustellung,
+Idempotenz, unklare Annahme, abgelaufene Claims, Backoff, Versuchsgrenze,
+Kontakt-Purge und rollenbegrenzter Retry. Die Dokumentation liegt in
+`docs/decisions/0027-transactional-guest-email.md`,
+`docs/runbooks/transactional-email.md` und
+`docs/work-blocks/3.10-transactional-email.md`.
+
+Es wurde ausschließlich mit einem injizierten synthetischen E-Mail-Adapter
+geprüft. Echter Versand, echte Zustellung, Geräte-/Bedienabnahme und die offene
+Stripe-Sandbox-Matrix aus PR #8 bleiben gesondert. Beide Implementierungs-PRs
+bleiben Entwürfe; technische Endfreigabe, Merge und Deployment stehen aus.
+Der Gesamtfortschritt nach A2 wird durch diesen Codeabschluss nicht automatisch erhöht.
+
 ## Nächster Schritt
 
-Paket 1 beginnt mit der Prüfung der fehlenden Inhalts- und Ereignisquellen
-und der Auswahl einer dokumentierten Integrationsbasis. Danach werden
-E-Mail-Pflicht und synthetische Verarbeitung innerhalb desselben fachlichen
-Pakets umgesetzt und geprüft. Die übrigen Pakete folgen der oben genannten
-Reihenfolge. Für die weitere Vorbereitung ist keine Laptop-Aufgabe des
-Nutzers erforderlich.
+Paket 2 „Menüpflege bis Warenkorb“ beginnt mit einer Bestandsaufnahme der
+vorhandenen Funktionen und Nachweise. Erst die festgestellten Lücken bestimmen
+die nächste Umsetzung. Die übrigen Pakete folgen der oben genannten Reihenfolge.
+Für diese Vorbereitung ist keine Laptop-Aufgabe des Nutzers erforderlich.
