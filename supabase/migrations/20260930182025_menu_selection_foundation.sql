@@ -182,7 +182,7 @@ declare
   selected_capacity_claim public.ordering_capacity_claims%rowtype;
   subtotal bigint;
   priced jsonb;
-  menu_clock_started_at timestamptz := clock_timestamp();
+  menu_clock_started_at timestamptz := statement_timestamp();
   menu_evaluated_at timestamptz;
 begin
   if target_fulfillment_type not in ('pickup', 'delivery') then
@@ -420,7 +420,7 @@ declare
   selected_capacity_claim public.ordering_capacity_claims%rowtype;
   subtotal bigint;
   priced jsonb;
-  menu_clock_started_at timestamptz := clock_timestamp();
+  menu_clock_started_at timestamptz := statement_timestamp();
   menu_evaluated_at timestamptz;
 begin
   if target_fulfillment_type <> 'delivery' or target_policy_id is null or target_fee is null or target_fee < 0 then
