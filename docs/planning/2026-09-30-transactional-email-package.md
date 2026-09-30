@@ -23,8 +23,29 @@ Der Nutzer hat im Projektchat die Option **E-Mail verpflichtend** ausgewählt.
 - Umsetzung und Migration gehören in das nachfolgend abgegrenzte Implementierungspaket.
 - Die vorhandene optionale E-Mail-Angabe erfüllt diese neue Pflicht noch nicht.
 
-Alle weiteren Regeln und Texte dieses Dokuments sind Vorschläge zur fachlichen
-Bestätigung. A2 und V2 werden durch dieses Dokument nicht ersetzt.
+Der Nutzer hat am 30.09.2026 beauftragt, bei Entscheidungen den Empfehlungen
+des Assistenten zu folgen. Auf dieser Grundlage sind die hier abgegrenzten
+fachlichen Regeln, Nachrichtenanlässe und Texte übernommen. A2 und V2 werden
+durch dieses Dokument nicht ersetzt.
+
+### Delegierte Entscheidungen
+
+Routineentscheidungen zu Fachabläufen, Bedienung, Texten und technischer Umsetzung
+innerhalb des autorisierten Umfangs werden begründet getroffen und dokumentiert.
+Erneute Auswahlfragen entfallen, sofern keine wesentlichen Informationen fehlen
+oder ein Zielkonflikt mit bestehenden Festlegungen besteht.
+
+Die ausdrücklich vorbehaltene technische Endfreigabe, Merge-Erlaubnis,
+Deployment- und Live-/Pilotfreigabe bleiben gesonderte Nutzerentscheidungen.
+Kostenpflichtige Einrichtungen und Änderungen an bestehenden Produktgrenzen
+sind durch diese Delegation nicht pauschal genehmigt.
+
+### Nachrichtenumfang
+
+Übernommen ist die Empfehlung „wichtige Schritte“: Eingang, Annahme,
+Ablehnung, Stornierung, Zeitkorrektur, abholbereit, unterwegs und bestätigte
+Erstattung. „Zubereitung begonnen“ und „Bestellung abgeschlossen“ bleiben
+auf der Statusseite sichtbar und lösen keine zusätzliche E-Mail aus.
 
 ## Bereits vorhandene Grundlage
 
@@ -37,7 +58,7 @@ Vor einer Umsetzung sind die tatsächlichen Ereignis- und Zahlungsgrenzen,
 Kontaktdatenprojektionen, Unterdrückungsregeln und Zustellverträge zu prüfen.
 Die bestehende Verarbeitung wird erweitert, soweit ihre Verträge passen.
 
-## Vorgeschlagener Paketumfang
+## Abgegrenzter Paketumfang
 
 1. E-Mail-Pflicht in Storefront, API-Vertrag und serverseitiger Bestellvalidierung.
    Leerwerte und unzulässiges Format verhindern die Abgabe; eine syntaktische
@@ -53,7 +74,7 @@ Secrets, Absenderdomain-Einrichtung, Deployment, Marketing und die Änderung
 des Stripe-Zahlungszeitpunkts. Brevo bleibt die in A2 vorgesehene Richtung;
 seine konkrete Anbindung erhält ein gesondertes Paket.
 
-## Vorgeschlagene fachliche Regeln
+## Übernommene fachliche Regeln
 
 - Die Nachricht zum Eingang setzt eine gültig gespeicherte, für die
   Restaurantbearbeitung freigegebene Bestellung voraus. Bei Onlinezahlung
@@ -74,7 +95,7 @@ seine konkrete Anbindung erhält ein gesondertes Paket.
   unterdrückt. Entscheidungen und ihre Historie bleiben nachvollziehbar.
 - Nachrichten enthalten keine Werbung und keine vollständige Lieferadresse.
 
-## Textvorschläge
+## Übernommene Nachrichtentexte
 
 Platzhalter werden aus dem autorisierten Bestellsnapshot beziehungsweise
 dem protokollierten Ereignis gerendert. Der Statuslink übernimmt die
@@ -92,7 +113,7 @@ bestehenden Zugriffs- und Ablaufgrenzen.
 | Zeitkorrektur        | Neue Zeit für Bestellung {Nummer}           | Die bestätigte {Abhol-/Lieferzeit} wurde geändert auf {Zeit}. Aktueller Stand: {Statuslink}.                                                                                |
 | Erstattung bestätigt | Erstattung zu Bestellung {Nummer} bestätigt | Die Erstattung über {Betrag} wurde vom Zahlungsanbieter bestätigt. Die Anzeige auf Ihrem Konto kann später erfolgen. Aktueller Stand: {Statuslink}.                         |
 
-## Vorgeschlagene Verarbeitung und Abnahme
+## Verarbeitung und Abnahmekriterien
 
 - Idempotenzschlüssel binden Ereignis, Kanal, Empfängerzuordnung und Vorlagenversion.
 - Kontaktinformationen gelangen nur in die benötigte kurzlebige
@@ -119,8 +140,9 @@ Abschlussnachweise am endgültigen Implementierungs-Commit:
 8. Pflichtprüfungen check und database grün.
 9. Gesonderte technische Nutzerfreigabe und Merge-Erlaubnis.
 
-## Nächste Handy-Entscheidung
+## Nächster Schritt
 
-Die fachlichen Nachrichtenanlässe und Texte bestätigen oder korrigieren.
-Erst danach das Implementierungspaket freigeben. Echte Anbieterzustellung
+Den aktuellen Code gegen den abgegrenzten Paketumfang prüfen und die technische
+Umsetzung mit synthetischem Adapter vorbereiten. Weitere Routineentscheidungen
+werden anhand der dokumentierten Delegation getroffen. Echte Anbieterzustellung
 bleibt ein späterer, separat zu prüfender Schritt.
