@@ -87,6 +87,53 @@ reset role;
 select is((select count(*)::integer from private.email_retry_events),1,'manual retry has audit');
 select is((select status from public.orders where id=(:'confirmation'::jsonb->>'orderId')::uuid),'accepted','mail failure leaves order intact');
 select ok(private.read_public_guest_order_status('storefront-restaurant-a','storefront-a-mitte',(:'confirmation'::jsonb->>'orderId')::uuid) is not null,'status survives mail failure');
+-- Exercise actual retry scheduling and the bounded attempt budget.
+set local role service_role;
+select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000007',25,now()+interval '2 seconds') as retry_claim \gset
+select is(private.finish_email_delivery((:'correction_claim'::jsonb#>>'{0,deliveryId}')::uuid,
+  'fd100000-0000-0000-0000-000000000007','temporary_failure','provider_rate_limited',null,now()+interval '2 seconds'),
+  'retry','explicit temporary refusal permits a scheduled retry');
+select is(jsonb_array_length(private.claim_email_deliveries('fd100000-0000-0000-0000-000000000008',25,now()+interval '31 seconds')),0,
+  'temporary refusal cannot be retried before its backoff');
+reset role;
+do $$
+declare attempt integer; observed text; claimed jsonb; delivery uuid; lock_id uuid;
+begin
+  select id into delivery from private.email_deliveries where template_key='order_time_changed';
+  for attempt in 2..6 loop
+    lock_id:=gen_random_uuid();
+    claimed:=private.claim_email_deliveries(lock_id,25,now()+make_interval(hours=>attempt*3));
+    if jsonb_array_length(claimed)<>1 then raise exception 'expected exactly one retry'; end if;
+    observed:=private.finish_email_delivery(delivery,lock_id,'temporary_failure','provider_unavailable',null,now()+make_interval(hours=>attempt*3));
+    if observed<>case when attempt=6 then 'dead_letter' else 'retry' end then raise exception 'unexpected retry outcome'; end if;
+  end loop;
+end;
+$$;
+select is((select attempt_count from private.email_deliveries where template_key='order_time_changed'),6,'retry budget is six attempts');
+select is((select status from private.email_deliveries where template_key='order_time_changed'),'dead_letter','six definite failures end in dead letter');
+-- A lost worker must reconcile, even after the contact was purged; it never resends PII.
+set local role service_role;
+select private.update_order_communication('f1000000-0000-0000-0000-000000000001','aal2',
+  'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
+  (:'confirmation'::jsonb->>'orderId')::uuid,'accepted',2,'confirm_time',now()+interval '3 hours 5 minutes');
+select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000009',25,now()+interval '2 seconds') as lost_claim \gset
+select is(private.finish_email_delivery((:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid,
+  'fd100000-0000-0000-0000-000000000009','accepted',null,'late-worker',now()+interval '6 minutes'),
+  'conflict','expired worker cannot record acceptance');
+reset role;
+update public.order_customer_contacts set contact_name=null,phone_e164=null,email=null,purged_at=now()+interval '6 minutes'
+  where order_id=(:'confirmation'::jsonb->>'orderId')::uuid;
+set local role service_role;
+select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000010',25,now()+interval '6 minutes') as lost_reconcile \gset
+select is(:'lost_reconcile'::jsonb#>>'{0,mode}','reconcile','expired claim is reconciled rather than sent');
+select is(:'lost_reconcile'::jsonb#>>'{0,email}','reconcile@example.invalid','reconciliation needs no purged recipient');
+select is(private.finish_email_delivery((:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid,
+  'fd100000-0000-0000-0000-000000000010','not_found',null,null,now()+interval '6 minutes'),
+  'retry','authoritative absence permits a fresh eligibility check');
+select is(jsonb_array_length(private.claim_email_deliveries('fd100000-0000-0000-0000-000000000011',25,now()+interval '9 minutes')),0,
+  'purged recipient prevents a send after authoritative absence');
+reset role;
+select is((select status from private.email_deliveries where id=(:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid),'suppressed','purged contact is suppressed');
 -- Simulate a contact created before this migration. Its nullable snapshot and exact retry remain valid.
 select private.submit_order('f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
   'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001','pickup',

@@ -97,6 +97,7 @@ export default function Storefront(scope: StorefrontProps) {
   const availabilityRequest = useRef<AbortController | null>(null);
   const checkoutRequest = useRef<AbortController | null>(null);
   const statusRequest = useRef<AbortController | null>(null);
+  const restoredStatusScope = useRef<string | null>(null);
   const base = `/api/storefront/${encodeURIComponent(scope.restaurantSlug)}/${encodeURIComponent(scope.locationSlug)}`;
   const validScope = isStorefrontScope(scope);
   const totalQuantity = cartItemCount(cart);
@@ -226,6 +227,9 @@ export default function Storefront(scope: StorefrontProps) {
   useEffect(() => {
     const key = orderStatusStorageKey(scope);
     if (!key) return;
+    // Repeated effect setup must preserve a consumed email link when storage is blocked.
+    if (restoredStatusScope.current === key) return;
+    restoredStatusScope.current = key;
     statusRequest.current?.abort();
     setStatusAccess(null);
     setOrderStatus(null);
