@@ -140,9 +140,95 @@ Abschlussnachweise am endgültigen Implementierungs-Commit:
 8. Pflichtprüfungen check und database grün.
 9. Gesonderte technische Nutzerfreigabe und Merge-Erlaubnis.
 
+## Gebündelte Fortsetzung vom 30.09.2026
+
+Der Nutzer hat beauftragt, die nächsten Schritte sinnvoll zu bündeln. Die
+folgende Reihenfolge verbindet fachlich zusammenhängende Arbeiten. Sie ersetzt
+keine A2-Anforderung und markiert noch keine Umsetzung oder Abnahme als erledigt.
+
+| Reihenfolge | Paket                                       | Zusammengefasste Arbeit                                                                                                                                                                           | Abschlussnachweis                                                                                                                                            |
+| ----------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1           | Gastkontakt und Kundeninformation           | Codeabgleich, E-Mail-Pflicht, Ereignisse, HTML/Text, synthetischer Adapter, sichere Statuslinks, Fehler- und Zustellverarbeitung, automatisierte Tests, Runbook und Abnahmematrix                 | Kriterien dieses Dokuments am endgültigen Commit nachgewiesen; echte Zustellung separat                                                                      |
+| 2           | Menüpflege bis Warenkorb                    | Bestandsaufnahme vorhandener Menüfunktionen; verbleibende Varianten/Extras, Allergene, Verfügbarkeit, Veröffentlichung mit Zeitplanung/Rollback und serverseitige Preisprüfung gemeinsam ergänzen | Veröffentlichter Snapshot und Bestellpreis stimmen überein; veraltete oder unzulässige Auswahl wird abgefangen                                               |
+| 3           | Restaurantbearbeitung und Betriebssteuerung | Bestandsaufnahme Dashboard, Annahme/Ablehnung, Zeitkorrektur, Statuswechsel, Pause, ausverkauft, Auslastung und automatische Ablaufzeiten; Ereignis- und Nachrichtenauswirkungen mitprüfen        | Berechtigte Bedienung, nachvollziehbare Zustandswechsel und Kapazitätswirkungen geprüft; echte Mehrgeräte-/Alarmprüfung gesondert                            |
+| 4           | Support und Betriebsnachweise               | Bestandsaufnahme Bestellhistorie, Suche, Tages-/Wochenzahlen, Zahlungs-/Nachrichtenabgleich, Fehlerfälle, Rollen, Audit und Betriebsanleitungen                                                   | Fälle anhand gespeicherter Nachweise aufklärbar; Kennzahlen nachvollziehbar; verbleibende Wiederherstellungs- und Betriebsprüfungen ausdrücklich ausgewiesen |
+
+Für Pakete 2–4 ist der Umfang zunächst eine Arbeitszuordnung aus A2. Erst die
+Bestandsaufnahme bestimmt die tatsächlichen Lücken. Bereits vorhandene,
+ausreichend geprüfte Funktionen werden nicht erneut implementiert.
+
+Innerhalb jedes Pakets laufen die Schritte in Abhängigkeitsreihenfolge:
+Bestandsaufnahme und Abgrenzung, Vertrag und Migration, API und Oberfläche,
+Normal- und Fehlerfälle, passende automatische Prüfungen, Dokumentation und
+Abnahmenachweis. Unabhängige Leseabfragen und Prüfungen können gemeinsam
+ausgeführt werden. Änderungen mit derselben fachlichen Ursache bleiben in
+einem reviewbaren Paket; ein zu großer Umfang wird in aufeinander aufbauende
+Commits oder klar abgegrenzte PRs geteilt.
+
+### Bereits erfolgter Codeabgleich für Paket 1
+
+Geprüfte Referenz ist PR #8 am Commit
+`4e422f5b9ce7324e56bdb2b4e8d4cbd76ca3c8cc`.
+Die Prüfung ist auf die unten genannten Verträge, Verarbeitung und Projektionen
+begrenzt; sie ist keine vollständige Repository- oder Laufzeitabnahme.
+
+| Bereich und Quelle                                                                                                    | Tatsächlicher Befund                                                                                                   | Arbeit im Paket                                                                                                                                       |
+| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/storefront/app/storefront/Storefront.tsx`; `packages/contracts/src/checkout.ts`                                 | Formular nennt E-Mail optional, überträgt bei Leerwert `null`; Requestparser akzeptiert `null`                         | Pflicht für neue Gastbestellungen in UI und sämtlichen Bestelleingängen durchsetzen; historische Kontakte und Datenlöschung weiterhin erlauben        |
+| `packages/contracts/src/notifications.ts`                                                                             | Versandjob ist ausdrücklich SMS mit Telefonnummer und fünf Statusvorlagen                                              | Eigenen E-Mail-Vertrag mit passender Empfängerprojektion, Ereignisinhalten und Vorlagenversion ergänzen                                               |
+| `apps/api/src/notifications.ts`                                                                                       | Adapter übergibt einen SMS-Text; Renderer nutzt Wunschzeit, keinen Statuslink und keinen bestätigten Erstattungsbetrag | Betreff, Text/HTML und fachlich belegte Inhalte für E-Mail ergänzen; Zeitkorrektur, unterwegs und Erstattung brauchen eigene Ereignisverträge         |
+| `supabase/migrations/20260915210000_create_order_notification_dispatch.sql`; `apps/api/src/notifications-database.ts` | Kanalgrenze SMS; Anbieterannahme wird als `sent` gespeichert; Claims, begrenzte Retries und Suppression vorhanden      | Vorhandene Zuverlässigkeitsmechanismen weiterverwenden; Anbieterannahme, Zustellung und unklare Annahme ausdrücklich unterscheiden                    |
+| `supabase/migrations/20260916021000_extend_online_payment_projections.sql`, aktuelle Claim-Funktion                   | Offene Onlinezahlung bei `submitted` blockiert den Claim; Projektion bleibt SMS und telefonisch                        | Zahlungsfreigabe auch für E-Mail erhalten und in Integrationsprüfungen nachweisen; nicht die frühere Claim-Funktion aus AB 3.7 als Endstand behandeln |
+
+Bestellnummer, bestätigte Zeit, Ablehnungs-/Stornierungsgrund,
+Erstattungsbetrag und sicherer Statuslink sind im gelesenen SMS-Job nicht
+vorhanden. Vorlagen dürfen diese Werte nicht erfinden. Ihre autorisierten
+Datenquellen und Ereignisse müssen vor der Umsetzung gelesen und bei Bedarf
+innerhalb des Pakets ergänzt werden.
+
+Die Planung liegt auf einem separaten Branch ab `main`. Der gelesene
+Zahlungsstand aus PR #8 ist noch nicht gemergt. Eine Implementierung mit dessen
+Zahlungsgrenzen benötigt einen dokumentierten Basisstand und eine passende
+Integrationsbasis. Der bereits geprüfte PR-#8-Commit wird für diese Planung
+nicht geändert.
+
+### Spätere gebündelte lokale Abnahme
+
+Die offenen Zahlungsfälle aus PR #8 bleiben in ihrer bestehenden Matrix.
+Sobald lokaler Zugriff wieder möglich ist, werden kompatible Kriterien mit
+denselben Testbestellungen geprüft:
+
+1. Lieferung einschließlich Liefergebühr, Zahlungsablehnung, Wiederaufnahme
+   nach Neuladen, 3DS, Erfolg und anschließend Storno/Erstattung.
+2. Ausgebliebene beziehungsweise doppelte Anbieterereignisse und das Abschalten
+   neuer Onlinebestellungen bei weiterhin aktiver Verarbeitung bestehender Jobs.
+3. Regulärer Zehn-Minuten-Fristfall ohne Zahlung als eigener zeitlicher Ablauf,
+   soweit möglich parallel zu unabhängigen Prüfungen.
+
+Diese Fälle sind nicht durch die Planung oder einen synthetischen
+E-Mail-Test erfüllt. E-Mail-Nachweise werden beim späteren gemeinsamen
+Ablauf ergänzt, soweit sie zum dann tatsächlich integrierten Stand passen.
+Bis dahin werden keine neuen zeitabhängigen Bestellungen angelegt.
+
+### Qualität und Arbeitsaufteilung
+
+- Jede A2-Anforderung bleibt einzeln zu einem Nachweis zuordenbar.
+- Ein gemeinsamer Testablauf darf mehrere Kriterien erfüllen, wenn deren
+  Voraussetzungen und Ergebnisse jeweils belegt sind.
+- Negative Fälle, Mandantentrennung, Idempotenz und Zahlungsgrenzen entfallen
+  durch die Bündelung nicht.
+- Pflichtprüfungen laufen am endgültigen Implementierungsstand. Eine reine
+  Planungsänderung erfordert eine Formatprüfung, keine behauptete Laufzeitabnahme.
+- Fehlende lokale Nachweise werden als offen geführt, ohne andere unabhängig
+  mögliche Arbeiten zu blockieren.
+- Routineentscheidungen folgen der dokumentierten Empfehlung; vorbehaltene
+  Endfreigaben bleiben bestehen.
+
 ## Nächster Schritt
 
-Den aktuellen Code gegen den abgegrenzten Paketumfang prüfen und die technische
-Umsetzung mit synthetischem Adapter vorbereiten. Weitere Routineentscheidungen
-werden anhand der dokumentierten Delegation getroffen. Echte Anbieterzustellung
-bleibt ein späterer, separat zu prüfender Schritt.
+Paket 1 beginnt mit der Prüfung der fehlenden Inhalts- und Ereignisquellen
+und der Auswahl einer dokumentierten Integrationsbasis. Danach werden
+E-Mail-Pflicht und synthetische Verarbeitung innerhalb desselben fachlichen
+Pakets umgesetzt und geprüft. Die übrigen Pakete folgen der oben genannten
+Reihenfolge. Für die weitere Vorbereitung ist keine Laptop-Aufgabe des
+Nutzers erforderlich.
