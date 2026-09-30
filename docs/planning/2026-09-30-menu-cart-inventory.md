@@ -145,3 +145,38 @@ Auswahlfundament bis Preisprüfung“ konkret abgrenzen und technisch umsetzen.
 Empfohlener Modus dafür: **Work / Sol / hoch**, weil Auswahlregeln,
 Mandantenrechte, historische Snapshots und Zahlungsbeträge zusammenwirken.
 Für diese Arbeit ist keine Laptop-Aufgabe des Nutzers erforderlich.
+
+## Umsetzung des ersten Schnitts – 30.09.2026
+
+Der Nutzer hat das Menü- und Auswahlfundament bis zur serverseitigen Preisprüfung beauftragt.
+Die Implementierung liegt in [Entwurfs-PR #11](https://github.com/PROVIDE-Webdesign/Provide-bestellsystem/pull/11)
+auf dem unveränderten E-Mail-Paketstand von PR #10. Der finale Commit und seine Laufzeitnachweise
+werden im Implementierungs-PR geführt. Die obige Befundmatrix dokumentiert weiterhin den
+Ausgangsstand der Bestandsaufnahme; dieser Nachtrag ergänzt den Fortschritt einzeln.
+
+| Inventar          | Neuer Teilnachweis                                                                                                                           | Noch offen                                                                                            |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| P2-02/P2-03       | Konfiguration wird kopiert und eingefroren; gemeinsame Menüsperre für Publikation/Rollback/Checkout, realer Konkurrenztest                   | Freigabebedienung und geplante Grenzzeit-/Verfügbarkeitsfälle der Gesamtmatrix                        |
+| P2-05/P2-06       | Versionsgebundene Varianten, Extras, Min/Max und aktive Auswahl serverseitig geprüft                                                         | Dashboardpflege und Kundenauswahl                                                                     |
+| P2-07/P2-08/P2-09 | Bestätigte Deklarationen, Steuersatz, Cent-Berechnung und unveränderlicher Auswahl-/Steuersnapshot; unbekannte Altbestände bleiben unbekannt | Feldfehler im Editor, Betriebsdatenprüfung, getrennt besteuerte Extras/Liefergebühren und Pilotimport |
+| P2-11             | Gemeinsamer SQL-Preisweg in Quote, Pickup, Delivery und Online-Auftrag einschließlich Liefergebühr                                           | Reale Stripe-Abnahmematrix unverändert offen                                                          |
+| P2-12/P2-13       | Lesende Cart-Quote mit aktueller Menüversion/strukturierten Konflikten; kanonische konfigurierte Positionen in Requests und Bestellsnapshots | Kundendialog, Gateway, Warenkorbführung und erneute ausdrückliche Bestätigung                         |
+| P2-15/P2-16       | Interner Draftbefehl mit aktiver Owner-/Managerrolle, explizitem MFA, Revision und Outboxaudit                                               | Authentifizierte Pflege-API, Änderungsnotiz und kanonischer Gesamtereignisvertrag                     |
+
+Nachweis am endgültigen Head `7703d45e7df26ad935cfd9780b208ee14effcc15`:
+[CI-Lauf 36766533426](https://github.com/PROVIDE-Webdesign/Provide-bestellsystem/actions/runs/36766533426)
+mit `check` und `database` erfolgreich; 236 Unit-/Contracttests, 1.087 pgTAP-Tests
+(einschließlich 45 neuer Prüfungen) und der separate API/PostgreSQL-Integrationslauf bestanden.
+Security Advisors melden „No issues found“. Lokaler Implementierungsbaum, GitHub-Head und
+CI-Mergebaum stimmen überein. Der Integrationstest belegt auch Online-Lieferbetrag samt Gebühr
+und eine erst während tatsächlicher Sperrwartezeit wirksam werdende Veröffentlichung.
+
+Die API-Vorschau ist standardmäßig geschlossen und erzeugt keine Bestellung oder Reservierung.
+Automatisierte Prüfungen ersetzen weder die Produkt-/Geräteabnahme noch fachliche Steuer-/Allergenangaben.
+Die Fixture ist synthetisch. Entscheidung 0028, Runbook und Arbeitsblock 3.11 führen den technischen
+Vertrag und die Grenzen. Dieses Planungsdokument enthält keine Produktänderungen.
+
+Nächste Aufgabe: **Menüpflege und bewusste Freigabe im Dashboard**, anschließend Auswahlbedienung,
+Warenkorb und Parität entsprechend der bestehenden Reihenfolge. Empfehlung: **Work / Sol / hoch**.
+Keine Laptop-Aufgabe erforderlich. Vorläufige A2-Planabdeckung bleibt **50 % ±10 Prozentpunkte**;
+kein automatischer Fortschrittsanstieg, kein Merge oder Deployment.
