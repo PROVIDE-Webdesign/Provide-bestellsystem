@@ -80,17 +80,17 @@ Platzhalter werden aus dem autorisierten Bestellsnapshot beziehungsweise
 dem protokollierten Ereignis gerendert. Der Statuslink übernimmt die
 bestehenden Zugriffs- und Ablaufgrenzen.
 
-| Ereignis | Betreff | Kerntext |
-| --- | --- | --- |
-| Eingang | Bestellung {Nummer} ist eingegangen | Ihre Bestellung bei {Restaurant} ist eingegangen. Das Restaurant prüft sie jetzt. Eine Annahmebestätigung folgt separat. Den aktuellen Stand finden Sie unter {Statuslink}. |
-| Annahme, Abholung | Bestellung {Nummer} bestätigt | Ihre Bestellung wurde angenommen. Bestätigte Abholzeit: {Zeit}. Abholort: {Standort}. Aktueller Stand: {Statuslink}. |
-| Annahme, Lieferung | Bestellung {Nummer} bestätigt | Ihre Bestellung wurde angenommen. Bestätigte Lieferzeit: {Zeit}. Aktueller Stand: {Statuslink}. |
-| Ablehnung | Bestellung {Nummer} abgelehnt | Das Restaurant konnte Ihre Bestellung nicht annehmen. Grund: {Grund}. Den aktuellen Zahlungs- und Erstattungsstand finden Sie unter {Statuslink}. |
-| Stornierung | Bestellung {Nummer} storniert | Ihre Bestellung wurde storniert. Grund: {Grund}. Den aktuellen Zahlungs- und Erstattungsstand finden Sie unter {Statuslink}. |
-| Abholbereit | Bestellung {Nummer} ist abholbereit | Ihre Bestellung ist zur Abholung bei {Standort} bereit. Aktueller Stand: {Statuslink}. |
-| Unterwegs | Bestellung {Nummer} ist unterwegs | Ihre Lieferung ist unterwegs. Aktueller Stand: {Statuslink}. |
-| Zeitkorrektur | Neue Zeit für Bestellung {Nummer} | Die bestätigte {Abhol-/Lieferzeit} wurde geändert auf {Zeit}. Aktueller Stand: {Statuslink}. |
-| Erstattung bestätigt | Erstattung zu Bestellung {Nummer} bestätigt | Die Erstattung über {Betrag} wurde vom Zahlungsanbieter bestätigt. Die Anzeige auf Ihrem Konto kann später erfolgen. Aktueller Stand: {Statuslink}. |
+| Ereignis             | Betreff                                     | Kerntext                                                                                                                                                                    |
+| -------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Eingang              | Bestellung {Nummer} ist eingegangen         | Ihre Bestellung bei {Restaurant} ist eingegangen. Das Restaurant prüft sie jetzt. Eine Annahmebestätigung folgt separat. Den aktuellen Stand finden Sie unter {Statuslink}. |
+| Annahme, Abholung    | Bestellung {Nummer} bestätigt               | Ihre Bestellung wurde angenommen. Bestätigte Abholzeit: {Zeit}. Abholort: {Standort}. Aktueller Stand: {Statuslink}.                                                        |
+| Annahme, Lieferung   | Bestellung {Nummer} bestätigt               | Ihre Bestellung wurde angenommen. Bestätigte Lieferzeit: {Zeit}. Aktueller Stand: {Statuslink}.                                                                             |
+| Ablehnung            | Bestellung {Nummer} abgelehnt               | Das Restaurant konnte Ihre Bestellung nicht annehmen. Grund: {Grund}. Den aktuellen Zahlungs- und Erstattungsstand finden Sie unter {Statuslink}.                           |
+| Stornierung          | Bestellung {Nummer} storniert               | Ihre Bestellung wurde storniert. Grund: {Grund}. Den aktuellen Zahlungs- und Erstattungsstand finden Sie unter {Statuslink}.                                                |
+| Abholbereit          | Bestellung {Nummer} ist abholbereit         | Ihre Bestellung ist zur Abholung bei {Standort} bereit. Aktueller Stand: {Statuslink}.                                                                                      |
+| Unterwegs            | Bestellung {Nummer} ist unterwegs           | Ihre Lieferung ist unterwegs. Aktueller Stand: {Statuslink}.                                                                                                                |
+| Zeitkorrektur        | Neue Zeit für Bestellung {Nummer}           | Die bestätigte {Abhol-/Lieferzeit} wurde geändert auf {Zeit}. Aktueller Stand: {Statuslink}.                                                                                |
+| Erstattung bestätigt | Erstattung zu Bestellung {Nummer} bestätigt | Die Erstattung über {Betrag} wurde vom Zahlungsanbieter bestätigt. Die Anzeige auf Ihrem Konto kann später erfolgen. Aktueller Stand: {Statuslink}.                         |
 
 ## Vorgeschlagene Verarbeitung und Abnahme
 
