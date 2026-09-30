@@ -26,14 +26,14 @@ select is((select count(*)::integer from private.email_deliveries),1,'one submis
 select ok(not exists(select 1 from private.email_deliveries d where row_to_json(d)::text like '%@%'),'ledger has no recipient');
 select ok(not exists(select 1 from public.outbox_events where payload::text like '%synthetic@example.invalid%'),'outbox has no email address');
 set local role service_role;
-select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000001',25,now()) as first_claim \gset
+select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000001',25,now()+interval '1 second') as first_claim \gset
 select is(jsonb_array_length(:'first_claim'::jsonb),1,'bounded claim returns the email');
 select is(:'first_claim'::jsonb#>>'{0,email}','synthetic@example.invalid','contact is projected only for the worker');
 select is(jsonb_array_length(private.claim_email_deliveries('fd100000-0000-0000-0000-000000000002',25,now())),0,'concurrent worker cannot claim locked job');
 select is(private.finish_email_delivery((:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid,
   'fd100000-0000-0000-0000-000000000099','accepted',null,'synthetic-1',now()),'conflict','wrong lease cannot complete');
 select is(private.finish_email_delivery((:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid,
-  'fd100000-0000-0000-0000-000000000001','unknown','provider_timeout',null,now()),'uncertain','unclear acceptance does not blindly resend');
+  'fd100000-0000-0000-0000-000000000001','unknown','provider_timeout',null,now()+interval '1 second'),'uncertain','unclear acceptance does not blindly resend');
 select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000003',25,now()+interval '31 seconds') as uncertain_claim \gset
 select is(:'uncertain_claim'::jsonb#>>'{0,mode}','reconcile','unknown send is claimed for lookup');
 select is(private.finish_email_delivery((:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid,
@@ -87,5 +87,19 @@ reset role;
 select is((select count(*)::integer from private.email_retry_events),1,'manual retry has audit');
 select is((select status from public.orders where id=(:'confirmation'::jsonb->>'orderId')::uuid),'accepted','mail failure leaves order intact');
 select ok(private.read_public_guest_order_status('storefront-restaurant-a','storefront-a-mitte',(:'confirmation'::jsonb->>'orderId')::uuid) is not null,'status survives mail failure');
+-- Simulate a contact created before this migration. Its nullable snapshot and exact retry remain valid.
+select private.submit_order('f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
+  'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001','pickup',
+  date_trunc('hour',now())+interval '4 hours','[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":1}]',
+  'historical-email-null-0001',now()) as legacy_order \gset
+select private.initialize_order_payment('f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',:'legacy_order','on_fulfillment');
+select private.store_guest_checkout_snapshot_before_email('f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
+  :'legacy_order','{"contact_name":"Historical Synthetic","phone_e164":"+999100000011","email":null}',null,'preview-v1',now()+interval '30 days');
+select lives_ok(format($sql$select private.store_guest_checkout_snapshot('f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
+  %L::uuid,'{"contact_name":"Historical Synthetic","phone_e164":"+999100000011","email":null}',null,'preview-v1',%L::timestamptz)$sql$,:'legacy_order',now()+interval '30 days'),
+  'historical nullable contact remains exactly retryable');
+select ok(private.read_public_guest_order_status('storefront-restaurant-a','storefront-a-mitte',:'legacy_order') is not null,'historical status remains readable');
+select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000006',25,now()+interval '2 seconds');
+select is((select status from private.email_deliveries where order_id=:'legacy_order' and template_key='order_submitted'),'suppressed','historical order without email suppresses delivery');
 select * from finish();
 rollback;

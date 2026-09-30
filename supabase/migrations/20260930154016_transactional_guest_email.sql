@@ -8,6 +8,10 @@ create function private.store_guest_checkout_snapshot(
   target_delivery jsonb,target_privacy_notice_version text,target_retention_until timestamptz
 ) returns uuid language plpgsql security definer set search_path='' as $$
 begin
+  if not exists(select 1 from public.orders o where o.restaurant_id=target_restaurant_id
+    and o.location_id=target_location_id and o.id=target_order_id) then
+    raise exception using errcode='P0001',message='guest checkout order was not found';
+  end if;
   if not exists(select 1 from public.order_customer_contacts c
     where c.restaurant_id=target_restaurant_id and c.location_id=target_location_id and c.order_id=target_order_id)
     and nullif(btrim(target_customer->>'email'),'') is null then

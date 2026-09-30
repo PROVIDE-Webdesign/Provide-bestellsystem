@@ -42,6 +42,17 @@ const request = (
 ) => new Request(url, { method: "POST", headers, body: JSON.stringify(value) });
 
 describe("guest pickup checkout API", () => {
+  it.each([null, "", "bad-email"])(
+    "rejects missing email before storing an order",
+    async (email) => {
+      const writer = { submit: vi.fn() };
+      const w = createApiWorker(vi.fn(), { error: vi.fn() }, undefined, writer);
+      expect(
+        (await w.fetch(request({ ...body, customer: { ...body.customer, email } }), env)).status,
+      ).toBe(400);
+      expect(writer.submit).not.toHaveBeenCalled();
+    },
+  );
   it("submits only normalized values and returns an allowlisted confirmation", async () => {
     const writer = { submit: vi.fn().mockResolvedValue({ ...confirmation, internal: "hidden" }) };
     const worker = createApiWorker(vi.fn(), { error: vi.fn() }, undefined, writer);

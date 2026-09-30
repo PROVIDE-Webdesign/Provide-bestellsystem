@@ -62,8 +62,8 @@ select is(:'initial_status'::jsonb ->> 'paymentCollectionMode', 'on_fulfillment'
 select is(:'initial_status'::jsonb ->> 'totalAmountMinor', '2500', 'status exposes server total');
 select is(
   (select count(*)::integer from jsonb_object_keys(:'initial_status'::jsonb)),
-  10,
-  'status exposes exactly ten approved fields'
+  11,
+  'status exposes the ten established fields and the approved communication projection'
 );
 select ok(
   :'initial_status' not like '%Synthetic Status Guest%'
