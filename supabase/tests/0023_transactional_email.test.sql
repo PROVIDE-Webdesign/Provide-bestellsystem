@@ -126,7 +126,7 @@ update public.order_customer_contacts set contact_name=null,phone_e164=null,emai
 set local role service_role;
 select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000010',25,now()+interval '6 minutes') as lost_reconcile \gset
 select is(:'lost_reconcile'::jsonb#>>'{0,mode}','reconcile','expired claim is reconciled rather than sent');
-select is(:'lost_reconcile'::jsonb#>>'{0,email}','reconcile@example.invalid','reconciliation needs no purged recipient');
+select ok(not (:'lost_reconcile'::jsonb->0 ? 'email'),'reconciliation contains no recipient');
 select is(private.finish_email_delivery((:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid,
   'fd100000-0000-0000-0000-000000000010','not_found',null,null,now()+interval '6 minutes'),
   'retry','authoritative absence permits a fresh eligibility check');

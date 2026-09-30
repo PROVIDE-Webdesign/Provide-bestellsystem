@@ -1,8 +1,13 @@
-import { parseEmailDispatchBatch } from "@provide/contracts";
+import { parseEmailDispatchJob, type EmailDispatchJob } from "@provide/contracts";
 import { Client } from "pg";
 import type { EmailRepository } from "./email-notifications.js";
 
-async function query(connectionString: string, sql: string, values: readonly unknown[]) {
+async function query(
+  connectionString: string,
+  sql: string,
+  values: readonly unknown[],
+  validate?: (data: unknown, client: Client) => Promise<unknown>,
+) {
   const client = new Client({
     connectionString,
     connectionTimeoutMillis: 5000,
@@ -15,8 +20,9 @@ async function query(connectionString: string, sql: string, values: readonly unk
     await client.query("SET LOCAL statement_timeout = '5s'");
     const r = await client.query<{ data: unknown }>(sql, [...values]);
     if (r.rows.length !== 1) throw new Error("Invalid email database result");
+    const data = validate ? await validate(r.rows[0]!.data, client) : r.rows[0]!.data;
     await client.query("COMMIT");
-    return r.rows[0]!.data;
+    return data;
   } catch (error) {
     try {
       await client.query("ROLLBACK");
@@ -30,15 +36,40 @@ async function query(connectionString: string, sql: string, values: readonly unk
 }
 export const postgresEmailRepository: EmailRepository = {
   async claim(connection, lock, limit, now) {
-    const jobs = parseEmailDispatchBatch(
-      await query(
-        connection,
-        "select private.claim_email_deliveries($1::uuid,$2::integer,$3::timestamptz) as data",
-        [lock, limit, now],
-      ),
-    );
-    if (!jobs) throw new Error("Invalid email projection");
-    return jobs;
+    return (await query(
+      connection,
+      "select private.claim_email_deliveries($1::uuid,$2::integer,$3::timestamptz) as data",
+      [lock, limit, now],
+      async (data, client) => {
+        if (!Array.isArray(data) || data.length > limit || data.length > 25)
+          throw new Error("Invalid email batch");
+        const jobs: EmailDispatchJob[] = [];
+        for (const value of data) {
+          const source = value as Record<string, unknown> | null;
+          if (
+            !source ||
+            typeof source.deliveryId !== "string" ||
+            !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(source.deliveryId) ||
+            source.lockToken !== lock ||
+            (source.mode !== "send" && source.mode !== "reconcile")
+          )
+            throw new Error("Invalid email claim identity");
+          const job = parseEmailDispatchJob(source);
+          if (job) jobs.push(job);
+          else {
+            // Nothing has been sent. Isolate an invalid send instead of poisoning valid jobs.
+            if (source.mode !== "send") throw new Error("Invalid email reconciliation");
+            const finished = await client.query<{ data: string }>(
+              "select private.finish_email_delivery($1::uuid,$2::uuid,'permanent_failure','invalid_projection',null,$3::timestamptz) as data",
+              [source.deliveryId, lock, now],
+            );
+            if (finished.rows.length !== 1 || finished.rows[0]!.data !== "dead_letter")
+              throw new Error("Invalid email isolation result");
+          }
+        }
+        return jobs;
+      },
+    )) as EmailDispatchJob[];
   },
   async finish(connection, id, lock, result, now) {
     const status = await query(

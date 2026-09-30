@@ -50,6 +50,9 @@ jobs:
       - name: Run database tests
         run: supabase test db
 
+      - name: Check isolated database security advisors
+        run: supabase db advisors --local --type security --level warn --fail-on error
+
       - name: Enable Corepack for integration tests
         run: corepack enable
 

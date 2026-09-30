@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { parseEmailDispatchJob, type EmailDispatchJob } from "@provide/contracts";
+import { parseEmailDispatchJob, type EmailSendJob } from "@provide/contracts";
 import {
   dispatchEmailNotifications,
   renderEmailNotification,
@@ -8,7 +8,7 @@ import {
 } from "./email-notifications.js";
 import { createSyntheticEmailAdapter } from "./synthetic-email.js";
 import { verifyStatusAccessToken } from "./status-token.js";
-const job: EmailDispatchJob = {
+const job: EmailSendJob = {
   deliveryId: "fa100000-0000-0000-0000-000000000001",
   lockToken: "fa100000-0000-0000-0000-000000000002",
   orderId: "fa100000-0000-0000-0000-000000000003",
@@ -114,7 +114,15 @@ describe("transactional email worker", () => {
   });
   it("reconciles an unknown acceptance without a second send", async () => {
     const s = setup();
-    vi.mocked(s.repo.claim).mockResolvedValue([{ ...job, mode: "reconcile" }]);
+    const reconcile = {
+      deliveryId: job.deliveryId,
+      lockToken: job.lockToken,
+      templateVersion: 1 as const,
+      mode: "reconcile" as const,
+    };
+    expect(parseEmailDispatchJob(reconcile)).toEqual(reconcile);
+    expect(parseEmailDispatchJob({ ...reconcile, email: job.email })).toBeUndefined();
+    vi.mocked(s.repo.claim).mockResolvedValue([reconcile]);
     vi.mocked(s.adapter.lookup).mockResolvedValue({
       outcome: "accepted",
       reference: "previous-send",
@@ -146,6 +154,21 @@ describe("transactional email worker", () => {
       { outcome: "unknown", code: "invalid_adapter_result" },
       expect.any(String),
     );
+  });
+  it("does not start the next send after a slow request exhausts the batch lease", async () => {
+    const s = setup();
+    let clock = Date.parse("2026-09-30T12:00:00Z");
+    vi.mocked(s.repo.claim).mockResolvedValue([
+      job,
+      { ...job, deliveryId: "fa100000-0000-0000-0000-000000000004" },
+    ]);
+    vi.mocked(s.adapter.send).mockImplementation(() => {
+      clock += 5 * 60 * 1000;
+      return Promise.resolve({ outcome: "accepted", reference: "slow-first-send" });
+    });
+    await dispatchEmailNotifications(env, s.repo, s.adapter, s.logger, () => new Date(clock));
+    expect(s.adapter.send).toHaveBeenCalledTimes(1);
+    expect(s.repo.finish).toHaveBeenCalledTimes(1);
   });
   it("escapes HTML, uses confirmed time and omits full delivery addresses", () => {
     const m = renderEmailNotification(

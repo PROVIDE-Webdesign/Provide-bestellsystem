@@ -36,6 +36,16 @@ const phonePattern = /^\+[1-9][0-9]{7,14}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const statusAccessTokenPattern = /^[A-Za-z0-9_-]{43}$/;
 
+export function isValidGuestEmail(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length >= 3 &&
+    value.length <= 254 &&
+    emailPattern.test(value) &&
+    ![...value].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)
+  );
+}
+
 function record(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -84,9 +94,7 @@ export function parseGuestPickupOrderRequest(value: unknown): GuestPickupOrderRe
     contactName.length < 1 ||
     contactName.length > 120 ||
     !phonePattern.test(phoneE164) ||
-    email.length < 3 ||
-    email.length > 254 ||
-    !emailPattern.test(email)
+    !isValidGuestEmail(email)
   )
     return undefined;
 

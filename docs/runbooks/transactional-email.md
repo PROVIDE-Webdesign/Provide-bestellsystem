@@ -46,6 +46,13 @@ Zugriffstoken und rohe Anbieterantworten gehören nicht in Logs, Outbox oder Ver
 Nachrichten enthalten keine vollständige Lieferadresse. Kontakt-Purge und Ablaufprüfung gelten auch
 für Mail.
 
+Ein ungültiger einzelner Sendedatensatz wird vor dem Claim-Commit als `invalid_projection` isoliert
+und in Dead Letter abgelegt; gültige Nachbaraufträge werden weiter verarbeitet. Fehlerhafte
+Claim-Identitäten führen zum Rollback der ganzen Transaktion. Der Abgleich unklarer Annahmen
+projiziert nur `deliveryId`, `lockToken`, `mode` und `templateVersion`; er benötigt weder Kontakt
+noch Vorlagentext, Restaurantmetadaten oder Zeitzone. Nach Ablauf der fünfminütigen Batch-Lease
+beginnt der Worker keinen weiteren Anbieteraufruf.
+
 ## Bedienung
 
 Der Checkout verlangt eine gültige E-Mail-Adresse; dadurch ist keine Postfach-Erreichbarkeit
@@ -57,6 +64,13 @@ Bei Lieferung ist „Zur Auslieferung bereit“ ein eigener Schritt. Owner/Manag
 ausdrücklich „Lieferung als unterwegs“. Das löst erst die Unterwegs-Nachricht aus.
 Ablehnung/Stornierung verwenden den angebotenen Grund. Status- und Revisionskonflikte verlangen
 erneutes Laden des aktuellen Stands.
+
+Eine unveränderte Annahmebestätigung bleibt während Zubereitung und Bereitschaft gültig. Eine neuere
+Kommunikationsrevision oder ein terminaler Status kann sie überholen. Eine angeforderte
+Online-Schließung, ausstehende Erstattung oder fehlende Zahlungsfreigabe sperrt weitere operative
+Statuswechsel, Zeitkorrektur, Dispatch und deren Nachrichten. Der Abgleich bereits unklarer
+Anbieterannahmen bleibt dabei möglich. Solche Fault-Injection-Tests ersetzen keine echten
+Stripe-Sandbox-Fälle.
 
 ## Nachweise
 
@@ -74,6 +88,9 @@ Automatische Prüfungen umfassen:
 Pflichtläufe: `pnpm check`, `supabase test db` und
 `TEST_DATABASE_URL=… pnpm --filter @provide/api exec vitest run src/storefront.integration.test.ts`.
 Die Datenbank muss ausdrücklich disposable und unter Loopback erreichbar sein.
+
+Die CI prüft zusätzlich `supabase db advisors --local --type security --level warn --fail-on error`
+auf derselben isolierten Datenbank; es wird kein verbundenes Cloudprojekt abgefragt.
 
 Der vollständige Bediennachweis auf einem Gerät und eine echte Anbieter-Zustellprüfung sind hiervon
 getrennt. Die offene Zahlungsabnahme von PR #8 bleibt bestehen. Technische Endfreigabe, Merge und

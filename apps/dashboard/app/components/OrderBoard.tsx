@@ -219,8 +219,8 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
         },
       );
       if (r.status === 409) {
-        setMessage("Die Bestellung wurde geändert. Bitte lade sie erneut.");
         await loadDetail(detail.orderId);
+        setMessage("Die Bestellung wurde geändert. Prüfe den neu geladenen Stand.");
         return;
       }
       if (!r.ok || !parseOrderCommunication(envelopeData(await r.json()))) throw new Error();
@@ -379,6 +379,7 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
           )}
           {detail.communication &&
             ["accepted", "preparing", "ready"].includes(detail.status) &&
+            (detail.paymentCollectionMode !== "online" || detail.paymentState === "paid") &&
             !detail.communication.dispatchedAt && (
               <div className="order-controls">
                 <label>

@@ -120,4 +120,81 @@ export async function verifyEmailIntegration(
       { template_key: "order_time_changed", status: "accepted" },
     ]),
   );
+  // Two real database jobs in one claim: a malformed projection must not lose its valid neighbor.
+  const create = async (key: string, hours: number) => {
+    const result = await admin.query<{ data: { orderId: string } }>(
+      "select private.submit_public_guest_pickup_order($1,$2,$3,$4,date_trunc('hour',now())+make_interval(hours=>$5::integer),$6::jsonb,$7,$8::jsonb,$9,30) as data",
+      [
+        "storefront-restaurant-a",
+        "storefront-a-mitte",
+        "f4000000-0000-0000-0000-000000000001",
+        "f5000000-0000-0000-0000-000000000001",
+        hours,
+        JSON.stringify([{ menu_item_id: "f6000000-0000-0000-0000-000000000001", quantity: 1 }]),
+        key,
+        JSON.stringify({
+          contact_name: "Synthetic",
+          phone_e164: "+999100000001",
+          email: "synthetic@example.invalid",
+        }),
+        "preview-v1",
+      ],
+    );
+    return result.rows[0]!.data.orderId;
+  };
+  const invalidOrder = await create("email-invalid-projection-0001", 8);
+  const validOrder = await create("email-valid-projection-0001", 10);
+  // Fault injection beyond the strict JS amount bound, while retaining the row's trusted lease identity.
+  await admin.query(
+    "update private.email_deliveries set refund_amount_minor=10000000000001 where order_id=$1",
+    [invalidOrder],
+  );
+  const before = adapter.acceptedCount();
+  await dispatchEmailNotifications(emailEnv, postgresEmailRepository, adapter, {
+    error: () => {
+      throw new Error("Email dispatch failed");
+    },
+  });
+  expect(adapter.acceptedCount()).toBe(before + 1);
+  const isolated = await admin.query<{
+    order_id: string;
+    status: string;
+    last_error_code: string | null;
+  }>(
+    "select order_id,status,last_error_code from private.email_deliveries where order_id=any($1::uuid[])",
+    [[invalidOrder, validOrder]],
+  );
+  expect(isolated.rows).toEqual(
+    expect.arrayContaining([
+      { order_id: invalidOrder, status: "dead_letter", last_error_code: "invalid_projection" },
+      { order_id: validOrder, status: "accepted", last_error_code: null },
+    ]),
+  );
+  // Model provider acceptance whose local completion was lost, then corrupt rendering metadata.
+  await admin.query(
+    "update private.email_deliveries set status='uncertain',available_at=statement_timestamp(),last_error_code='provider_timeout' where order_id=$1",
+    [validOrder],
+  );
+  await admin.query(
+    "update public.restaurants set display_name=E'Invalid\\nmetadata' where id=$1",
+    [scope.restaurantId],
+  );
+  try {
+    await dispatchEmailNotifications(emailEnv, postgresEmailRepository, adapter, {
+      error: () => {
+        throw new Error("Email reconciliation failed");
+      },
+    });
+    expect(adapter.acceptedCount()).toBe(before + 1);
+    const reconciled = await admin.query<{ status: string }>(
+      "select status from private.email_deliveries where order_id=$1",
+      [validOrder],
+    );
+    expect(reconciled.rows[0]!.status).toBe("accepted");
+  } finally {
+    await admin.query(
+      "update public.restaurants set display_name='Storefront Restaurant A' where id=$1",
+      [scope.restaurantId],
+    );
+  }
 }

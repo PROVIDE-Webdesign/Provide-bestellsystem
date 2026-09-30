@@ -1,4 +1,4 @@
-import { orderReasonLabels, type EmailDispatchJob } from "@provide/contracts";
+import { orderReasonLabels, type EmailDispatchJob, type EmailSendJob } from "@provide/contracts";
 import { createRequestContext } from "./context.js";
 import type { ApiLogger } from "./logger.js";
 import {
@@ -79,7 +79,7 @@ function escape(value: string): string {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
-export function renderEmailNotification(job: EmailDispatchJob, statusUrl: string): EmailMessage {
+export function renderEmailNotification(job: EmailSendJob, statusUrl: string): EmailMessage {
   const number = job.orderId.slice(-8).toUpperCase();
   const time = job.confirmedFor
     ? new Intl.DateTimeFormat("de-DE", {
@@ -89,7 +89,7 @@ export function renderEmailNotification(job: EmailDispatchJob, statusUrl: string
       }).format(new Date(job.confirmedFor)) + " Uhr"
     : "";
   const method = job.fulfillmentType === "pickup" ? "Abholzeit" : "Lieferzeit";
-  const phrases: Record<EmailDispatchJob["templateKey"], readonly [string, string]> = {
+  const phrases: Record<EmailSendJob["templateKey"], readonly [string, string]> = {
     order_submitted: [
       "ist eingegangen",
       `Ihre Bestellung bei ${job.restaurantName} ist eingegangen. Das Restaurant prüft sie jetzt. Eine Annahmebestätigung folgt separat.`,
@@ -180,13 +180,16 @@ export async function dispatchEmailNotifications(
     return;
   }
   try {
+    const claimedAt = now().getTime();
     const jobs = await repository.claim(
       env.HYPERDRIVE.connectionString,
       crypto.randomUUID(),
       25,
-      now().toISOString(),
+      new Date(claimedAt).toISOString(),
     );
     for (const job of jobs) {
+      // Do not start another provider request once the batch lease has expired.
+      if (now().getTime() - claimedAt >= 5 * 60 * 1000) break;
       const idempotencyKey = `email:${job.deliveryId}:v${job.templateVersion}`;
       let completion: EmailLookupResult;
       try {

@@ -1,4 +1,5 @@
 import { isExplicitInstant, isStorefrontScope } from "./storefront.js";
+import { isValidGuestEmail } from "./checkout.js";
 
 export const emailTemplateKeys = [
   "order_submitted",
@@ -21,11 +22,18 @@ export const orderReasonLabels = {
 } as const;
 export type OrderReasonCode = keyof typeof orderReasonLabels;
 
-export interface EmailDispatchJob {
+export interface EmailReconcileJob {
+  readonly deliveryId: string;
+  readonly lockToken: string;
+  readonly mode: "reconcile";
+  readonly templateVersion: 1;
+}
+export type EmailDispatchJob = EmailSendJob | EmailReconcileJob;
+export interface EmailSendJob {
   readonly deliveryId: string;
   readonly lockToken: string;
   readonly orderId: string;
-  readonly mode: "send" | "reconcile";
+  readonly mode: "send";
   readonly templateKey: EmailTemplateKey;
   readonly templateVersion: 1;
   readonly restaurantSlug: string;
@@ -54,6 +62,16 @@ function text(value: unknown, max: number): value is string {
 export function parseEmailDispatchJob(value: unknown): EmailDispatchJob | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const s = value as Record<string, unknown>;
+  if (s.mode === "reconcile") {
+    return Object.keys(s).length === 4 &&
+      ["deliveryId", "lockToken", "mode", "templateVersion"].every((key) =>
+        Object.hasOwn(s, key),
+      ) &&
+      [s.deliveryId, s.lockToken].every((v) => typeof v === "string" && uuid.test(v)) &&
+      s.templateVersion === 1
+      ? (s as unknown as EmailReconcileJob)
+      : undefined;
+  }
   const keys = [
     "deliveryId",
     "lockToken",
@@ -78,7 +96,7 @@ export function parseEmailDispatchJob(value: unknown): EmailDispatchJob | undefi
     Object.keys(s).length !== keys.length ||
     !Object.keys(s).every((k) => keys.includes(k)) ||
     ![s.deliveryId, s.lockToken, s.orderId].every((v) => typeof v === "string" && uuid.test(v)) ||
-    (s.mode !== "send" && s.mode !== "reconcile") ||
+    s.mode !== "send" ||
     !emailTemplateKeys.includes(s.templateKey as EmailTemplateKey) ||
     s.templateVersion !== 1 ||
     typeof s.restaurantSlug !== "string" ||
@@ -89,7 +107,7 @@ export function parseEmailDispatchJob(value: unknown): EmailDispatchJob | undefi
     !text(s.locationTimezone, 100) ||
     (s.fulfillmentType !== "pickup" && s.fulfillmentType !== "delivery") ||
     !text(s.email, 254) ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email) ||
+    !isValidGuestEmail(s.email) ||
     typeof s.requestedFor !== "string" ||
     !isExplicitInstant(s.requestedFor) ||
     (s.confirmedFor !== null &&

@@ -8,6 +8,7 @@ import {
   paymentStateLabels,
   type PaymentAction,
   isStorefrontScope,
+  isValidGuestEmail,
   parseDeliveryQuote,
   parseGuestDeliveryOrderConfirmation,
   type DeliveryQuote,
@@ -448,7 +449,7 @@ export default function Storefront(scope: StorefrontProps) {
       setCartMessage("Bitte gib einen Namen und eine Telefonnummer im internationalen Format an.");
       return;
     }
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    if (!isValidGuestEmail(email.trim())) {
       setCartMessage("Bitte gib eine gültige E-Mail-Adresse für deine Bestellnachrichten ein.");
       return;
     }

@@ -17,6 +17,9 @@ begin
     and nullif(btrim(target_customer->>'email'),'') is null then
     raise exception using errcode='P0001',message='guest checkout email is required';
   end if;
+  if target_customer->>'email' ~ '[[:cntrl:]]' then
+    raise exception using errcode='P0001',message='guest checkout email is invalid';
+  end if;
   return private.store_guest_checkout_snapshot_before_email(target_restaurant_id,target_location_id,
     target_order_id,target_customer,target_delivery,target_privacy_notice_version,target_retention_until);
 end;
@@ -119,6 +122,11 @@ begin
     return jsonb_build_object('outcome','invalid'); end if;
   if not (private.dashboard_order_allowed_transitions(o.status,private.dashboard_order_actor_role(restaurant,location,actor,aal)) ? target_status)
     then return jsonb_build_object('outcome','forbidden'); end if;
+  if target_status not in ('cancelled','rejected') and exists(
+    select 1 from public.order_payments p left join public.online_payment_jobs j on j.order_id=p.order_id
+    where p.order_id=o.id and p.collection_mode='online' and
+      (p.status<>'captured' or j.id is null or j.close_requested is not null or j.refund_state<>'none')) then
+    return jsonb_build_object('outcome','conflict'); end if;
   result:=private.transition_dashboard_order_status(actor,aal,restaurant,location,target_order,expected_status,target_status);
   -- Capture the personnel reason in the same transaction, including provider-deferred closure.
   if result->>'outcome'='updated' and target_status in ('rejected','cancelled') then
@@ -151,6 +159,10 @@ begin
     then return jsonb_build_object('outcome','conflict'); end if;
   if action is null or action not in ('confirm_time','dispatch') or o.status not in ('accepted','preparing','ready')
     then return jsonb_build_object('outcome','invalid'); end if;
+  if exists(select 1 from public.order_payments p left join public.online_payment_jobs j on j.order_id=p.order_id
+    where p.order_id=o.id and p.collection_mode='online' and
+      (p.status<>'captured' or j.id is null or j.close_requested is not null or j.refund_state<>'none')) then
+    return jsonb_build_object('outcome','conflict'); end if;
   if action='dispatch' and (role_name not in ('owner','manager') or o.fulfillment_type<>'delivery' or o.status<>'ready')
     then return jsonb_build_object('outcome','forbidden'); end if;
   if state.dispatched_at is not null then return jsonb_build_object('outcome','conflict'); end if;
@@ -273,8 +285,8 @@ begin
       left join public.order_payments p on p.order_id=d.order_id
       left join public.online_payment_jobs j on j.order_id=d.order_id
     where d.status in ('queued','retry','uncertain') and d.available_at<=target_now
-      and not (d.template_key='order_submitted' and o.status='submitted' and p.collection_mode='online'
-        and (p.status<>'captured' or j.close_requested is not null or j.refund_state<>'none'))
+      and (d.status='uncertain' or not (d.template_key='order_submitted' and o.status='submitted' and p.collection_mode='online'
+        and (p.status<>'captured' or j.id is null or j.close_requested is not null or j.refund_state<>'none')))
     order by d.available_at,d.created_at,d.id limit batch_size for update of d skip locked
   loop
     -- Unknown sends must be reconciled before any suppression or resend.
@@ -282,11 +294,15 @@ begin
     if mode_name='send' and (candidate.email is null or candidate.purged_at is not null or candidate.retention_until<=target_now) then
       update private.email_deliveries set status='suppressed',last_error_code='contact_unavailable' where id=candidate.id;
     elsif mode_name='send' and (candidate.requested_for+interval '48 hours'<=target_now or
-      (candidate.target_status is not null and candidate.current_status<>candidate.target_status) or
+      (candidate.target_status is not null and candidate.template_key<>'order_accepted' and candidate.current_status<>candidate.target_status) or
       (candidate.template_key in ('order_time_changed','order_accepted') and
         (candidate.current_status not in ('accepted','preparing','ready') or candidate.revision<>candidate.current_revision)) or
       (candidate.template_key='order_ready' and candidate.fulfillment_type<>'pickup')) then
       update private.email_deliveries set status='suppressed',last_error_code='superseded' where id=candidate.id;
+    elsif mode_name='send' and candidate.collection_mode='online' and
+      candidate.template_key in ('order_accepted','order_time_changed','order_ready','order_dispatched') and
+      (candidate.payment_status<>'captured' or candidate.close_requested is not null or candidate.refund_state is distinct from 'none') then
+      update private.email_deliveries set status='suppressed',last_error_code='payment_closing' where id=candidate.id;
     elsif mode_name='send' and (candidate.restaurant_status<>'active' or candidate.location_status<>'active' or
       not exists(select 1 from pg_catalog.pg_timezone_names where name=candidate.timezone)) then
       update private.email_deliveries set status='suppressed',last_error_code='scope_unavailable' where id=candidate.id;
@@ -295,17 +311,21 @@ begin
     else
       update private.email_deliveries set status='processing',processing_mode=mode_name,attempt_count=attempt_count+1,lock_token=target_lock,
         locked_at=target_now where id=candidate.id;
+      if mode_name='reconcile' then
+        jobs:=jobs||jsonb_build_array(jsonb_build_object('deliveryId',candidate.id,'lockToken',target_lock,
+          'mode','reconcile','templateVersion',candidate.template_version));
+      else
       jobs:=jobs||jsonb_build_array(jsonb_build_object(
         'deliveryId',candidate.id,'lockToken',target_lock,'orderId',candidate.order_id,'mode',mode_name,
         'templateKey',candidate.template_key,'templateVersion',candidate.template_version,
         'restaurantSlug',candidate.restaurant_slug,'locationSlug',candidate.location_slug,
         'restaurantName',left(btrim(candidate.restaurant_name),160),'pickupLocation',left(btrim(candidate.pickup_location),600),
         'locationTimezone',candidate.timezone,'fulfillmentType',candidate.fulfillment_type,
-        -- Reconciliation does not need PII and remains possible after purging.
-        'email',case when mode_name='reconcile' then 'reconcile@example.invalid' else candidate.email end,
+        'email',candidate.email,
         'requestedFor',to_char(candidate.requested_for at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
         'confirmedFor',case when candidate.confirmed_for is not null then to_char(candidate.confirmed_for at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') end,
         'reasonCode',candidate.reason_code,'refundAmountMinor',candidate.refund_amount_minor,'currency',candidate.currency_code));
+      end if;
     end if;
   end loop;
   return jobs;
@@ -322,7 +342,7 @@ begin
     then raise exception 'invalid email acceptance'; end if;
   if result in ('temporary_failure','permanent_failure','unknown') and
     (error_code is null or error_code not in ('provider_timeout','provider_unavailable','provider_rate_limited',
-      'destination_rejected','destination_invalid','content_rejected','adapter_request_failed','invalid_adapter_result'))
+      'destination_rejected','destination_invalid','content_rejected','adapter_request_failed','invalid_adapter_result','invalid_projection'))
     then raise exception 'invalid email error'; end if;
   select * into d from private.email_deliveries where id=target_id for update;
   if d.id is null or d.status<>'processing' or d.lock_token is distinct from target_lock or
@@ -380,7 +400,7 @@ begin
   select * into d from private.email_deliveries where id=target_id and restaurant_id=restaurant and location_id=location for update;
   if d.id is null then return 'not_found'; end if;
   if d.status<>'dead_letter' or coalesce(d.last_error_code,'') not in ('destination_rejected','destination_invalid','content_rejected',
-    'provider_unavailable','provider_rate_limited','attempts_exhausted')
+    'provider_unavailable','provider_rate_limited','attempts_exhausted','invalid_projection')
     then return 'conflict'; end if;
   insert into private.email_retry_events(delivery_id,actor_user_id,authentication_assurance,previous_error_code)
     values(d.id,actor,aal,d.last_error_code);
