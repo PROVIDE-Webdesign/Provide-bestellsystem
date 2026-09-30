@@ -25,7 +25,7 @@ select is(private.read_storefront_catalog('storefront-restaurant-a','storefront-
 select private.publish_menu_version('f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001','f4000000-0000-0000-0000-000000000001',:'configured_version',statement_timestamp(),'f1000000-0000-0000-0000-000000000001','aal2');
 select is(private.read_storefront_catalog('storefront-restaurant-a','storefront-a-mitte')#>'{menus,0,sections,0,items,0,configuration}',:'menu_configuration'::jsonb,'published configuration public');
 select throws_ok(format('update public.menu_version_items set configuration=null where menu_version_id=%L',:'configured_version'),'23514','published menu content is immutable','published configuration immutable');
-select private.create_menu_draft('f2000000-0000-0000-0000-000000000001','f4000000-0000-0000-000000000001',:'configured_version','f1000000-0000-0000-0000-000000000001','aal2') as copied_version \gset
+select private.create_menu_draft('f2000000-0000-0000-0000-000000000001','f4000000-0000-0000-0000-000000000001',:'configured_version','f1000000-0000-0000-0000-000000000001','aal2') as copied_version \gset
 select is((select configuration from public.menu_version_items where menu_version_id=:'copied_version' and menu_item_id='f6000000-0000-0000-0000-000000000001'),:'menu_configuration'::jsonb,'draft copy retains selection information');
 select set_config('test.configured_version',:'configured_version',true);
 create function pg_temp.price(lines jsonb) returns jsonb language sql as $$ select private.price_menu_lines('f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001','f4000000-0000-0000-0000-000000000001',current_setting('test.configured_version')::uuid,lines) $$;
