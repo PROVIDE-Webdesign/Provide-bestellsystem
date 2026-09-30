@@ -33,7 +33,7 @@ begin
  end loop;
  if option_count>200 then return false; end if;
  for x in select value from jsonb_array_elements(config->'variants') union all
- select o.value from jsonb_array_elements(config->'optionGroups') g cross join lateral jsonb_array_elements(g->'options') o loop
+ select cfg_option.value from jsonb_array_elements(config->'optionGroups') as cfg_group(value) cross join lateral jsonb_array_elements(cfg_group.value->'options') as cfg_option(value) loop
   if jsonb_typeof(x)<>'object' or not(x ?& array['id','name','priceDeltaAmountMinor','isActive'])
   or x-array['id','name','priceDeltaAmountMinor','isActive']<>'{}'::jsonb
   or jsonb_typeof(x->'id')<>'string' or (x->>'id') !~* '^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$'
