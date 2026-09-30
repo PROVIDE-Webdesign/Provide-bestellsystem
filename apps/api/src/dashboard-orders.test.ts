@@ -43,6 +43,7 @@ function worker(
   verifier = { verify: vi.fn().mockResolvedValue(identity) },
 ) {
   const completeReader: DashboardOrdersReader = {
+    ...(reader.communicate ? { communicate: reader.communicate } : {}),
     list: reader.list ?? (() => Promise.resolve(undefined)),
     detail: reader.detail ?? (() => Promise.resolve(undefined)),
     transition: reader.transition ?? (() => Promise.resolve(undefined)),
@@ -60,6 +61,52 @@ function worker(
 }
 
 describe("dashboard order API", () => {
+  it("routes communication commands and rejects stale/invalid changes", async () => {
+    const communicate = vi
+      .fn()
+      .mockResolvedValueOnce({
+        outcome: "updated",
+        data: {
+          confirmedFor: "2026-09-30T19:00:00Z",
+          dispatchedAt: null,
+          revision: 2,
+          timezone: "Europe/Berlin",
+        },
+      })
+      .mockResolvedValueOnce({ outcome: "conflict" });
+    const command = {
+      action: "confirm_time",
+      expectedStatus: "accepted",
+      expectedRevision: 1,
+      confirmedFor: "2026-09-30T19:00:00Z",
+    };
+    const request = (body: unknown = command) =>
+      authorized(`${base}/${orderId}/communication`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    expect((await worker({ communicate }).fetch(request(), env)).status).toBe(200);
+    expect(communicate).toHaveBeenCalledWith(
+      env.HYPERDRIVE.connectionString,
+      identity,
+      { restaurantId, locationId, orderId },
+      command,
+    );
+    expect((await worker({ communicate }).fetch(request(), env)).status).toBe(409);
+    expect(
+      (await worker({ communicate }).fetch(request({ ...command, expectedRevision: -1 }), env))
+        .status,
+    ).toBe(400);
+    expect(
+      (
+        await worker({ communicate }).fetch(
+          request({ action: "dispatch", expectedStatus: "accepted", expectedRevision: 1 }),
+          env,
+        )
+      ).status,
+    ).toBe(400);
+  });
   it("returns a bounded authorized location queue", async () => {
     const list = vi.fn().mockResolvedValue({
       outcome: "allowed",

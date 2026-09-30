@@ -38,3 +38,19 @@ export function parseStoredOrderStatusAccess(
     return undefined;
   }
 }
+
+export function parseEmailStatusFragment(
+  fragment: string,
+  now = Date.now(),
+): StoredOrderStatusAccess | undefined {
+  if (fragment.length > 512 || !fragment.startsWith("#")) return undefined;
+  const p = new URLSearchParams(fragment.slice(1));
+  const keys = ["orderId", "statusAccessToken", "statusAvailableUntil"];
+  if (
+    [...p.keys()].length !== 3 ||
+    keys.some((k) => p.getAll(k).length !== 1) ||
+    [...p.keys()].some((k) => !keys.includes(k))
+  )
+    return undefined;
+  return parseStoredOrderStatusAccess(JSON.stringify(Object.fromEntries(p)), now);
+}

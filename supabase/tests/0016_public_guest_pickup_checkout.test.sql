@@ -143,7 +143,7 @@ select throws_ok(
     date_trunc('hour',now()) + interval '2 hours',
     '[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":1}]',
     'pickup-checkout-key-0002',
-    '{"contact_name":"Synthetic Guest","phone_e164":"+999100000001","email":null}',
+    '{"contact_name":"Synthetic Guest","phone_e164":"+999100000001","email":"synthetic@example.invalid"}',
     'preview-v1',30
   )$$,
   'P0001',
@@ -171,7 +171,7 @@ select throws_ok(
     date_trunc('hour',now()) + interval '2 hours',
     '[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":1}]',
     'pickup-checkout-key-0003',
-    '{"contact_name":"Synthetic Guest","phone_e164":"+999100000001","email":null}',
+    '{"contact_name":"Synthetic Guest","phone_e164":"+999100000001","email":"synthetic@example.invalid"}',
     'preview-v1',731
   )$$,
   '22023',

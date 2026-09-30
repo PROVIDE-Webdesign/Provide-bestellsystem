@@ -74,7 +74,11 @@ export async function verifyDeliveryIntegration(
   const command = {
     ...request,
     submissionKey: "integration-delivery-1",
-    customer: { contactName: "Synthetic Delivery", phoneE164: "+999100000031", email: null },
+    customer: {
+      contactName: "Synthetic Delivery",
+      phoneE164: "+999100000031",
+      email: "synthetic@example.invalid",
+    },
     delivery: {
       addressLine1: "Synthetic Lieferweg 10",
       addressLine2: null,
@@ -170,6 +174,27 @@ export async function verifyDeliveryIntegration(
     [confirmation.orderId],
   );
   expect(deliveryState.rows[0]?.status).toBe("sent");
+  const readyMail = await admin.query<{ count: string }>(
+    "select count(*) from private.email_deliveries where order_id=$1 and template_key='order_ready'",
+    [confirmation.orderId],
+  );
+  expect(readyMail.rows[0]?.count).toBe("0");
+  const dispatchRequest = () =>
+    new Request(`${dashboard}/${confirmation.orderId}/communication`, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer header.payload.signature",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ action: "dispatch", expectedStatus: "ready", expectedRevision: 1 }),
+    });
+  expect((await worker.fetch(dispatchRequest(), env)).status).toBe(200);
+  expect((await worker.fetch(dispatchRequest(), env)).status).toBe(409);
+  const dispatched = await admin.query<{ count: string }>(
+    "select count(*) from private.email_deliveries where order_id=$1 and template_key='order_dispatched'",
+    [confirmation.orderId],
+  );
+  expect(dispatched.rows[0]?.count).toBe("1");
   const payments = await admin.query<{ amount_due_minor: string }>(
     "select amount_due_minor from public.order_payments where order_id=$1",
     [confirmation.orderId],

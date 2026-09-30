@@ -124,7 +124,7 @@ export function parseDeliveryQuoteRequest(value: unknown): DeliveryQuoteRequest 
   const parsed = parseGuestPickupOrderRequest({
     ...order,
     submissionKey: "quote-validation",
-    customer: { contactName: "Quote", phoneE164: "+999100000000", email: null },
+    customer: { contactName: "Quote", phoneE164: "+999100000000", email: "quote@example.invalid" },
     privacyNoticeVersion: "quote",
   });
   return parsed

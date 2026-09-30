@@ -8,6 +8,7 @@ import {
   paymentStateLabels,
   type PaymentAction,
   isStorefrontScope,
+  isValidGuestEmail,
   parseDeliveryQuote,
   parseGuestDeliveryOrderConfirmation,
   type DeliveryQuote,
@@ -33,6 +34,7 @@ import { locationTimeToInstant } from "./time";
 import {
   orderStatusStorageKey,
   parseStoredOrderStatusAccess,
+  parseEmailStatusFragment,
   type StoredOrderStatusAccess,
 } from "./status-storage";
 
@@ -96,6 +98,7 @@ export default function Storefront(scope: StorefrontProps) {
   const availabilityRequest = useRef<AbortController | null>(null);
   const checkoutRequest = useRef<AbortController | null>(null);
   const statusRequest = useRef<AbortController | null>(null);
+  const restoredStatusScope = useRef<string | null>(null);
   const base = `/api/storefront/${encodeURIComponent(scope.restaurantSlug)}/${encodeURIComponent(scope.locationSlug)}`;
   const validScope = isStorefrontScope(scope);
   const totalQuantity = cartItemCount(cart);
@@ -225,11 +228,26 @@ export default function Storefront(scope: StorefrontProps) {
   useEffect(() => {
     const key = orderStatusStorageKey(scope);
     if (!key) return;
+    // Repeated effect setup must preserve a consumed email link when storage is blocked.
+    if (restoredStatusScope.current === key) return;
+    restoredStatusScope.current = key;
     statusRequest.current?.abort();
     setStatusAccess(null);
     setOrderStatus(null);
     setConfirmation(null);
     setStatusMessage("");
+    const fromEmail = parseEmailStatusFragment(window.location.hash);
+    if (window.location.hash)
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    if (fromEmail) {
+      setStatusAccess(fromEmail);
+      try {
+        sessionStorage.setItem(key, JSON.stringify(fromEmail));
+      } catch {
+        /* Memory access still works. */
+      }
+      return;
+    }
     try {
       const stored = parseStoredOrderStatusAccess(sessionStorage.getItem(key));
       if (stored) setStatusAccess(stored);
@@ -431,8 +449,8 @@ export default function Storefront(scope: StorefrontProps) {
       setCartMessage("Bitte gib einen Namen und eine Telefonnummer im internationalen Format an.");
       return;
     }
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setCartMessage("Bitte prüfe die optionale E-Mail-Adresse.");
+    if (!isValidGuestEmail(email.trim())) {
+      setCartMessage("Bitte gib eine gültige E-Mail-Adresse für deine Bestellnachrichten ein.");
       return;
     }
     if (!privacyAccepted) {
@@ -467,7 +485,7 @@ export default function Storefront(scope: StorefrontProps) {
             customer: {
               contactName: contactName.trim(),
               phoneE164: phoneE164.trim(),
-              email: email.trim() ? email.trim().toLowerCase() : null,
+              email: email.trim().toLowerCase(),
             },
             privacyNoticeVersion: scope.privacyNoticeVersion,
             ...(fulfillmentType === "delivery"
@@ -589,7 +607,9 @@ export default function Storefront(scope: StorefrontProps) {
                 ? "Zahlung offen"
                 : orderStatus
                   ? orderStatus.fulfillmentType === "delivery" && orderStatus.status === "ready"
-                    ? "Bereit zur Auslieferung"
+                    ? orderStatus.communication?.dispatchedAt
+                      ? "Unterwegs"
+                      : "Bereit zur Auslieferung"
                     : orderStatus.fulfillmentType === "delivery" &&
                         orderStatus.status === "completed"
                       ? "Zugestellt"
@@ -614,6 +634,17 @@ export default function Storefront(scope: StorefrontProps) {
                 : (orderStatus ?? confirmation)?.fulfillmentType === "delivery"
                   ? "Lieferung"
                   : "Abholung"}
+            </p>
+          )}
+          {orderStatus?.communication?.confirmedFor && (
+            <p>
+              Bestätigte {orderStatus.fulfillmentType === "delivery" ? "Lieferzeit" : "Abholzeit"}:{" "}
+              {new Intl.DateTimeFormat("de-DE", {
+                dateStyle: "medium",
+                timeStyle: "short",
+                timeZone: orderStatus.communication.timezone,
+              }).format(new Date(orderStatus.communication.confirmedFor))}{" "}
+              Uhr
             </p>
           )}
           {confirmation && !orderStatus && (
@@ -1007,11 +1038,12 @@ export default function Storefront(scope: StorefrontProps) {
                         setPhoneE164(event.target.value);
                       }}
                     />
-                    <label htmlFor="contact-email">E-Mail-Adresse (optional)</label>
+                    <label htmlFor="contact-email">E-Mail-Adresse</label>
                     <input
                       id="contact-email"
                       type="email"
                       autoComplete="email"
+                      required
                       maxLength={254}
                       value={email}
                       onChange={(event) => {

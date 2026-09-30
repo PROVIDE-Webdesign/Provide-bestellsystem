@@ -18,6 +18,8 @@ describe("dashboard order presentation", () => {
   it("formats server amounts and instants without changing their value", () => {
     expect(formatMoney(2500, "EUR")).toContain("25,00");
     expect(formatOrderTime("2026-09-15T18:00:00.000Z")).toContain("20:00");
+    expect(formatOrderTime("2026-09-15T18:00:00.000Z", "America/New_York")).toContain("14:00");
+    expect(formatOrderTime("2026-01-15T18:00:00.000Z", "Europe/Berlin")).toContain("19:00");
   });
 
   it("distinguishes dispatch readiness from completed delivery", () => {

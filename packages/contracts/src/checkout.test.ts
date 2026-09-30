@@ -24,6 +24,19 @@ describe("guest pickup checkout contracts", () => {
     { ...request, lines: [...request.lines, request.lines[0]] },
     { ...request, customer: { ...request.customer, marketing: true } },
     { ...request, customer: { ...request.customer, phoneE164: "0170" } },
+    ...[
+      null,
+      undefined,
+      "",
+      "  ",
+      "invalid",
+      "a@b.de\r\nBcc:c@d.de",
+      "guest\b@example.invalid",
+      "guest\u007f@example.invalid",
+    ].map((email) => ({
+      ...request,
+      customer: { ...request.customer, email },
+    })),
     { ...request, requestedFor: "2026-09-15 12:00" },
   ])("rejects invalid or unsupported input", (value) => {
     expect(parseGuestPickupOrderRequest(value)).toBeUndefined();

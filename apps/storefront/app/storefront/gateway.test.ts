@@ -17,7 +17,11 @@ describe("guest pickup checkout gateway", () => {
     requestedFor: "2026-09-15T12:00:00Z",
     lines: [{ menuItemId: "f6000000-0000-0000-0000-000000000001", quantity: 1 }],
     submissionKey: "2b18f416-9476-4ce8-b721-a1346f78e978",
-    customer: { contactName: "Synthetic Guest", phoneE164: "+999100000001", email: null },
+    customer: {
+      contactName: "Synthetic Guest",
+      phoneE164: "+999100000001",
+      email: "synthetic@example.invalid",
+    },
     privacyNoticeVersion: "preview-v1",
   };
   const confirmation = {

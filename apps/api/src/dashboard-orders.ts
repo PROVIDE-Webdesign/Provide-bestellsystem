@@ -6,6 +6,10 @@ import {
   parseDashboardOrderStatusResult,
   publicOrderStatuses,
   type DashboardOrderStatus,
+  type DashboardOrderStatusCommand,
+  type OrderCommunicationCommand,
+  parseOrderCommunicationCommand,
+  parseOrderCommunication,
 } from "@provide/contracts";
 
 import type { RequestContext } from "./context.js";
@@ -29,6 +33,12 @@ export interface DashboardOrdersEnvironment extends DashboardAuthEnvironment {
 }
 
 export interface DashboardOrdersReader {
+  communicate?(
+    connectionString: string,
+    identity: DashboardIdentity,
+    scope: { restaurantId: string; locationId: string; orderId: string },
+    command: OrderCommunicationCommand,
+  ): Promise<unknown>;
   retryRefund?(
     connectionString: string,
     identity: DashboardIdentity,
@@ -54,7 +64,7 @@ export interface DashboardOrdersReader {
     connectionString: string,
     identity: DashboardIdentity,
     scope: { restaurantId: string; locationId: string; orderId: string },
-    command: { expectedStatus: DashboardOrderStatus; targetStatus: DashboardOrderStatus },
+    command: DashboardOrderStatusCommand,
   ): Promise<unknown>;
 }
 
@@ -73,6 +83,8 @@ function errorResponse(
 ): Response | undefined {
   if (outcome === "forbidden")
     return jsonError("forbidden", "Access is not permitted.", context.requestId, 403, cors);
+  if (outcome === "invalid")
+    return jsonError("bad_request", "Order command is invalid.", context.requestId, 400, cors);
   if (outcome === "not_found")
     return jsonError("not_found", "Order was not found.", context.requestId, 404, cors);
   if (outcome === "conflict")
@@ -230,6 +242,23 @@ export async function handleDashboardOrders(
       throw error;
     }
     const command = parseDashboardOrderStatusCommand(body);
+    if (route.name === "dashboardOrderCommunication") {
+      const update = parseOrderCommunicationCommand(body);
+      if (!update || !reader.communicate)
+        return jsonError(
+          "bad_request",
+          "Communication command is invalid.",
+          context.requestId,
+          400,
+          cors,
+        );
+      const result = record(await reader.communicate(connectionString, identity, scope, update));
+      const mapped = errorResponse(result?.outcome, context, cors);
+      if (mapped) return mapped;
+      const data = result?.outcome === "updated" ? parseOrderCommunication(result.data) : undefined;
+      if (!data) throw new Error("Invalid order communication");
+      return jsonSuccess(data, context.requestId, 200, cors);
+    }
     if (!command)
       return jsonError("bad_request", "Status command is invalid.", context.requestId, 400, cors);
     const result = record(await reader.transition(connectionString, identity, scope, command));

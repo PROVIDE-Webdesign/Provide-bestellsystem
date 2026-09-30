@@ -8,7 +8,11 @@ export type DashboardOrderRoute =
       readonly orderId?: undefined;
     }
   | {
-      readonly name: "dashboardOrder" | "dashboardOrderStatus" | "dashboardRefundRetry";
+      readonly name:
+        | "dashboardOrder"
+        | "dashboardOrderStatus"
+        | "dashboardRefundRetry"
+        | "dashboardOrderCommunication";
       readonly restaurantId: string;
       readonly locationId: string;
       readonly orderId: string;
@@ -26,7 +30,7 @@ function matchPath(request: Request): MatchedRoute | undefined {
   if (path === "/health/database") return { name: "databaseHealth" };
   if (path === "/v1/dashboard/access-context") return { name: "dashboardAccess" };
   const dashboardOrder =
-    /^\/v1\/dashboard\/restaurants\/([^/]+)\/locations\/([^/]+)\/orders(?:\/([^/]+)(\/status|\/refund-retry)?)?$/.exec(
+    /^\/v1\/dashboard\/restaurants\/([^/]+)\/locations\/([^/]+)\/orders(?:\/([^/]+)(\/status|\/refund-retry|\/communication)?)?$/.exec(
       path,
     );
   if (dashboardOrder) {
@@ -35,11 +39,13 @@ function matchPath(request: Request): MatchedRoute | undefined {
       if (!orderId) return { name: "dashboardOrders", restaurantId, locationId };
       return {
         name:
-          statusSuffix === "/refund-retry"
-            ? "dashboardRefundRetry"
-            : statusSuffix
-              ? "dashboardOrderStatus"
-              : "dashboardOrder",
+          statusSuffix === "/communication"
+            ? "dashboardOrderCommunication"
+            : statusSuffix === "/refund-retry"
+              ? "dashboardRefundRetry"
+              : statusSuffix
+                ? "dashboardOrderStatus"
+                : "dashboardOrder",
         restaurantId,
         locationId,
         orderId,
@@ -88,7 +94,11 @@ export function routeRequest(request: Request): MatchedRoute | undefined {
     match.name === "delivery-orders"
   )
     return request.method === "POST" ? match : undefined;
-  if (match.name === "dashboardOrderStatus" || match.name === "dashboardRefundRetry")
+  if (
+    match.name === "dashboardOrderStatus" ||
+    match.name === "dashboardRefundRetry" ||
+    match.name === "dashboardOrderCommunication"
+  )
     return request.method === "POST" ? match : undefined;
   return request.method === "GET" ? match : undefined;
 }

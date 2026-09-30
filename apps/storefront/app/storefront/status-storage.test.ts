@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { orderStatusStorageKey, parseStoredOrderStatusAccess } from "./status-storage";
+import {
+  orderStatusStorageKey,
+  parseStoredOrderStatusAccess,
+  parseEmailStatusFragment,
+} from "./status-storage";
 
 const access = {
   orderId: "fa000000-0000-0000-0000-000000000001",
@@ -8,6 +12,17 @@ const access = {
 };
 
 describe("temporary order status storage", () => {
+  it("accepts an unexpired email fragment; rejects duplicate fields and expired capabilities", () => {
+    const fragment = "#" + new URLSearchParams(access).toString();
+    expect(parseEmailStatusFragment(fragment, Date.parse("2026-09-16T12:00:00Z"))).toEqual(access);
+    expect(
+      parseEmailStatusFragment(
+        fragment + "&orderId=" + access.orderId,
+        Date.parse("2026-09-16T12:00:00Z"),
+      ),
+    ).toBeUndefined();
+    expect(parseEmailStatusFragment(fragment, Date.parse("2026-09-18T12:00:00Z"))).toBeUndefined();
+  });
   it("uses a validated scope-specific key", () => {
     expect(
       orderStatusStorageKey({ restaurantSlug: "restaurant-a", locationSlug: "location-a" }),

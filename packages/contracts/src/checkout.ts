@@ -9,7 +9,7 @@ export interface GuestPickupOrderRequest {
   readonly customer: {
     readonly contactName: string;
     readonly phoneE164: string;
-    readonly email: string | null;
+    readonly email: string;
   };
   readonly privacyNoticeVersion: string;
 }
@@ -35,6 +35,16 @@ const noticePattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const phonePattern = /^\+[1-9][0-9]{7,14}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const statusAccessTokenPattern = /^[A-Za-z0-9_-]{43}$/;
+
+export function isValidGuestEmail(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length >= 3 &&
+    value.length <= 254 &&
+    emailPattern.test(value) &&
+    ![...value].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)
+  );
+}
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -79,18 +89,12 @@ export function parseGuestPickupOrderRequest(value: unknown): GuestPickupOrderRe
   if (!customer || !exactKeys(customer, ["contactName", "phoneE164", "email"])) return undefined;
   const contactName = typeof customer.contactName === "string" ? customer.contactName.trim() : "";
   const phoneE164 = typeof customer.phoneE164 === "string" ? customer.phoneE164.trim() : "";
-  const email =
-    customer.email === null
-      ? null
-      : typeof customer.email === "string"
-        ? customer.email.trim().toLowerCase()
-        : undefined;
+  const email = typeof customer.email === "string" ? customer.email.trim().toLowerCase() : "";
   if (
     contactName.length < 1 ||
     contactName.length > 120 ||
     !phonePattern.test(phoneE164) ||
-    email === undefined ||
-    (email !== null && (email.length < 3 || email.length > 254 || !emailPattern.test(email)))
+    !isValidGuestEmail(email)
   )
     return undefined;
 

@@ -9,7 +9,11 @@ const body = {
   requestedFor: "2026-09-15T12:00:00Z",
   lines: [{ menuItemId: "f6000000-0000-0000-0000-000000000001", quantity: 2 }],
   submissionKey: "2b18f416-9476-4ce8-b721-a1346f78e978",
-  customer: { contactName: "Synthetic Guest", phoneE164: "+999100000001", email: null },
+  customer: {
+    contactName: "Synthetic Guest",
+    phoneE164: "+999100000001",
+    email: "synthetic@example.invalid",
+  },
   privacyNoticeVersion: "preview-v1",
 };
 const env = {
@@ -38,6 +42,17 @@ const request = (
 ) => new Request(url, { method: "POST", headers, body: JSON.stringify(value) });
 
 describe("guest pickup checkout API", () => {
+  it.each([null, "", "bad-email"])(
+    "rejects missing email before storing an order",
+    async (email) => {
+      const writer = { submit: vi.fn() };
+      const w = createApiWorker(vi.fn(), { error: vi.fn() }, undefined, writer);
+      expect(
+        (await w.fetch(request({ ...body, customer: { ...body.customer, email } }), env)).status,
+      ).toBe(400);
+      expect(writer.submit).not.toHaveBeenCalled();
+    },
+  );
   it("submits only normalized values and returns an allowlisted confirmation", async () => {
     const writer = { submit: vi.fn().mockResolvedValue({ ...confirmation, internal: "hidden" }) };
     const worker = createApiWorker(vi.fn(), { error: vi.fn() }, undefined, writer);

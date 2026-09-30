@@ -124,7 +124,11 @@ export async function verifyOnlineIntegration(
     requestedFor: when(6),
     lines: [{ menuItemId: "f6000000-0000-0000-0000-000000000001", quantity: 2 }],
     submissionKey: "online-integration-order",
-    customer: { contactName: "Synthetic Online Guest", phoneE164: "+999100000041", email: null },
+    customer: {
+      contactName: "Synthetic Online Guest",
+      phoneE164: "+999100000041",
+      email: "synthetic@example.invalid",
+    },
     privacyNoticeVersion: "preview-v1",
     fulfillmentType: "pickup",
   };

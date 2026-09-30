@@ -47,7 +47,7 @@ select private.submit_public_guest_pickup_order(
   date_trunc('hour', now()) + interval '2 hours',
   '[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":1}]',
   'notification-order-key-0001',
-  '{"contact_name":"Synthetic Notify Guest","phone_e164":"+999100000011","email":null}',
+  '{"contact_name":"Synthetic Notify Guest","phone_e164":"+999100000011","email":"synthetic@example.invalid"}',
   'preview-v1',
   30
 ) as first_confirmation \gset
@@ -228,7 +228,7 @@ select private.submit_public_guest_pickup_order(
   date_trunc('hour', now()) + interval '3 hours',
   '[{"menu_item_id":"f6000000-0000-0000-0000-000000000002","quantity":1}]',
   'notification-order-key-0002',
-  '{"contact_name":"Superseded Synthetic Guest","phone_e164":"+999100000012","email":null}',
+  '{"contact_name":"Superseded Synthetic Guest","phone_e164":"+999100000012","email":"synthetic@example.invalid"}',
   'preview-v1',30
 ) as second_confirmation \gset
 select private.transition_order_status(
@@ -272,7 +272,7 @@ select private.submit_public_guest_pickup_order(
   date_trunc('hour', now()) + interval '4 hours',
   '[{"menu_item_id":"f6000000-0000-0000-0000-000000000002","quantity":1}]',
   'notification-order-key-0003',
-  '{"contact_name":"Purged Synthetic Guest","phone_e164":"+999100000013","email":null}',
+  '{"contact_name":"Purged Synthetic Guest","phone_e164":"+999100000013","email":"synthetic@example.invalid"}',
   'preview-v1',30
 ) as third_confirmation \gset
 reset role;
@@ -314,7 +314,7 @@ select private.submit_public_guest_pickup_order(
   date_trunc('hour', now()) + interval '5 hours',
   '[{"menu_item_id":"f6000000-0000-0000-0000-000000000002","quantity":1}]',
   'notification-order-key-0004',
-  '{"contact_name":"Dead Letter Synthetic Guest","phone_e164":"+999100000014","email":null}',
+  '{"contact_name":"Dead Letter Synthetic Guest","phone_e164":"+999100000014","email":"synthetic@example.invalid"}',
   'preview-v1',30
 ) as fourth_confirmation \gset
 reset role;
@@ -352,7 +352,7 @@ select private.submit_public_guest_pickup_order(
   date_trunc('hour', now()) + interval '6 hours',
   '[{"menu_item_id":"f6000000-0000-0000-0000-000000000002","quantity":1}]',
   'notification-order-key-0005',
-  '{"contact_name":"Lock Synthetic Guest","phone_e164":"+999100000015","email":null}',
+  '{"contact_name":"Lock Synthetic Guest","phone_e164":"+999100000015","email":"synthetic@example.invalid"}',
   'preview-v1',30
 ) as fifth_confirmation \gset
 select private.claim_notification_deliveries(

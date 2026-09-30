@@ -7,6 +7,8 @@ import {
   parseDashboardOrderStatusResult,
   publicOrderStatuses,
   type DashboardOrderStatus,
+  parseOrderCommunicationCommand,
+  parseOrderCommunication,
 } from "@provide/contracts";
 
 function safeApiBase(value: string | undefined): URL | undefined {
@@ -278,6 +280,30 @@ export function retryDashboardRefund(
       v !== null && typeof v === "object" && "retryRequested" in v && v.retryRequested === true
         ? { retryRequested: true }
         : undefined,
+    fetcher,
+  );
+}
+
+export function updateDashboardCommunication(
+  accessToken: string,
+  apiBaseUrl: string | undefined,
+  scope: { restaurantId: string; locationId: string; orderId: string },
+  command: unknown,
+  fetcher: typeof fetch = fetch,
+) {
+  const parsed = parseOrderCommunicationCommand(command);
+  if (
+    !parsed ||
+    ![scope.restaurantId, scope.locationId, scope.orderId].every((v) => uuidPattern.test(v))
+  )
+    return Promise.resolve(operationalFailure(400));
+  return operationalRequest(
+    accessToken,
+    apiBaseUrl,
+    `/v1/dashboard/restaurants/${scope.restaurantId}/locations/${scope.locationId}/orders/${scope.orderId}/communication`,
+    "POST",
+    parsed,
+    parseOrderCommunication,
     fetcher,
   );
 }

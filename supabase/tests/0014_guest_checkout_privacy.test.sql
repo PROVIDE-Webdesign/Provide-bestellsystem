@@ -440,7 +440,7 @@ select is(
     'e2000000-0000-0000-0000-000000000001',
     'e3000000-0000-0000-0000-000000000001',
     'e8000000-0000-0000-0000-000000000002',
-    '{"contact_name":"Delivery Guest","phone_e164":"+999100000002","email":null}',
+    '{"contact_name":"Delivery Guest","phone_e164":"+999100000002","email":"synthetic@example.invalid"}',
     '{"address_line_1":"Main Street 2","address_line_2":" Rear ","postal_code":"52062","city":"Aachen","country_code":"de"}',
     'privacy-v1',
     '2099-02-01 09:15:00+00'

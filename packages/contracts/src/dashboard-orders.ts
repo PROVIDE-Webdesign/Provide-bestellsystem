@@ -2,6 +2,12 @@ import { isPaymentState, type PaymentState } from "./online-payment.js";
 import { parseDeliveryAddress, type DeliveryAddress } from "./delivery.js";
 import { isExplicitInstant } from "./storefront.js";
 import { publicOrderStatuses, type PublicOrderStatusName } from "./order-status.js";
+import {
+  parseOrderCommunication,
+  orderReasonLabels,
+  type OrderCommunication,
+  type OrderReasonCode,
+} from "./email-notifications.js";
 
 export type DashboardOrderStatus = PublicOrderStatusName;
 
@@ -35,6 +41,7 @@ export interface DashboardOrderLine {
 }
 
 export interface DashboardOrderDetail extends DashboardOrderSummary {
+  readonly communication?: OrderCommunication;
   readonly delivery?: (DeliveryAddress & { recipientName: string; phoneE164: string }) | null;
   readonly deliveryFeeAmountMinor?: number;
   readonly restaurantId: string;
@@ -44,6 +51,7 @@ export interface DashboardOrderDetail extends DashboardOrderSummary {
 }
 
 export interface DashboardOrderStatusCommand {
+  readonly reasonCode?: OrderReasonCode;
   readonly expectedStatus: DashboardOrderStatus;
   readonly targetStatus: DashboardOrderStatus;
 }
@@ -244,6 +252,7 @@ export function parseDashboardOrderDetail(value: unknown): DashboardOrderDetail 
       "locationId",
       "contactName",
       "lines",
+      ...("communication" in source ? ["communication"] : []),
       ...("delivery" in source ? ["delivery", "deliveryFeeAmountMinor"] : []),
     ]) ||
     typeof source.restaurantId !== "string" ||
@@ -261,6 +270,9 @@ export function parseDashboardOrderDetail(value: unknown): DashboardOrderDetail 
   )
     return undefined;
   const summary = parseSummary(Object.fromEntries(summaryKeys.map((key) => [key, source[key]])));
+  const communication =
+    "communication" in source ? parseOrderCommunication(source.communication) : undefined;
+  if ("communication" in source && !communication) return undefined;
   const lines = source.lines.map(parseLine);
   if (!summary || lines.some((line) => !line)) return undefined;
   let delivery: DashboardOrderDetail["delivery"] = null;
@@ -290,6 +302,7 @@ export function parseDashboardOrderDetail(value: unknown): DashboardOrderDetail 
     return undefined;
   return {
     ...summary,
+    ...(communication ? { communication } : {}),
     ...("delivery" in source
       ? { delivery, deliveryFeeAmountMinor: source.deliveryFeeAmountMinor as number }
       : {}),
@@ -306,13 +319,26 @@ export function parseDashboardOrderStatusCommand(
   const source = record(value);
   if (
     !source ||
-    !exactKeys(source, ["expectedStatus", "targetStatus"]) ||
+    !exactKeys(source, [
+      "expectedStatus",
+      "targetStatus",
+      ...("reasonCode" in source ? ["reasonCode"] : []),
+    ]) ||
+    ("reasonCode" in source &&
+      (typeof source.reasonCode !== "string" ||
+        !Object.hasOwn(orderReasonLabels, source.reasonCode) ||
+        source.reasonCode === "payment_expired" ||
+        !["cancelled", "rejected"].includes(String(source.targetStatus)))) ||
     !isStatus(source.expectedStatus) ||
     !isStatus(source.targetStatus) ||
     !allowedOrderTransitions(source.expectedStatus).includes(source.targetStatus)
   )
     return undefined;
-  return { expectedStatus: source.expectedStatus, targetStatus: source.targetStatus };
+  return {
+    expectedStatus: source.expectedStatus,
+    targetStatus: source.targetStatus,
+    ...("reasonCode" in source ? { reasonCode: source.reasonCode as OrderReasonCode } : {}),
+  };
 }
 
 export function parseDashboardOrderStatusResult(
