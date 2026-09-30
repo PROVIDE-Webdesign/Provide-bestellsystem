@@ -1,3 +1,4 @@
+import type { MenuConfiguration } from "./menu-selection.js";
 export const fulfillmentTypes = ["pickup", "delivery"] as const;
 export type FulfillmentType = (typeof fulfillmentTypes)[number];
 export type ItemAvailability = "available" | "sold_out" | "unavailable";
@@ -40,6 +41,7 @@ export interface PublicCatalog {
         readonly description: string | null;
         readonly priceAmountMinor: number;
         readonly availability: ItemAvailability;
+        readonly configuration?: MenuConfiguration;
       }[];
     }[];
   }[];

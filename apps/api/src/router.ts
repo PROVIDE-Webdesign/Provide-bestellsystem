@@ -53,7 +53,7 @@ function matchPath(request: Request): MatchedRoute | undefined {
     }
   }
   const match =
-    /^\/v1\/storefront\/([^/]+)\/([^/]+)\/(catalog|availability|orders|order-status|delivery-quote|delivery-orders|online-orders|payment-session)$/.exec(
+    /^\/v1\/storefront\/([^/]+)\/([^/]+)\/(cart-quote|catalog|availability|orders|order-status|delivery-quote|delivery-orders|online-orders|payment-session)$/.exec(
       path,
     );
   if (match) {
@@ -61,7 +61,8 @@ function matchPath(request: Request): MatchedRoute | undefined {
     if (
       restaurantSlug &&
       locationSlug &&
-      (name === "catalog" ||
+      (name === "cart-quote" ||
+        name === "catalog" ||
         name === "availability" ||
         name === "orders" ||
         name === "order-status" ||
@@ -88,6 +89,7 @@ export function routeRequest(request: Request): MatchedRoute | undefined {
   )
     return request.method === "POST" ? match : undefined;
   if (
+    match.name === "cart-quote" ||
     match.name === "orders" ||
     match.name === "orderStatus" ||
     match.name === "delivery-quote" ||

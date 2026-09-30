@@ -1,3 +1,4 @@
+import { selectionLinesForDatabase } from "@provide/contracts";
 import { Client } from "pg";
 import type { DeliveryRepository } from "./delivery.js";
 
@@ -34,9 +35,7 @@ export const postgresDeliveryRepository: DeliveryRepository = {
         command.menuId,
         command.menuVersionId,
         command.requestedFor,
-        JSON.stringify(
-          command.lines.map((l) => ({ menu_item_id: l.menuItemId, quantity: l.quantity })),
-        ),
+        JSON.stringify(selectionLinesForDatabase(command.lines)),
         command.postalCode,
       ],
     );
@@ -52,9 +51,7 @@ export const postgresDeliveryRepository: DeliveryRepository = {
         command.menuId,
         command.menuVersionId,
         command.requestedFor,
-        JSON.stringify(
-          command.lines.map((l) => ({ menu_item_id: l.menuItemId, quantity: l.quantity })),
-        ),
+        JSON.stringify(selectionLinesForDatabase(command.lines)),
         command.submissionKey,
         JSON.stringify({
           contact_name: command.customer.contactName,

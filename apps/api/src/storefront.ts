@@ -22,6 +22,7 @@ export interface StorefrontEnvironment {
 }
 export interface StorefrontRoute extends StorefrontScope {
   readonly name:
+    | "cart-quote"
     | "catalog"
     | "availability"
     | "orders"
