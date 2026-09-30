@@ -171,6 +171,10 @@ export async function verifyEmailIntegration(
     ]),
   );
   // Model provider acceptance whose local completion was lost, then corrupt rendering metadata.
+  const original = await admin.query<{ display_name: string }>(
+    "select display_name from public.restaurants where id=$1",
+    [scope.restaurantId],
+  );
   await admin.query(
     "update private.email_deliveries set status='uncertain',available_at=statement_timestamp(),last_error_code='provider_timeout' where order_id=$1",
     [validOrder],
@@ -192,9 +196,9 @@ export async function verifyEmailIntegration(
     );
     expect(reconciled.rows[0]!.status).toBe("accepted");
   } finally {
-    await admin.query(
-      "update public.restaurants set display_name='Storefront Restaurant A' where id=$1",
-      [scope.restaurantId],
-    );
+    await admin.query("update public.restaurants set display_name=$2 where id=$1", [
+      scope.restaurantId,
+      original.rows[0]!.display_name,
+    ]);
   }
 }

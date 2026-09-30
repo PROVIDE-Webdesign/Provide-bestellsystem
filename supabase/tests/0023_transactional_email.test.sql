@@ -26,30 +26,30 @@ select is((select count(*)::integer from private.email_deliveries),1,'one submis
 select ok(not exists(select 1 from private.email_deliveries d where row_to_json(d)::text like '%@%'),'ledger has no recipient');
 select ok(not exists(select 1 from public.outbox_events where payload::text like '%synthetic@example.invalid%'),'outbox has no email address');
 set local role service_role;
-select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000001',25,now()+interval '1 second') as first_claim \gset
+select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000001',25,statement_timestamp()+interval '1 second') as first_claim \gset
 select is(jsonb_array_length(:'first_claim'::jsonb),1,'bounded claim returns the email');
 select is(:'first_claim'::jsonb#>>'{0,email}','synthetic@example.invalid','contact is projected only for the worker');
 select is(jsonb_array_length(private.claim_email_deliveries('fd100000-0000-0000-0000-000000000002',25,now())),0,'concurrent worker cannot claim locked job');
 select is(private.finish_email_delivery((:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid,
   'fd100000-0000-0000-0000-000000000099','accepted',null,'synthetic-1',now()),'conflict','wrong lease cannot complete');
 select is(private.finish_email_delivery((:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid,
-  'fd100000-0000-0000-0000-000000000001','unknown','provider_timeout',null,now()+interval '1 second'),'uncertain','unclear acceptance does not blindly resend');
-select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000003',25,now()+interval '31 seconds') as uncertain_claim \gset
+  'fd100000-0000-0000-0000-000000000001','unknown','provider_timeout',null,statement_timestamp()+interval '1 second'),'uncertain','unclear acceptance does not blindly resend');
+select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000003',25,statement_timestamp()+interval '31 seconds') as uncertain_claim \gset
 select is(:'uncertain_claim'::jsonb#>>'{0,mode}','reconcile','unknown send is claimed for lookup');
 select is(private.finish_email_delivery((:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid,
-  'fd100000-0000-0000-0000-000000000003','temporary_failure','provider_unavailable',null,now()+interval '31 seconds'),
+  'fd100000-0000-0000-0000-000000000003','temporary_failure','provider_unavailable',null,statement_timestamp()+interval '31 seconds'),
   'uncertain','a failed lookup does not authorize a second send');
-select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000004',25,now()+interval '3 minutes') as reconcile_claim \gset
+select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000004',25,statement_timestamp()+interval '3 minutes') as reconcile_claim \gset
 select is(:'reconcile_claim'::jsonb#>>'{0,mode}','reconcile','repeated unknown lookup remains reconciliation');
 select is(private.finish_email_delivery((:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid,
-  'fd100000-0000-0000-0000-000000000004','accepted',null,'synthetic-1',now()+interval '3 minutes'),'accepted','found provider acceptance is persisted');
+  'fd100000-0000-0000-0000-000000000004','accepted',null,'synthetic-1',statement_timestamp()+interval '3 minutes'),'accepted','found provider acceptance is persisted');
 reset role;
 select is((select status from private.email_deliveries where id=(:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid),'accepted','acceptance is not called delivered');
 set local role service_role;
-select ok(not private.record_email_delivery_receipt((:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid,'foreign-reference','delivered',now()+interval '4 minutes'),'foreign provider reference cannot prove delivery');
-select ok(private.record_email_delivery_receipt((:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid,'synthetic-1','delivered',now()+interval '4 minutes'),'explicit receipt proves delivery');
-select ok(private.record_email_delivery_receipt((:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid,'synthetic-1','delivered',now()+interval '4 minutes'),'duplicate receipt is idempotent');
-select ok(not private.record_email_delivery_receipt((:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid,'synthetic-1','bounced',now()+interval '5 minutes'),'contradictory receipt cannot rewrite final state');
+select ok(not private.record_email_delivery_receipt((:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid,'foreign-reference','delivered',statement_timestamp()+interval '4 minutes'),'foreign provider reference cannot prove delivery');
+select ok(private.record_email_delivery_receipt((:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid,'synthetic-1','delivered',statement_timestamp()+interval '4 minutes'),'explicit receipt proves delivery');
+select ok(private.record_email_delivery_receipt((:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid,'synthetic-1','delivered',statement_timestamp()+interval '4 minutes'),'duplicate receipt is idempotent');
+select ok(not private.record_email_delivery_receipt((:'first_claim'::jsonb#>>'{0,deliveryId}')::uuid,'synthetic-1','bounced',statement_timestamp()+interval '5 minutes'),'contradictory receipt cannot rewrite final state');
 select private.transition_dashboard_order_status('f1000000-0000-0000-0000-000000000001','aal2',
   'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
   (:'confirmation'::jsonb->>'orderId')::uuid,'submitted','accepted');
@@ -58,25 +58,25 @@ select is(private.read_dashboard_order('f1000000-0000-0000-0000-000000000001','a
   (:'confirmation'::jsonb->>'orderId')::uuid)#>>'{data,communication,revision}','1','acceptance confirms the requested time');
 select is(private.update_order_communication('f1000000-0000-0000-0000-000000000005','aal2',
   'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
-  (:'confirmation'::jsonb->>'orderId')::uuid,'accepted',1,'confirm_time',now()+interval '3 hours')->>'outcome','forbidden','foreign tenant cannot correct time');
+  (:'confirmation'::jsonb->>'orderId')::uuid,'accepted',1,'confirm_time',date_trunc('hour',now())+interval '3 hours')->>'outcome','forbidden','foreign tenant cannot correct time');
 select is(private.update_order_communication('f1000000-0000-0000-0000-000000000001','aal1',
   'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
-  (:'confirmation'::jsonb->>'orderId')::uuid,'accepted',1,'confirm_time',now()+interval '3 hours')->>'outcome','forbidden','management needs MFA');
+  (:'confirmation'::jsonb->>'orderId')::uuid,'accepted',1,'confirm_time',date_trunc('hour',now())+interval '3 hours')->>'outcome','forbidden','management needs MFA');
 select is(private.update_order_communication('f1000000-0000-0000-0000-000000000001','aal2',
   'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
-  (:'confirmation'::jsonb->>'orderId')::uuid,'accepted',99,'confirm_time',now()+interval '3 hours')->>'outcome','conflict','stale revision is rejected');
+  (:'confirmation'::jsonb->>'orderId')::uuid,'accepted',99,'confirm_time',date_trunc('hour',now())+interval '3 hours')->>'outcome','conflict','stale revision is rejected');
 select is(private.update_order_communication('f1000000-0000-0000-0000-000000000001','aal2',
   'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
-  (:'confirmation'::jsonb->>'orderId')::uuid,'accepted',1,'confirm_time',now()+interval '3 hours')->>'outcome','updated','confirmed ETA can be corrected');
+  (:'confirmation'::jsonb->>'orderId')::uuid,'accepted',1,'confirm_time',date_trunc('hour',now())+interval '3 hours')->>'outcome','updated','confirmed ETA can be corrected');
 reset role;
 select is((select count(*)::integer from private.order_communication_events where action='confirm_time'),1,'time correction has actor audit');
 select is((select count(*)::integer from private.email_deliveries where template_key='order_time_changed'),1,'correction creates one event email');
 set local role service_role;
-select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000005',25,now()+interval '1 second') as correction_claim \gset
+select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000005',25,statement_timestamp()+interval '1 second') as correction_claim \gset
 select is(jsonb_array_length(:'correction_claim'::jsonb),1,'obsolete acceptance is suppressed while latest correction remains');
 select is(:'correction_claim'::jsonb#>>'{0,templateKey}','order_time_changed','correct message claimed');
 select is(private.finish_email_delivery((:'correction_claim'::jsonb#>>'{0,deliveryId}')::uuid,
-  'fd100000-0000-0000-0000-000000000005','permanent_failure','destination_rejected',null,now()+interval '1 second'),'dead_letter','permanent failure does not rollback order');
+  'fd100000-0000-0000-0000-000000000005','permanent_failure','destination_rejected',null,statement_timestamp()+interval '1 second'),'dead_letter','permanent failure does not rollback order');
 select is(private.retry_email_delivery('f1000000-0000-0000-0000-000000000003','aal1',
   'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
   (:'correction_claim'::jsonb#>>'{0,deliveryId}')::uuid),'forbidden','kitchen cannot retry customer delivery');
@@ -89,11 +89,11 @@ select is((select status from public.orders where id=(:'confirmation'::jsonb->>'
 select ok(private.read_public_guest_order_status('storefront-restaurant-a','storefront-a-mitte',(:'confirmation'::jsonb->>'orderId')::uuid) is not null,'status survives mail failure');
 -- Exercise actual retry scheduling and the bounded attempt budget.
 set local role service_role;
-select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000007',25,now()+interval '2 seconds') as retry_claim \gset
+select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000007',25,statement_timestamp()+interval '2 seconds') as retry_claim \gset
 select is(private.finish_email_delivery((:'correction_claim'::jsonb#>>'{0,deliveryId}')::uuid,
-  'fd100000-0000-0000-0000-000000000007','temporary_failure','provider_rate_limited',null,now()+interval '2 seconds'),
+  'fd100000-0000-0000-0000-000000000007','temporary_failure','provider_rate_limited',null,statement_timestamp()+interval '2 seconds'),
   'retry','explicit temporary refusal permits a scheduled retry');
-select is(jsonb_array_length(private.claim_email_deliveries('fd100000-0000-0000-0000-000000000008',25,now()+interval '31 seconds')),0,
+select is(jsonb_array_length(private.claim_email_deliveries('fd100000-0000-0000-0000-000000000008',25,statement_timestamp()+interval '31 seconds')),0,
   'temporary refusal cannot be retried before its backoff');
 reset role;
 do $$
@@ -115,32 +115,32 @@ select is((select status from private.email_deliveries where template_key='order
 set local role service_role;
 select private.update_order_communication('f1000000-0000-0000-0000-000000000001','aal2',
   'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
-  (:'confirmation'::jsonb->>'orderId')::uuid,'accepted',2,'confirm_time',now()+interval '2 hours 55 minutes');
-select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000009',25,now()+interval '2 seconds') as lost_claim \gset
+  (:'confirmation'::jsonb->>'orderId')::uuid,'accepted',2,'confirm_time',date_trunc('hour',now())+interval '3 hours 15 minutes');
+select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000009',25,statement_timestamp()+interval '2 seconds') as lost_claim \gset
 select is(private.finish_email_delivery((:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid,
-  'fd100000-0000-0000-0000-000000000009','accepted',null,'late-worker',now()+interval '6 minutes'),
+  'fd100000-0000-0000-0000-000000000009','accepted',null,'late-worker',statement_timestamp()+interval '6 minutes'),
   'conflict','expired worker cannot record acceptance');
 reset role;
-update public.order_customer_contacts set contact_name=null,phone_e164=null,email=null,purged_at=now()+interval '6 minutes'
+update public.order_customer_contacts set contact_name=null,phone_e164=null,email=null,purged_at=statement_timestamp()+interval '6 minutes'
   where order_id=(:'confirmation'::jsonb->>'orderId')::uuid;
 set local role service_role;
-select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000010',25,now()+interval '6 minutes') as lost_reconcile \gset
+select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000010',25,statement_timestamp()+interval '6 minutes') as lost_reconcile \gset
 select is(:'lost_reconcile'::jsonb#>>'{0,mode}','reconcile','expired claim is reconciled rather than sent');
 select ok(not (:'lost_reconcile'::jsonb->0 ? 'email'),'reconciliation contains no recipient');
 select is(private.finish_email_delivery((:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid,
-  'fd100000-0000-0000-0000-000000000010','not_found',null,null,now()+interval '6 minutes'),
+  'fd100000-0000-0000-0000-000000000010','not_found',null,null,statement_timestamp()+interval '6 minutes'),
   'retry','authoritative absence permits a fresh eligibility check');
-select is(jsonb_array_length(private.claim_email_deliveries('fd100000-0000-0000-0000-000000000011',25,now()+interval '9 minutes')),0,
+select is(jsonb_array_length(private.claim_email_deliveries('fd100000-0000-0000-0000-000000000011',25,statement_timestamp()+interval '9 minutes')),0,
   'purged recipient prevents a send after authoritative absence');
 reset role;
 select is((select status from private.email_deliveries where id=(:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid),'suppressed','purged contact is suppressed');
 -- Fixture an unresolved fifth attempt, then prove the sixth authoritative absence is actionable.
-update private.email_deliveries set status='uncertain',attempt_count=5,available_at=now()+interval '10 minutes',last_error_code='provider_timeout'
+update private.email_deliveries set status='uncertain',attempt_count=5,available_at=statement_timestamp()+interval '10 minutes',last_error_code='provider_timeout'
   where id=(:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid;
 set local role service_role;
-select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000012',25,now()+interval '10 minutes');
+select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000012',25,statement_timestamp()+interval '10 minutes');
 select is(private.finish_email_delivery((:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid,
-  'fd100000-0000-0000-0000-000000000012','not_found',null,null,now()+interval '10 minutes'),
+  'fd100000-0000-0000-0000-000000000012','not_found',null,null,statement_timestamp()+interval '10 minutes'),
   'dead_letter','sixth authoritative absence reaches the attempt limit');
 reset role;
 select is((select last_error_code from private.email_deliveries where id=(:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid),
@@ -149,7 +149,7 @@ set local role service_role;
 select is(private.retry_email_delivery('f1000000-0000-0000-0000-000000000001','aal2',
   'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
   (:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid),'retry','management can retry a confirmed non-acceptance');
-select is(jsonb_array_length(private.claim_email_deliveries('fd100000-0000-0000-0000-000000000013',25,now()+interval '11 minutes')),0,
+select is(jsonb_array_length(private.claim_email_deliveries('fd100000-0000-0000-0000-000000000013',25,statement_timestamp()+interval '11 minutes')),0,
   'manual retry still enforces contact purge');
 reset role;
 -- Simulate a contact created before this migration. Its nullable snapshot and exact retry remain valid.
@@ -164,7 +164,7 @@ select lives_ok(format($sql$select private.store_guest_checkout_snapshot('f20000
   %L::uuid,'{"contact_name":"Historical Synthetic","phone_e164":"+999100000011","email":null}',null,'preview-v1',%L::timestamptz)$sql$,:'legacy_order',now()+interval '30 days'),
   'historical nullable contact remains exactly retryable');
 select ok(private.read_public_guest_order_status('storefront-restaurant-a','storefront-a-mitte',:'legacy_order') is not null,'historical status remains readable');
-select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000006',25,now()+interval '2 seconds');
+select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000006',25,statement_timestamp()+interval '2 seconds');
 select is((select status from private.email_deliveries where order_id=:'legacy_order' and template_key='order_submitted'),'suppressed','historical order without email suppresses delivery');
 select * from finish();
 rollback;

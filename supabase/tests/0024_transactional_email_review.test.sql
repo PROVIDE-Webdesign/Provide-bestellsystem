@@ -21,20 +21,24 @@ select private.transition_dashboard_order_status('f1000000-0000-0000-0000-000000
 select private.transition_dashboard_order_status('f1000000-0000-0000-0000-000000000001','aal2',
   'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
   (:'pickup'::jsonb->>'orderId')::uuid,'accepted','preparing');
-select private.claim_email_deliveries('fd200000-0000-0000-0000-000000000001',25,now()+interval '1 second') as preparing \gset
+select private.claim_email_deliveries('fd200000-0000-0000-0000-000000000001',25,statement_timestamp()+interval '1 second') as preparing \gset
 select is(jsonb_array_length(:'preparing'::jsonb),1,'preparing preserves the still-current acceptance');
 select is(:'preparing'::jsonb#>>'{0,templateKey}','order_accepted','accepted email still carries the confirmation');
 select is(:'preparing'::jsonb#>>'{0,confirmedFor}',:'pickup'::jsonb->>'requestedFor','confirmation time is retained');
+select throws_ok(format($sql$select private.finish_email_delivery(%L::uuid,
+  'fd200000-0000-0000-0000-000000000001','not_found',null,null,statement_timestamp()+interval '1 second')$sql$,
+  :'preparing'::jsonb#>>'{0,deliveryId}'),'P0001','invalid email lookup completion',
+  'absence can authorize resend only after a lookup, never after a send');
 select private.finish_email_delivery((:'preparing'::jsonb#>>'{0,deliveryId}')::uuid,
-  'fd200000-0000-0000-0000-000000000001','temporary_failure','provider_unavailable',null,now()+interval '1 second');
+  'fd200000-0000-0000-0000-000000000001','temporary_failure','provider_unavailable',null,statement_timestamp()+interval '1 second');
 select private.transition_dashboard_order_status('f1000000-0000-0000-0000-000000000001','aal2',
   'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
   (:'pickup'::jsonb->>'orderId')::uuid,'preparing','ready');
-select private.claim_email_deliveries('fd200000-0000-0000-0000-000000000002',25,now()+interval '32 seconds') as ready \gset
+select private.claim_email_deliveries('fd200000-0000-0000-0000-000000000002',25,statement_timestamp()+interval '32 seconds') as ready \gset
 select ok(exists(select 1 from jsonb_array_elements(:'ready'::jsonb) x(value) where value->>'templateKey'='order_accepted'),
   'ready also preserves an unchanged confirmation');
 select private.finish_email_delivery((value->>'deliveryId')::uuid,'fd200000-0000-0000-0000-000000000002',
-  'accepted',null,'synthetic-'||(value->>'deliveryId'),now()+interval '32 seconds') from jsonb_array_elements(:'ready'::jsonb) x(value);
+  'accepted',null,'synthetic-'||(value->>'deliveryId'),statement_timestamp()+interval '32 seconds') from jsonb_array_elements(:'ready'::jsonb) x(value);
 reset role;
 
 insert into public.restaurant_feature_flags(restaurant_id,feature_key,enabled)
@@ -60,18 +64,18 @@ select private.bind_online_payment_session((:'payment_job'::jsonb->>'id')::uuid,
   'fc200000-0000-0000-0000-000000000001','cs_test_emailreview');
 select private.sync_online_payment((:'payment_job'::jsonb->>'id')::uuid,
   'fc200000-0000-0000-0000-000000000001','paid','pi_emailreview',null,repeat('a',64));
-select private.claim_email_deliveries('fd200000-0000-0000-0000-000000000003',25,now()+interval '1 second') as submitted \gset
+select private.claim_email_deliveries('fd200000-0000-0000-0000-000000000003',25,statement_timestamp()+interval '1 second') as submitted \gset
 select private.finish_email_delivery((:'submitted'::jsonb#>>'{0,deliveryId}')::uuid,
-  'fd200000-0000-0000-0000-000000000003','unknown','provider_timeout',null,now()+interval '1 second');
+  'fd200000-0000-0000-0000-000000000003','unknown','provider_timeout',null,statement_timestamp()+interval '1 second');
 reset role;
 -- Fault injection: closure was requested while its provider observation is unresolved.
 update public.online_payment_jobs set close_requested='cancelled',provider_terminal=false where id=(:'payment_job'::jsonb->>'id')::uuid;
 set local role service_role;
-select private.claim_email_deliveries('fd200000-0000-0000-0000-000000000004',25,now()+interval '31 seconds') as closing_lookup \gset
+select private.claim_email_deliveries('fd200000-0000-0000-0000-000000000004',25,statement_timestamp()+interval '31 seconds') as closing_lookup \gset
 select is(:'closing_lookup'::jsonb#>>'{0,mode}','reconcile','closure does not block an unknown submission lookup');
 select is((select count(*)::integer from jsonb_object_keys(:'closing_lookup'::jsonb->0)),4,'lookup projects only the four key fields');
 select private.finish_email_delivery((:'submitted'::jsonb#>>'{0,deliveryId}')::uuid,
-  'fd200000-0000-0000-0000-000000000004','accepted',null,'synthetic-found',now()+interval '31 seconds');
+  'fd200000-0000-0000-0000-000000000004','accepted',null,'synthetic-found',statement_timestamp()+interval '31 seconds');
 reset role;
 update public.online_payment_jobs set close_requested=null,provider_terminal=true where id=(:'payment_job'::jsonb->>'id')::uuid;
 set local role service_role;
@@ -83,9 +87,9 @@ update public.online_payment_jobs set close_requested='cancelled',provider_termi
 set local role service_role;
 select is(private.update_order_communication('f1000000-0000-0000-0000-000000000001','aal2',
   'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
-  (:'online'::jsonb->>'orderId')::uuid,'accepted',1,'confirm_time',now()+interval '6 hours')->>'outcome',
+  (:'online'::jsonb->>'orderId')::uuid,'accepted',1,'confirm_time',statement_timestamp()+interval '6 hours')->>'outcome',
   'conflict','pending closure forbids a new time confirmation');
-select is(jsonb_array_length(private.claim_email_deliveries('fd200000-0000-0000-0000-000000000005',25,now()+interval '1 second')),0,
+select is(jsonb_array_length(private.claim_email_deliveries('fd200000-0000-0000-0000-000000000005',25,statement_timestamp()+interval '1 second')),0,
   'pending closure sends no operational confirmation');
 reset role;
 select is((select last_error_code from private.email_deliveries where order_id=(:'online'::jsonb->>'orderId')::uuid and template_key='order_accepted'),

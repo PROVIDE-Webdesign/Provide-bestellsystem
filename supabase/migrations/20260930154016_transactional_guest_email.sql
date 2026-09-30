@@ -346,7 +346,9 @@ begin
     then raise exception 'invalid email error'; end if;
   select * into d from private.email_deliveries where id=target_id for update;
   if d.id is null or d.status<>'processing' or d.lock_token is distinct from target_lock or
-    d.locked_at<=target_now-interval '5 minutes' then return 'conflict'; end if;
+    target_now<d.locked_at or d.locked_at<=target_now-interval '5 minutes' then return 'conflict'; end if;
+  if result='not_found' and d.processing_mode<>'reconcile' then
+    raise exception 'invalid email lookup completion'; end if;
   if result='accepted' then next_status:='accepted';
   elsif d.processing_mode='reconcile' and result<>'not_found' then next_status:='uncertain';
   elsif result='permanent_failure' then next_status:='dead_letter';
