@@ -115,7 +115,7 @@ select is((select status from private.email_deliveries where template_key='order
 set local role service_role;
 select private.update_order_communication('f1000000-0000-0000-0000-000000000001','aal2',
   'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
-  (:'confirmation'::jsonb->>'orderId')::uuid,'accepted',2,'confirm_time',now()+interval '3 hours 5 minutes');
+  (:'confirmation'::jsonb->>'orderId')::uuid,'accepted',2,'confirm_time',now()+interval '2 hours 55 minutes');
 select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000009',25,now()+interval '2 seconds') as lost_claim \gset
 select is(private.finish_email_delivery((:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid,
   'fd100000-0000-0000-0000-000000000009','accepted',null,'late-worker',now()+interval '6 minutes'),
