@@ -23,11 +23,11 @@ export function formatMoney(amountMinor: number, currency: string): string {
   return new Intl.NumberFormat("de-DE", { style: "currency", currency }).format(amountMinor / 100);
 }
 
-export function formatOrderTime(value: string): string {
+export function formatOrderTime(value: string, timezone = "Europe/Berlin"): string {
   return new Intl.DateTimeFormat("de-DE", {
     dateStyle: "short",
     timeStyle: "short",
-    timeZone: "Europe/Berlin",
+    timeZone: timezone,
   }).format(new Date(value));
 }
 

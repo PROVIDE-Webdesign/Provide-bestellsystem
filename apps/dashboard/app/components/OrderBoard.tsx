@@ -358,7 +358,7 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
           <p>
             <strong>{fulfillmentStatusLabel(detail.status, detail.fulfillmentType)}</strong> ·{" "}
             {detail.fulfillmentType === "delivery" ? "Lieferung" : "Abholung"}{" "}
-            {formatOrderTime(detail.requestedFor)}
+            {formatOrderTime(detail.requestedFor, detail.communication?.timezone)}
           </p>
           {detail.contactName && (
             <p>
@@ -366,10 +366,16 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
             </p>
           )}
           {detail.communication?.confirmedFor && (
-            <p>Bestätigte Zeit: {formatOrderTime(detail.communication.confirmedFor)}</p>
+            <p>
+              Bestätigte Zeit:{" "}
+              {formatOrderTime(detail.communication.confirmedFor, detail.communication.timezone)}
+            </p>
           )}
           {detail.communication?.dispatchedAt && (
-            <p>Lieferung unterwegs seit {formatOrderTime(detail.communication.dispatchedAt)}</p>
+            <p>
+              Lieferung unterwegs seit{" "}
+              {formatOrderTime(detail.communication.dispatchedAt, detail.communication.timezone)}
+            </p>
           )}
           {detail.communication &&
             ["accepted", "preparing", "ready"].includes(detail.status) &&

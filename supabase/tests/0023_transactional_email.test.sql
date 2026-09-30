@@ -105,7 +105,7 @@ begin
     claimed:=private.claim_email_deliveries(lock_id,25,now()+make_interval(hours=>attempt*3));
     if jsonb_array_length(claimed)<>1 then raise exception 'expected exactly one retry'; end if;
     observed:=private.finish_email_delivery(delivery,lock_id,'temporary_failure','provider_unavailable',null,now()+make_interval(hours=>attempt*3));
-    if observed<>case when attempt=6 then 'dead_letter' else 'retry' end then raise exception 'unexpected retry outcome'; end if;
+    if observed<>(case when attempt=6 then 'dead_letter' else 'retry' end) then raise exception 'unexpected retry outcome'; end if;
   end loop;
 end;
 $$;
