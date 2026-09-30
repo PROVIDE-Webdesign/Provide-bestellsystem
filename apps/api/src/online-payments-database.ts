@@ -1,3 +1,4 @@
+import { selectionLinesForDatabase } from "@provide/contracts";
 import { Client } from "pg";
 import type { OnlineOrderRequest, StorefrontScope } from "@provide/contracts";
 export interface OnlineJob {
@@ -91,7 +92,7 @@ export const postgresOnlineRepository: OnlineRepository = {
         v.menuId,
         v.menuVersionId,
         v.requestedFor,
-        JSON.stringify(v.lines.map((l) => ({ menu_item_id: l.menuItemId, quantity: l.quantity }))),
+        JSON.stringify(selectionLinesForDatabase(v.lines)),
         v.submissionKey,
         JSON.stringify({
           contact_name: v.customer.contactName,

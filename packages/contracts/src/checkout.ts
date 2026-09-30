@@ -1,10 +1,11 @@
+import { parseOrderSelectionLines, type OrderSelectionLine } from "./menu-selection.js";
 import { isExplicitInstant, isStorefrontScope, type StorefrontScope } from "./storefront.js";
 
 export interface GuestPickupOrderRequest {
   readonly menuId: string;
   readonly menuVersionId: string;
   readonly requestedFor: string;
-  readonly lines: readonly { readonly menuItemId: string; readonly quantity: number }[];
+  readonly lines: readonly OrderSelectionLine[];
   readonly submissionKey: string;
   readonly customer: {
     readonly contactName: string;
@@ -98,28 +99,8 @@ export function parseGuestPickupOrderRequest(value: unknown): GuestPickupOrderRe
   )
     return undefined;
 
-  const lines: { menuItemId: string; quantity: number }[] = [];
-  const ids = new Set<string>();
-  let itemCount = 0;
-  for (const value of source.lines) {
-    const line = record(value);
-    if (
-      !line ||
-      !exactKeys(line, ["menuItemId", "quantity"]) ||
-      typeof line.menuItemId !== "string" ||
-      !idPattern.test(line.menuItemId) ||
-      typeof line.quantity !== "number" ||
-      !Number.isInteger(line.quantity) ||
-      line.quantity < 1 ||
-      line.quantity > 1000 ||
-      ids.has(line.menuItemId)
-    )
-      return undefined;
-    ids.add(line.menuItemId);
-    itemCount += line.quantity;
-    lines.push({ menuItemId: line.menuItemId, quantity: line.quantity });
-  }
-  if (itemCount > 1000) return undefined;
+  const lines = parseOrderSelectionLines(source.lines);
+  if (!lines) return undefined;
 
   return {
     menuId: source.menuId,

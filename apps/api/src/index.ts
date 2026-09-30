@@ -1,3 +1,4 @@
+import { handleCartQuote, postgresCartQuoteReader, type CartQuoteReader } from "./cart-quote.js";
 import { handleDelivery, type DeliveryRepository } from "./delivery.js";
 import {
   handleOnlinePayment,
@@ -47,6 +48,7 @@ interface HyperdriveBinding {
 }
 
 interface Env extends OnlineEnvironment {
+  readonly CART_QUOTE_ENABLED?: string;
   readonly DELIVERY_ORDERING_ENABLED?: string;
   readonly APP_ENV: string;
   readonly API_ALLOWED_ORIGINS?: string;
@@ -85,6 +87,7 @@ export function createApiWorker(
   onlineProvider: SandboxProvider = stripeSandboxProvider,
   emailRepository: EmailRepository = postgresEmailRepository,
   emailAdapter: EmailAdapter = unconfiguredEmailAdapter,
+  cartQuoteReader: CartQuoteReader = postgresCartQuoteReader,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -110,6 +113,8 @@ export function createApiWorker(
         return jsonError("not_found", "Resource was not found.", context.requestId, 404, cors);
       }
 
+      if (route.name === "cart-quote")
+        return handleCartQuote(request, route, env, cartQuoteReader, context, logger, cors);
       if (route.name === "delivery-quote" || route.name === "delivery-orders") {
         return handleDelivery(
           request,

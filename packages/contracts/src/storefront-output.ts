@@ -1,3 +1,4 @@
+import { parseMenuConfiguration } from "./menu-selection.js";
 import type { PublicAvailability, PublicCatalog } from "./storefront.js";
 import { isExplicitInstant } from "./storefront.js";
 
@@ -74,7 +75,14 @@ export function parsePublicCatalog(value: unknown): PublicCatalog {
                   availability !== "unavailable")
               )
                 throw new Error("Invalid public response");
+              const configuration =
+                item.configuration === undefined
+                  ? undefined
+                  : parseMenuConfiguration(item.configuration);
+              if (item.configuration !== undefined && !configuration)
+                throw new Error("Invalid public response");
               return {
+                ...(configuration ? { configuration } : {}),
                 id: id(item.id),
                 name: string(item.name),
                 description: nullable(item.description),

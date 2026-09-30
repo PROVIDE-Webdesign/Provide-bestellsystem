@@ -1,3 +1,4 @@
+import { selectionLinesForDatabase } from "@provide/contracts";
 import { Client } from "pg";
 import type { GuestPickupOrderCommand } from "@provide/contracts";
 import type { CheckoutWriter } from "./checkout.js";
@@ -14,10 +15,7 @@ export const postgresCheckoutWriter: CheckoutWriter = {
       await client.query("BEGIN");
       await client.query("SET LOCAL ROLE service_role");
       await client.query("SET LOCAL statement_timeout = '8s'");
-      const lines = command.lines.map((line) => ({
-        menu_item_id: line.menuItemId,
-        quantity: line.quantity,
-      }));
+      const lines = selectionLinesForDatabase(command.lines);
       const customer = {
         contact_name: command.customer.contactName,
         phone_e164: command.customer.phoneE164,

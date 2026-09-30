@@ -1,3 +1,4 @@
+import { verifyMenuSelectionIntegration } from "./menu-selection.integration.js";
 import { URL } from "node:url";
 import { readFile } from "node:fs/promises";
 import { Client } from "pg";
@@ -262,6 +263,7 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       await verifyDeliveryIntegration(admin, worker, env);
       await verifyOnlineIntegration(admin, env);
       await verifyEmailIntegration(admin, env);
+      await verifyMenuSelectionIntegration(admin, env);
       expect(
         sendNotification.mock.calls.some(([command]) =>
           command.body.includes("bereit zur Auslieferung"),
