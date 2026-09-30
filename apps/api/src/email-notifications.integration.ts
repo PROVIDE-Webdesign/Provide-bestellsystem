@@ -142,8 +142,8 @@ export async function verifyEmailIntegration(
     );
     return result.rows[0]!.data.orderId;
   };
-  const invalidOrder = await create("email-invalid-projection-0001", 8);
-  const validOrder = await create("email-valid-projection-0001", 10);
+  const invalidOrder = await create("email-invalid-projection-0001", 11);
+  const validOrder = await create("email-valid-projection-0001", 12);
   // Fault injection beyond the strict JS amount bound, while retaining the row's trusted lease identity.
   await admin.query(
     "update private.email_deliveries set refund_amount_minor=10000000000001 where order_id=$1",
