@@ -230,7 +230,7 @@ Paket 1 ist in [Entwurfs-PR #10](https://github.com/PROVIDE-Webdesign/Provide-be
 technisch umgesetzt. Die Basis ist weiterhin der unveränderte PR-#8-Commit
 `4e422f5b9ce7324e56bdb2b4e8d4cbd76ca3c8cc`; PR #10 ist darauf gestapelt.
 
-Am endgültigen Implementierungs-Commit
+Am zuvor geprüften Implementierungs-Commit
 `f947b8448d56ff4bf7bb4b7e6cdbc9b5bfb2f34d` sind `check` und `database` im
 [CI-Lauf 36746300404](https://github.com/PROVIDE-Webdesign/Provide-bestellsystem/actions/runs/36746300404)
 erfolgreich: 197 Unit-/Contracttests, 1.029 Datenbanktests und ein separater
@@ -248,6 +248,33 @@ geprüft. Echter Versand, echte Zustellung, Geräte-/Bedienabnahme und die offen
 Stripe-Sandbox-Matrix aus PR #8 bleiben gesondert. Beide Implementierungs-PRs
 bleiben Entwürfe; technische Endfreigabe, Merge und Deployment stehen aus.
 Der Gesamtfortschritt nach A2 wird durch diesen Codeabschluss nicht automatisch erhöht.
+
+## Erneute Paketprüfung vom 30.09.2026
+
+Der Nutzer hat die erneute Kontrolle und nötige Korrekturen beauftragt.
+Die Prüfung hat die Annahmebestätigung bei unveränderter Zeit während
+Zubereitung/Bereitschaft erhalten, fehlerhafte Einzelprojektionen innerhalb
+der Claim-Transaktion isoliert und den Abgleich unklarer Anbieterannahmen
+auf vier Felder ohne Kontakt- oder Renderingdaten reduziert.
+Laufende Online-Schließung beziehungsweise Erstattung sperrt operative
+Befehle und deren Nachrichten. Steuerzeichen in neuen E-Mail-Adressen
+werden durchgehend abgewiesen; nach Ablauf einer Batch-Lease beginnt kein
+weiterer Anbieteraufruf. Konfliktfeedback bleibt nach dem Neuladen sichtbar.
+
+Der korrigierte Stand in PR #10 ist Commit
+`484ec2d1aa5e602f76476cc82fc65ca6692f078e`.
+[CI-Lauf 36753000640](https://github.com/PROVIDE-Webdesign/Provide-bestellsystem/actions/runs/36753000640)
+belegt am selben Head erfolgreiche Pflichtjobs `check` und `database`:
+206 Unit-/Contracttests, 1.042 pgTAP-Tests und den separaten API-Integrationslauf
+gegen die migrierte PostgreSQL-Datenbank. Die zusätzliche lokale
+Supabase-Sicherheitsprüfung meldet „No issues found“.
+
+Die Integration weist insbesondere einen fehlerhaften Versandauftrag neben
+einem gültigen Auftrag sowie den Anbieterabgleich bei beschädigten
+Renderingmetadaten nach. Zahlungs-Schließungsfälle sind explizite
+Fault-Injection; sie ersetzen keine echte Stripe-Sandbox-Abnahme.
+Der synthetische Versand, die offenen realen Nachweise und die
+vorbehaltenen Endfreigaben bleiben unverändert.
 
 ## Nächster Schritt
 
