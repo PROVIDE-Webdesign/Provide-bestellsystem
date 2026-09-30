@@ -134,6 +134,24 @@ select is(jsonb_array_length(private.claim_email_deliveries('fd100000-0000-0000-
   'purged recipient prevents a send after authoritative absence');
 reset role;
 select is((select status from private.email_deliveries where id=(:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid),'suppressed','purged contact is suppressed');
+-- Fixture an unresolved fifth attempt, then prove the sixth authoritative absence is actionable.
+update private.email_deliveries set status='uncertain',attempt_count=5,available_at=now()+interval '10 minutes',last_error_code='provider_timeout'
+  where id=(:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid;
+set local role service_role;
+select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000012',25,now()+interval '10 minutes');
+select is(private.finish_email_delivery((:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid,
+  'fd100000-0000-0000-0000-000000000012','not_found',null,null,now()+interval '10 minutes'),
+  'dead_letter','sixth authoritative absence reaches the attempt limit');
+reset role;
+select is((select last_error_code from private.email_deliveries where id=(:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid),
+  'attempts_exhausted','authoritative absence retains an actionable exhaustion reason');
+set local role service_role;
+select is(private.retry_email_delivery('f1000000-0000-0000-0000-000000000001','aal2',
+  'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
+  (:'lost_claim'::jsonb#>>'{0,deliveryId}')::uuid),'retry','management can retry a confirmed non-acceptance');
+select is(jsonb_array_length(private.claim_email_deliveries('fd100000-0000-0000-0000-000000000013',25,now()+interval '11 minutes')),0,
+  'manual retry still enforces contact purge');
+reset role;
 -- Simulate a contact created before this migration. Its nullable snapshot and exact retry remain valid.
 select private.submit_order('f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',
   'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001','pickup',

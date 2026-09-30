@@ -336,7 +336,8 @@ begin
   update private.email_deliveries set status=next_status,lock_token=null,locked_at=null,
     provider_reference=case when result='accepted' then reference else provider_reference end,
     accepted_at=case when result='accepted' then target_now else accepted_at end,
-    last_error_code=case when result='accepted' then null when next_status='uncertain' then coalesce(error_code,'unconfirmed_acceptance') else error_code end,
+    last_error_code=case when result='accepted' then null when next_status='uncertain' then coalesce(error_code,'unconfirmed_acceptance')
+      when next_status='dead_letter' then coalesce(error_code,'attempts_exhausted') else error_code end,
     available_at=target_now+case d.attempt_count when 1 then interval '30 seconds' when 2 then interval '2 minutes'
       when 3 then interval '10 minutes' when 4 then interval '30 minutes' else interval '2 hours' end
   where id=d.id;
@@ -378,7 +379,7 @@ begin
     then return 'forbidden'; end if;
   select * into d from private.email_deliveries where id=target_id and restaurant_id=restaurant and location_id=location for update;
   if d.id is null then return 'not_found'; end if;
-  if d.status<>'dead_letter' or d.last_error_code not in ('destination_rejected','destination_invalid','content_rejected',
+  if d.status<>'dead_letter' or coalesce(d.last_error_code,'') not in ('destination_rejected','destination_invalid','content_rejected',
     'provider_unavailable','provider_rate_limited','attempts_exhausted')
     then return 'conflict'; end if;
   insert into private.email_retry_events(delivery_id,actor_user_id,authentication_assurance,previous_error_code)
