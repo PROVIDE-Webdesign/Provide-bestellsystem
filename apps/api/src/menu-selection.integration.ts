@@ -192,10 +192,11 @@ export async function verifyMenuSelectionIntegration(admin: Client, baseEnv: Env
     submissionKey: "selection-concurrent-publication-0001",
   });
   try {
+    // pg_locks is live; pg_stat_activity can cache the initial PID list in this transaction.
     let blocked = false;
-    for (let attempt = 0; attempt < 30; attempt++) {
+    for (let attempt = 0; attempt < 50; attempt++) {
       const check = await admin.query<{ blocked: boolean }>(
-        "select exists(select 1 from pg_stat_activity where $1::integer=any(pg_blocking_pids(pid))) as blocked",
+        "select exists(select 1 from pg_locks where locktype='advisory' and not granted and $1::integer=any(pg_blocking_pids(pid))) as blocked",
         [backend[0]!.pid],
       );
       if (check.rows[0]!.blocked) {
