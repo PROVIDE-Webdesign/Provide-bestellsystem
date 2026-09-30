@@ -60,7 +60,7 @@ select private.submit_public_guest_pickup_order(
   date_trunc('hour', now()) + interval '3 hours',
   '[{"menu_item_id":"f6000000-0000-0000-0000-000000000002","quantity":1}]',
   'dashboard-order-key-0002',
-  '{"contact_name":"Second Synthetic Guest","phone_e164":"+999100000002","email":null}',
+  '{"contact_name":"Second Synthetic Guest","phone_e164":"+999100000002","email":"synthetic@example.invalid"}',
   'preview-v1',
   30
 ) as second_confirmation \gset

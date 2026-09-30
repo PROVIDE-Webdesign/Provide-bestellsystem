@@ -1,5 +1,6 @@
 import { isPaymentState, type PaymentState } from "./online-payment.js";
 import { isExplicitInstant } from "./storefront.js";
+import { parseOrderCommunication, type OrderCommunication } from "./email-notifications.js";
 
 export const publicOrderStatuses = [
   "submitted",
@@ -19,6 +20,7 @@ export interface PublicOrderStatusRequest {
 }
 
 export interface PublicOrderStatus {
+  readonly communication?: OrderCommunication;
   readonly orderId: string;
   readonly status: PublicOrderStatusName;
   readonly fulfillmentType: "pickup" | "delivery";
@@ -64,6 +66,9 @@ export function parsePublicOrderStatusRequest(
 
 export function parsePublicOrderStatus(value: unknown): PublicOrderStatus | undefined {
   const source = record(value);
+  const communication =
+    source && "communication" in source ? parseOrderCommunication(source.communication) : undefined;
+  if (source && "communication" in source && !communication) return undefined;
   if (
     !source ||
     typeof source.orderId !== "string" ||
@@ -96,6 +101,7 @@ export function parsePublicOrderStatus(value: unknown): PublicOrderStatus | unde
   )
     return undefined;
   return {
+    ...(communication ? { communication } : {}),
     orderId: source.orderId,
     status: source.status as PublicOrderStatusName,
     fulfillmentType: source.fulfillmentType,

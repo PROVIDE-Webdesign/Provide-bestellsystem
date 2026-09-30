@@ -35,7 +35,11 @@ describe("online checkout contracts", () => {
       requestedFor: "2026-09-16T18:00:00Z",
       lines: [{ menuItemId: "f6000000-0000-0000-0000-000000000001", quantity: 2 }],
       submissionKey: "online-order-1",
-      customer: { contactName: "Synthetic", phoneE164: "+999100000041", email: null },
+      customer: {
+        contactName: "Synthetic",
+        phoneE164: "+999100000041",
+        email: "synthetic@example.invalid",
+      },
       privacyNoticeVersion: "preview-v1",
     };
     expect(parseOnlineOrderRequest(request)).toEqual(request);

@@ -8,7 +8,7 @@ create function pg_temp.submit(key text,hours integer default 6) returns jsonb l
  select private.submit_public_guest_online_order('storefront-restaurant-a','storefront-a-mitte',
  'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001',date_trunc('hour',now())+make_interval(hours=>hours),
  '[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":2}]',key,
- '{"contact_name":"Synthetic Online Guest","phone_e164":"+999100000041","email":null}',
+ '{"contact_name":"Synthetic Online Guest","phone_e164":"+999100000041","email":"synthetic@example.invalid"}',
  'pickup',null,null,'preview-v1',30,'acct_synthetic')
 $$;
 select ok(not has_table_privilege('service_role','public.online_payment_jobs','update'),'service cannot directly modify orchestration');
@@ -31,6 +31,7 @@ select is(private.claim_online_payment_job('acct_foreign',null,'fc100000-0000-00
 select is(private.transition_dashboard_order_status('f1000000-0000-0000-0000-000000000001','aal2',
  'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',(:'confirmation'::jsonb->>'orderId')::uuid,'submitted','accepted')->>'outcome','conflict','unpaid online order cannot be accepted');
 select is(jsonb_array_length(private.claim_notification_deliveries('fc100000-0000-0000-0000-000000000003',25,statement_timestamp())),0,'unpaid order sends no submitted notification');
+select is(jsonb_array_length(private.claim_email_deliveries('fc100000-0000-0000-0000-000000000030',25,statement_timestamp())),0,'unpaid online order sends no email');
 select throws_ok(format('select private.bind_online_payment_session(%L,%L,%L)',:'job'::jsonb->>'id','fc100000-0000-0000-0000-000000000002','cs_test_one'),
  'P0001','payment lease invalid','wrong lease cannot bind a provider session');
 select private.bind_online_payment_session((:'job'::jsonb->>'id')::uuid,'fc100000-0000-0000-0000-000000000001','cs_test_one');
@@ -47,6 +48,10 @@ select private.claim_online_payment_job('acct_synthetic',(:'confirmation'::jsonb
 select is((:'retry_job'::jsonb->>'refund_sequence')::integer,1,'new refund command has a new stable generation');
 select private.sync_online_payment((:'job'::jsonb->>'id')::uuid,'fc100000-0000-0000-0000-000000000005','refunded','pi_one','re_two',repeat('c',64));
 select is(private.read_public_guest_order_status('storefront-restaurant-a','storefront-a-mitte',(:'confirmation'::jsonb->>'orderId')::uuid)->>'paymentState','refunded','successful full refund is displayed');
+reset role;
+select is((select count(*)::integer from private.email_deliveries where template_key='order_refunded'),1,'only confirmed refund creates refund email');
+select is((select refund_amount_minor from private.email_deliveries where template_key='order_refunded'),2500::bigint,'refund email amount comes from verified payment event');
+set local role service_role;
 select private.receive_online_payment_event('acct_synthetic','evt_one','refund.updated','re_two',repeat('d',64),'2026-09-20T00:00:00Z');
 select lives_ok($$select private.receive_online_payment_event('acct_synthetic','evt_one','refund.updated','re_two',repeat('d',64),'2026-09-20T00:00:00Z')$$,'duplicate webhook is harmless');
 select throws_ok($$select private.receive_online_payment_event('acct_synthetic','evt_one','refund.updated','re_two',repeat('e',64),'2026-09-20T00:00:00Z')$$,'P0001','conflicting payment event','changed duplicate rejected');

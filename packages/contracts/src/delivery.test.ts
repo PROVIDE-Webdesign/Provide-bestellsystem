@@ -47,7 +47,11 @@ describe("delivery contracts", () => {
     const order = {
       ...base,
       submissionKey: "delivery-test-key",
-      customer: { contactName: "Synthetic", phoneE164: "+999100000001", email: null },
+      customer: {
+        contactName: "Synthetic",
+        phoneE164: "+999100000001",
+        email: "synthetic@example.invalid",
+      },
       privacyNoticeVersion: "preview-v1",
       delivery: {
         addressLine1: "Testweg 10",

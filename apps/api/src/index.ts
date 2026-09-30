@@ -34,6 +34,13 @@ import {
 } from "./notifications.js";
 import { postgresNotificationRepository } from "./notifications-database.js";
 import { isKnownPath, routeRequest } from "./router.js";
+import {
+  dispatchEmailNotifications,
+  unconfiguredEmailAdapter,
+  type EmailAdapter,
+  type EmailRepository,
+} from "./email-notifications.js";
+import { postgresEmailRepository } from "./email-notifications-database.js";
 
 interface HyperdriveBinding {
   readonly connectionString: string;
@@ -52,6 +59,8 @@ interface Env extends OnlineEnvironment {
   readonly DASHBOARD_AUTH_ENABLED?: string;
   readonly DASHBOARD_ORDER_OPERATIONS_ENABLED?: string;
   readonly NOTIFICATION_DISPATCH_ENABLED?: string;
+  readonly EMAIL_DISPATCH_ENABLED?: string;
+  readonly EMAIL_STOREFRONT_ORIGIN?: string;
   readonly SUPABASE_AUTH_ISSUER?: string;
   readonly SUPABASE_AUTH_AUDIENCE?: string;
   readonly HYPERDRIVE_CACHE_DISABLED?: string;
@@ -74,6 +83,8 @@ export function createApiWorker(
   deliveryRepository: DeliveryRepository = postgresDeliveryRepository,
   onlineRepository: OnlineRepository = postgresOnlineRepository,
   onlineProvider: SandboxProvider = stripeSandboxProvider,
+  emailRepository: EmailRepository = postgresEmailRepository,
+  emailAdapter: EmailAdapter = unconfiguredEmailAdapter,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -156,7 +167,8 @@ export function createApiWorker(
         route.name === "dashboardOrders" ||
         route.name === "dashboardOrder" ||
         route.name === "dashboardOrderStatus" ||
-        route.name === "dashboardRefundRetry"
+        route.name === "dashboardRefundRetry" ||
+        route.name === "dashboardOrderCommunication"
       ) {
         return handleDashboardOrders(
           request,
@@ -215,6 +227,7 @@ export function createApiWorker(
     },
     scheduled(_controller: ScheduledController, env: Env, context: ExecutionContext) {
       context.waitUntil(dispatchOnlinePayments(env, onlineRepository, onlineProvider));
+      context.waitUntil(dispatchEmailNotifications(env, emailRepository, emailAdapter, logger));
       context.waitUntil(
         dispatchOrderNotifications(env, notificationRepository, notificationAdapter, logger),
       );

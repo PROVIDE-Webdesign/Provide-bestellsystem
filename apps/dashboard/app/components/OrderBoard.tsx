@@ -11,6 +11,10 @@ import {
   type DashboardOrderList,
   type DashboardOrderStatus,
   type RestaurantRole,
+  parseOrderCommunication,
+  type OrderReasonCode,
+  orderReasonLabels,
+  locationTimeToInstant,
 } from "@provide/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -43,6 +47,8 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [reasonCode, setReasonCode] = useState<OrderReasonCode>("unavailable");
+  const [confirmedTime, setConfirmedTime] = useState("");
   const listRequest = useRef<AbortController | null>(null);
   const detailRequest = useRef<AbortController | null>(null);
 
@@ -107,6 +113,19 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
       if (!parsed) throw new Error();
       if (controller.signal.aborted) return;
       setDetail(parsed);
+      setConfirmedTime(
+        new Intl.DateTimeFormat("sv-SE", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hourCycle: "h23",
+          timeZone: parsed.communication?.timezone ?? "Europe/Berlin",
+        })
+          .format(new Date(parsed.communication?.confirmedFor ?? parsed.requestedFor))
+          .replace(" ", "T"),
+      );
     } catch {
       if (controller.signal.aborted) return;
       setMessage("Die Bestelldetails konnten nicht sicher geladen werden.");
@@ -122,7 +141,11 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
       const response = await fetch(`/api/orders/${detail.orderId}/status?${query}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ expectedStatus: detail.status, targetStatus }),
+        body: JSON.stringify({
+          expectedStatus: detail.status,
+          targetStatus,
+          ...(["cancelled", "rejected"].includes(targetStatus) ? { reasonCode } : {}),
+        }),
       });
       if (response.status === 409) {
         setMessage("Die Bestellung wurde zwischenzeitlich geändert und wird neu geladen.");
@@ -160,6 +183,50 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
       setMessage(
         "Die Erstattung konnte nicht erneut angefordert werden. Bitte aktualisiere den Zahlungsstatus.",
       );
+    } finally {
+      setUpdating(false);
+    }
+  }
+
+  async function communicate(action: "confirm_time" | "dispatch") {
+    if (!detail || updating || !detail.communication) return;
+    const instant = locationTimeToInstant(confirmedTime, detail.communication.timezone);
+    const command =
+      action === "dispatch"
+        ? {
+            action,
+            expectedStatus: "ready" as const,
+            expectedRevision: detail.communication.revision,
+          }
+        : {
+            action,
+            expectedStatus: detail.status,
+            expectedRevision: detail.communication.revision,
+            confirmedFor: instant,
+          };
+    if (action === "confirm_time" && !instant) {
+      setMessage("Bitte wähle eine gültige, eindeutige Uhrzeit.");
+      return;
+    }
+    setUpdating(true);
+    try {
+      const r = await fetch(
+        `/api/orders/${detail.orderId}/communication?${new URLSearchParams({ restaurantId, locationId })}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(command),
+        },
+      );
+      if (r.status === 409) {
+        setMessage("Die Bestellung wurde geändert. Bitte lade sie erneut.");
+        await loadDetail(detail.orderId);
+        return;
+      }
+      if (!r.ok || !parseOrderCommunication(envelopeData(await r.json()))) throw new Error();
+      await loadDetail(detail.orderId);
+    } catch {
+      setMessage("Die Bestellinformation konnte nicht sicher geändert werden.");
     } finally {
       setUpdating(false);
     }
@@ -298,6 +365,47 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
               Name: <strong>{detail.contactName}</strong>
             </p>
           )}
+          {detail.communication?.confirmedFor && (
+            <p>Bestätigte Zeit: {formatOrderTime(detail.communication.confirmedFor)}</p>
+          )}
+          {detail.communication?.dispatchedAt && (
+            <p>Lieferung unterwegs seit {formatOrderTime(detail.communication.dispatchedAt)}</p>
+          )}
+          {detail.communication &&
+            ["accepted", "preparing", "ready"].includes(detail.status) &&
+            !detail.communication.dispatchedAt && (
+              <div className="order-controls">
+                <label>
+                  Bestätigte Abhol- oder Lieferzeit
+                  <input
+                    type="datetime-local"
+                    value={confirmedTime}
+                    disabled={updating}
+                    onChange={(e) => setConfirmedTime(e.target.value)}
+                    aria-describedby="confirmed-time-help"
+                  />
+                </label>
+                <p id="confirmed-time-help">Die Uhrzeit gilt am Restaurantstandort.</p>
+                <button
+                  type="button"
+                  disabled={updating}
+                  onClick={() => void communicate("confirm_time")}
+                >
+                  Neue Zeit bestätigen
+                </button>
+                {detail.fulfillmentType === "delivery" &&
+                  detail.status === "ready" &&
+                  ["owner", "manager"].includes(role) && (
+                    <button
+                      type="button"
+                      disabled={updating}
+                      onClick={() => void communicate("dispatch")}
+                    >
+                      Lieferung als unterwegs bestätigen
+                    </button>
+                  )}
+              </div>
+            )}
           {detail.paymentState && (
             <p>
               Zahlung: <strong>{paymentStateLabels[detail.paymentState]}</strong>
@@ -343,6 +451,24 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
           </p>
           {detail.allowedTransitions.length > 0 && (
             <div className="status-actions" aria-label="Status ändern">
+              {detail.allowedTransitions.some((s) => s === "cancelled" || s === "rejected") && (
+                <label>
+                  Grund bei Ablehnung oder Stornierung
+                  <select
+                    value={reasonCode}
+                    disabled={updating}
+                    onChange={(e) => setReasonCode(e.target.value as OrderReasonCode)}
+                  >
+                    {(["unavailable", "sold_out", "customer_request", "operational"] as const).map(
+                      (code) => (
+                        <option key={code} value={code}>
+                          {orderReasonLabels[code]}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </label>
+              )}
               {detail.allowedTransitions.map((target) => (
                 <button
                   key={target}

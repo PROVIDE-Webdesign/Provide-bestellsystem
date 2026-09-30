@@ -35,6 +35,24 @@ async function query(
 }
 
 export const postgresDashboardOrdersReader: DashboardOrdersReader = {
+  communicate(connectionString, identity, scope, command) {
+    return query(
+      connectionString,
+      false,
+      "select private.update_order_communication($1::uuid,$2::text,$3::uuid,$4::uuid,$5::uuid,$6::text,$7::integer,$8::text,$9::timestamptz) as data",
+      [
+        identity.userId,
+        identity.aal,
+        scope.restaurantId,
+        scope.locationId,
+        scope.orderId,
+        command.expectedStatus,
+        command.expectedRevision,
+        command.action,
+        "confirmedFor" in command ? command.confirmedFor : null,
+      ],
+    );
+  },
   retryRefund(connectionString, identity, scope) {
     return query(
       connectionString,
@@ -73,7 +91,7 @@ export const postgresDashboardOrdersReader: DashboardOrdersReader = {
     return query(
       connectionString,
       false,
-      "SELECT private.transition_dashboard_order_status($1::uuid,$2::text,$3::uuid,$4::uuid,$5::uuid,$6::text,$7::text) AS data",
+      "SELECT private.transition_dashboard_order_with_reason($1::uuid,$2::text,$3::uuid,$4::uuid,$5::uuid,$6::text,$7::text,$8::text) AS data",
       [
         identity.userId,
         identity.aal,
@@ -82,6 +100,7 @@ export const postgresDashboardOrdersReader: DashboardOrdersReader = {
         scope.orderId,
         command.expectedStatus,
         command.targetStatus,
+        command.reasonCode ?? null,
       ],
     );
   },

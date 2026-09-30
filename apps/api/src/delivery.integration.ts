@@ -74,7 +74,11 @@ export async function verifyDeliveryIntegration(
   const command = {
     ...request,
     submissionKey: "integration-delivery-1",
-    customer: { contactName: "Synthetic Delivery", phoneE164: "+999100000031", email: null },
+    customer: {
+      contactName: "Synthetic Delivery",
+      phoneE164: "+999100000031",
+      email: "synthetic@example.invalid",
+    },
     delivery: {
       addressLine1: "Synthetic Lieferweg 10",
       addressLine2: null,

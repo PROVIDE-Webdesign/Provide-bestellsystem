@@ -23,7 +23,7 @@ create function pg_temp.submit(key text,q jsonb,street text default 'Synthetic L
   select private.submit_public_guest_delivery_order('storefront-restaurant-a','storefront-a-mitte',
   'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001',date_trunc('hour',now())+interval '2 hours',
   '[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":2}]',key,
-  '{"contact_name":"Synthetic Delivery Guest","phone_e164":"+999100000021","email":null}',
+  '{"contact_name":"Synthetic Delivery Guest","phone_e164":"+999100000021","email":"synthetic@example.invalid"}',
   jsonb_build_object('address_line_1',street,'address_line_2',null,'postal_code','52062','city','Aachen','country_code','DE'),q,'preview-v1',30)
 $$;
 select ok(not has_table_privilege('service_role','public.delivery_policy_versions','insert'),'no direct service policy writes');
