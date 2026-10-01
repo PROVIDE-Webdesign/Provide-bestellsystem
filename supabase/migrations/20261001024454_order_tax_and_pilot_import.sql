@@ -1,18 +1,18 @@
 -- Explicit gross-inclusive component declarations; no rate inferred for legacy data.
 alter function private.valid_menu_configuration(jsonb) rename to valid_menu_configuration_without_choice_tax;
 create function private.valid_menu_configuration(config jsonb) returns boolean language plpgsql immutable set search_path='' as $$
-declare c jsonb;g jsonb;variants jsonb:='[]';groups jsonb:='[]';opts jsonb;
+declare v_choice jsonb;v_group jsonb;v_variants jsonb:='[]';v_groups jsonb:='[]';v_options jsonb;
 begin
  if config is null then return true;end if;
- for c in select value from jsonb_array_elements(config->'variants') union all select o.value from jsonb_array_elements(config->'optionGroups') g cross join lateral jsonb_array_elements(g->'options') o loop
-  if c ? 'taxRateBasisPoints' and (jsonb_typeof(c->'taxRateBasisPoints')<>'number' or (c->>'taxRateBasisPoints')!~'^[0-9]{1,5}$' or (c->>'taxRateBasisPoints')::integer>10000) then return false;end if;
+ for v_choice in select value from jsonb_array_elements(config->'variants') union all select opt.value from jsonb_array_elements(config->'optionGroups') grp(value) cross join lateral jsonb_array_elements(grp.value->'options') opt(value) loop
+  if v_choice ? 'taxRateBasisPoints' and (jsonb_typeof(v_choice->'taxRateBasisPoints')<>'number' or (v_choice->>'taxRateBasisPoints')!~'^[0-9]{1,5}$' or (v_choice->>'taxRateBasisPoints')::integer>10000) then return false;end if;
  end loop;
- for c in select value from jsonb_array_elements(config->'variants') loop variants:=variants||jsonb_build_array(c-'taxRateBasisPoints');end loop;
- for g in select value from jsonb_array_elements(config->'optionGroups') loop
-  select coalesce(jsonb_agg(value-'taxRateBasisPoints'),'[]') into opts from jsonb_array_elements(g->'options');
-  groups:=groups||jsonb_build_array(jsonb_set(g,'{options}',opts));
+ for v_choice in select value from jsonb_array_elements(config->'variants') loop v_variants:=v_variants||jsonb_build_array(v_choice-'taxRateBasisPoints');end loop;
+ for v_group in select value from jsonb_array_elements(config->'optionGroups') loop
+  select coalesce(jsonb_agg(value-'taxRateBasisPoints'),'[]') into v_options from jsonb_array_elements(v_group->'options');
+  v_groups:=v_groups||jsonb_build_array(jsonb_set(v_group,'{options}',v_options));
  end loop;
- return private.valid_menu_configuration_without_choice_tax(jsonb_set(jsonb_set(config,'{variants}',variants),'{optionGroups}',groups));
+ return private.valid_menu_configuration_without_choice_tax(jsonb_set(jsonb_set(config,'{variants}',v_variants),'{optionGroups}',v_groups));
 exception when others then return false;
 end;$$;
 -- Existing CHECK is bound to the old function OID; bind it to the new validator explicitly.
@@ -27,19 +27,19 @@ create function private.tax_component(kind text,choice uuid,gross bigint,rate in
 $$;
 alter function private.price_menu_lines(uuid,uuid,uuid,uuid,jsonb) rename to price_menu_lines_without_tax;
 create function private.price_menu_lines(r uuid,l uuid,m uuid,v uuid,lines jsonb) returns jsonb language plpgsql security definer set search_path='' as $$
-declare priced jsonb;line jsonb;cfg jsonb;components jsonb;output jsonb:='[]';snapshot jsonb;c jsonb;q integer;rate integer;tax bigint;base bigint;
+declare priced jsonb;line jsonb;cfg jsonb;components jsonb;output jsonb:='[]';snapshot jsonb;c jsonb;q integer;v_rate integer;tax bigint;base bigint;
 begin
  priced:=private.price_menu_lines_without_tax(r,l,m,v,lines);
  for line in select value from jsonb_array_elements(priced->'lines') loop
   select configuration,price_amount_minor into cfg,base from public.menu_version_items where restaurant_id=r and menu_id=m and menu_version_id=v and menu_item_id=(line->>'menu_item_id')::uuid;
   if cfg is not null then
-   q:=(line->>'quantity')::integer;rate:=(cfg->>'taxRateBasisPoints')::integer;
-   components:=jsonb_build_array(private.tax_component('base',null,base*q,rate));
+   q:=(line->>'quantity')::integer;v_rate:=(cfg->>'taxRateBasisPoints')::integer;
+   components:=jsonb_build_array(private.tax_component('base',null,base*q,v_rate));
    for c in select value from jsonb_array_elements(cfg->'variants') where lower(value->>'id')=line->>'variant_id' loop
-    components:=components||jsonb_build_array(private.tax_component('variant',(c->>'id')::uuid,(c->>'priceDeltaAmountMinor')::bigint*q,coalesce((c->>'taxRateBasisPoints')::integer,rate)));
+    components:=components||jsonb_build_array(private.tax_component('variant',(c->>'id')::uuid,(c->>'priceDeltaAmountMinor')::bigint*q,coalesce((c->>'taxRateBasisPoints')::integer,v_rate)));
    end loop;
    for c in select o.value from jsonb_array_elements(cfg->'optionGroups') g cross join lateral jsonb_array_elements(g->'options') o where coalesce(line->'option_ids','[]') ? lower(o.value->>'id') loop
-    components:=components||jsonb_build_array(private.tax_component('option',(c->>'id')::uuid,(c->>'priceDeltaAmountMinor')::bigint*q,coalesce((c->>'taxRateBasisPoints')::integer,rate)));
+    components:=components||jsonb_build_array(private.tax_component('option',(c->>'id')::uuid,(c->>'priceDeltaAmountMinor')::bigint*q,coalesce((c->>'taxRateBasisPoints')::integer,v_rate)));
    end loop;
    -- Round once per line/rate, then distribute cents deterministically to its components.
    with entries as(select value,ordinality ord,(value->>'grossAmountMinor')::bigint gross,(value->>'taxRateBasisPoints')::integer rate from jsonb_array_elements(components) with ordinality),
@@ -70,13 +70,13 @@ revoke all on private.delivery_tax_declarations from public,anon,authenticated,s
 create trigger delivery_tax_declaration_immutable before update or delete on private.delivery_tax_declarations for each row execute function private.prevent_ordering_history_mutation();
 
 create function private.build_tax_summary(lines jsonb,fee bigint,declaration jsonb) returns jsonb language plpgsql immutable set search_path='' as $$
-declare line jsonb;components jsonb:='[]';subtotal bigint:=0;unknown bigint:=0;buckets jsonb;gross bigint;tax bigint;known_net bigint;weight bigint;allocated bigint:=0;share bigint;entry record;
+declare line jsonb;components jsonb:='[]';subtotal bigint:=0;unknown bigint:=0;buckets jsonb;line_gross bigint;total_tax bigint;known_net bigint;entry record;
 begin
  for line in select value from jsonb_array_elements(lines) loop
-  gross:=(line->>'line_amount_minor')::bigint;subtotal:=subtotal+gross;
-  if line->'selection_snapshot' is null or line->'selection_snapshot'='null'::jsonb then unknown:=unknown+gross;
+  line_gross:=(line->>'line_amount_minor')::bigint;subtotal:=subtotal+line_gross;
+  if line->'selection_snapshot' is null or line->'selection_snapshot'='null'::jsonb then unknown:=unknown+line_gross;
   elsif line->'selection_snapshot' ? 'taxComponents' then components:=components||(line->'selection_snapshot'->'taxComponents');
-  else components:=components||jsonb_build_array(jsonb_build_object('grossAmountMinor',gross,'taxRateBasisPoints',line->'selection_snapshot'->'taxRateBasisPoints','taxAmountMinor',line->'selection_snapshot'->'taxAmountMinor'));end if;
+  else components:=components||jsonb_build_array(jsonb_build_object('grossAmountMinor',line_gross,'taxRateBasisPoints',line->'selection_snapshot'->'taxRateBasisPoints','taxAmountMinor',line->'selection_snapshot'->'taxAmountMinor'));end if;
  end loop;
  if fee>0 then
   if declaration->>'mode'='fixed' then components:=components||jsonb_build_array(private.tax_component('base',null,fee,(declaration->>'taxRateBasisPoints')::integer));
@@ -91,8 +91,8 @@ begin
   else unknown:=unknown+fee;end if;
  end if;
  select coalesce(jsonb_agg(jsonb_build_object('taxRateBasisPoints',rate,'grossAmountMinor',gross,'netAmountMinor',gross-tax,'taxAmountMinor',tax) order by rate),'[]'),coalesce(sum(tax),0),coalesce(sum(gross-tax),0)
- into buckets,tax,known_net from(select (value->>'taxRateBasisPoints')::integer rate,sum((value->>'grossAmountMinor')::bigint) gross,sum((value->>'taxAmountMinor')::bigint) tax from jsonb_array_elements(components) group by 1) b;
- return jsonb_build_object('schemaVersion',1,'status',case when unknown=0 then 'complete' else 'partial' end,'subtotalAmountMinor',subtotal,'discountAmountMinor',0,'deliveryFeeAmountMinor',fee,'totalAmountMinor',subtotal+fee,'knownNetAmountMinor',known_net,'taxAmountMinor',tax,'undeclaredGrossAmountMinor',unknown,'buckets',buckets);
+ into buckets,total_tax,known_net from(select (value->>'taxRateBasisPoints')::integer rate,sum((value->>'grossAmountMinor')::bigint) gross,sum((value->>'taxAmountMinor')::bigint) tax from jsonb_array_elements(components) group by 1) b;
+ return jsonb_build_object('schemaVersion',1,'status',case when unknown=0 then 'complete' else 'partial' end,'subtotalAmountMinor',subtotal,'discountAmountMinor',0,'deliveryFeeAmountMinor',fee,'totalAmountMinor',subtotal+fee,'knownNetAmountMinor',known_net,'taxAmountMinor',total_tax,'undeclaredGrossAmountMinor',unknown,'buckets',buckets);
 end;$$;
 revoke all on function private.build_tax_summary(jsonb,bigint,jsonb) from public,anon,authenticated,service_role;
 alter table public.orders add column tax_summary jsonb check(tax_summary is null or jsonb_typeof(tax_summary)='object');
@@ -622,7 +622,7 @@ begin
  if result->>'outcome'<>'allowed' then return result;end if;
  action:=command->>'action';
  if action='set_delivery_tax' then
-  if command->'informationConfirmed'<>'true'::jsonb or command->>'mode' not in ('fixed','proportional') or (command->>'mode'='fixed' and ((command->>'taxRateBasisPoints')!~'^[0-9]{1,5}$' or (command->>'taxRateBasisPoints')::integer>10000)) or char_length(btrim(command->>'note')) not between 1 and 200 then return jsonb_build_object('outcome','invalid');end if;
+  if command->'informationConfirmed' is distinct from 'true'::jsonb or (command->>'mode' is null or command->>'mode' not in ('fixed','proportional')) or (command->>'mode'='fixed' and (coalesce(command->>'taxRateBasisPoints','')!~'^[0-9]{1,5}$' or (command->>'taxRateBasisPoints')::integer>10000)) or coalesce(char_length(btrim(command->>'note')),0) not between 1 and 200 or (command->>'mode'='proportional' and command->'taxRateBasisPoints' is distinct from 'null'::jsonb) then return jsonb_build_object('outcome','invalid');end if;
   perform pg_advisory_xact_lock(hashtextextended('delivery-policy:'||l::text,0));
   select policy_id into policy from public.delivery_policy_publications where restaurant_id=r and location_id=l order by id desc limit 1;
   if policy is null or policy is distinct from (command->>'expectedPolicyId')::uuid then return jsonb_build_object('outcome','conflict');end if;
@@ -633,7 +633,7 @@ begin
   insert into public.outbox_events(restaurant_id,aggregate_type,aggregate_id,event_type,payload,idempotency_key) values(r,'delivery_policy',new_policy,'delivery.tax.declared',jsonb_build_object('previous_policy_id',policy,'declaration',declaration,'actor_user_id',actor,'note',command->>'note'),'delivery-tax:'||new_policy::text);
  elsif action='import_draft' then
   if not exists(select 1 from public.menus where restaurant_id=r and id=(command->>'menuId')::uuid and status='active') then return jsonb_build_object('outcome','forbidden');end if;
-  if command->'source'->>'sha256'!~'^[a-f0-9]{64}$' or char_length(command->'source'->>'name') not between 1 and 200 or jsonb_typeof(command->'items')<>'array' or jsonb_array_length(command->'items') not between 1 and 200 then return jsonb_build_object('outcome','invalid');end if;
+  if coalesce(command->'source'->>'sha256','')!~'^[a-f0-9]{64}$' or coalesce(char_length(command->'source'->>'name'),0) not between 1 and 200 or jsonb_typeof(command->'items')<>'array' or jsonb_array_length(command->'items') not between 1 and 200 then return jsonb_build_object('outcome','invalid');end if;
   for x in select value from jsonb_array_elements(command->'items') loop
    if x->'isActive'='true'::jsonb and (x->'configuration'='null'::jsonb or x->'configuration' is null or not private.valid_menu_configuration(x->'configuration')) then return jsonb_build_object('outcome','invalid');end if;
   end loop;

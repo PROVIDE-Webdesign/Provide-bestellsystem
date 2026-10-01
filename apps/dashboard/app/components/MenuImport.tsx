@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { parseMenuImportBundle, menuImportReady, type MenuImportBundle } from "@provide/contracts";
 export function MenuImport({
   disabled,
@@ -10,7 +10,9 @@ export function MenuImport({
 }) {
   const [bundle, setBundle] = useState<MenuImportBundle | null>(null),
     [message, setMessage] = useState("");
+  const loadGeneration = useRef(0);
   async function load(file: File | undefined) {
+    const generation = ++loadGeneration.current;
     setBundle(null);
     setMessage("");
     if (!file) return;
@@ -20,6 +22,7 @@ export function MenuImport({
     }
     try {
       const parsed = parseMenuImportBundle(JSON.parse(await file.text()));
+      if (generation !== loadGeneration.current) return;
       if (!parsed) throw Error();
       setBundle(parsed);
       setMessage(
@@ -28,6 +31,7 @@ export function MenuImport({
           : "Import gesperrt: bestätigte Steuer-, Allergen-, Zusatzstoff- und Auswahlkonfigurationen fehlen. Die Quelldatei bleibt unverändert.",
       );
     } catch {
+      if (generation !== loadGeneration.current) return;
       setMessage("Die Datei entspricht nicht dem geprüften Menüimportformat.");
     }
   }

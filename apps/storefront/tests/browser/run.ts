@@ -5,6 +5,7 @@ import { createServer } from "vite";
 import react from "@vitejs/plugin-react";
 import { chromium, firefox, webkit } from "playwright";
 import catalogFixture from "../../../../fixtures/storefront-catalog.json" with { type: "json" };
+import pendingImport from "../../../../docs/pilot/asian-kitchen-12-0-r1-pending.json" with { type: "json" };
 import rawConfiguration from "../../../../fixtures/menu-configuration.json" with { type: "json" };
 import {
   parseMenuConfiguration,
@@ -81,6 +82,25 @@ try {
               itemCount: 1,
               subtotalAmountMinor: 1500,
               deliveryQuote: null,
+              taxSummary: {
+                schemaVersion: 1,
+                status: "complete",
+                subtotalAmountMinor: 1500,
+                discountAmountMinor: 0,
+                deliveryFeeAmountMinor: 0,
+                totalAmountMinor: 1500,
+                knownNetAmountMinor: 1402,
+                taxAmountMinor: 98,
+                undeclaredGrossAmountMinor: 0,
+                buckets: [
+                  {
+                    taxRateBasisPoints: 700,
+                    grossAmountMinor: 1500,
+                    netAmountMinor: 1402,
+                    taxAmountMinor: 98,
+                  },
+                ],
+              },
               lines: [
                 {
                   menuItemId: item.id,
@@ -145,6 +165,9 @@ try {
     });
     await confirmation.waitFor();
     assert.equal(await confirmation.isChecked(), false);
+    await page.getByText("Enthaltene Steuern und Summen", { exact: true }).click();
+    await page.getByText("Enthaltene Steuer 7 %: 0,98 €", { exact: false }).waitFor();
+    await page.screenshot({ path: output + `tax-${viewport.width}.png`, fullPage: true });
     await confirmation.check();
     assert.equal(
       await page.getByRole("button", { name: "Abholbestellung absenden" }).isEnabled(),
@@ -205,6 +228,11 @@ try {
     let state: MenuAdminState = {
       timezone: "Europe/Berlin",
       stops: [],
+      deliveryTax: {
+        policyId: "fa000000-0000-0000-0000-000000000011",
+        mode: "undeclared",
+        taxRateBasisPoints: null,
+      },
       menus: [
         {
           id: menu.id,
@@ -214,11 +242,37 @@ try {
         },
       ],
     };
-    let saves = 0;
+    let saves = 0,
+      imports = 0;
     await page.route("**/api/menu?*", async (route) => {
       if (route.request().method() === "POST") {
         const command = parseMenuAdminCommand(route.request().postDataJSON());
         assert.ok(command);
+        if (command.action === "set_delivery_tax") {
+          state = {
+            ...state,
+            deliveryTax: {
+              policyId: "fa000000-0000-0000-0000-000000000012",
+              mode: command.mode,
+              taxRateBasisPoints: command.taxRateBasisPoints,
+            },
+          };
+        }
+        if (command.action === "import_draft") {
+          imports++;
+          const version: MenuAdminVersion = {
+            id: "fa000000-0000-0000-0000-000000000013",
+            number: 3,
+            status: "draft",
+            revision: 1,
+            sections: command.sections,
+            items: command.items,
+          };
+          state = {
+            ...state,
+            menus: [{ ...state.menus[0]!, versions: [version, ...state.menus[0]!.versions] }],
+          };
+        }
         if (command.action === "create_draft") {
           const draft = {
             ...published,
@@ -245,6 +299,14 @@ try {
     });
     await page.goto("http://127.0.0.1:4321/?dashboard");
     await page.getByRole("button", { name: "Menüstand laden" }).click();
+    const fee = page.getByRole("group", { name: "Steuerregel für die Liefergebühr" });
+    const feeSave = fee.getByRole("button", { name: "Steuerregel als neue Lieferregel speichern" });
+    assert.equal(await feeSave.isDisabled(), true);
+    await fee.getByLabel("Bestätigter Liefergebühr-Steuersatz in Prozent").fill("19");
+    await fee.getByLabel("Begründung", { exact: true }).fill("Synthetic declared fee");
+    await fee.getByLabel("Die fachliche Steuerregel wurde geprüft und bestätigt.").check();
+    await feeSave.click();
+    await fee.getByText("Aktuell: 19 %", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Als neuen Entwurf kopieren" }).click();
     await page.getByText("Version 2: Entwurf, für Kunden unsichtbar", { exact: false }).waitFor();
     await page.getByLabel("Preis in Euro", { exact: true }).fill("14");
@@ -264,6 +326,33 @@ try {
     );
     assert.deepEqual(errors, []);
     await page.screenshot({ path: output + `editor-${viewport.width}.png`, fullPage: true });
+    const fileInput = page.getByLabel("Importdatei (JSON)");
+    await fileInput.setInputFiles({
+      name: "pending.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(pendingImport)),
+    });
+    await page.getByText("Import gesperrt:", { exact: false }).waitFor();
+    const importButton = page.getByRole("button", { name: "Als neuen Entwurf importieren" });
+    assert.equal(await importButton.isDisabled(), true);
+    assert.equal(imports, 0);
+    const completedImport = {
+      format: "provide-menu-import-v1",
+      source: { name: "synthetic-import.json", sha256: "c".repeat(64) },
+      sections: published.sections,
+      items: published.items,
+    };
+    await fileInput.setInputFiles({
+      name: "complete.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(completedImport)),
+    });
+    await page.getByText("Import geprüft.", { exact: false }).waitFor();
+    page.once("dialog", (dialog) => void dialog.accept());
+    await importButton.click();
+    await page.getByText("Version 3: Entwurf, für Kunden unsichtbar", { exact: false }).waitFor();
+    assert.equal(imports, 1);
+    await page.screenshot({ path: output + `import-${viewport.width}.png`, fullPage: true });
     await context.close();
     console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);
   }

@@ -4,7 +4,7 @@ select no_plan();
 \ir fixtures/storefront.fixture.inc
 \ir fixtures/menu-selection.fixture.inc
 create function pg_temp.menu(command jsonb,actor uuid default 'f1000000-0000-0000-0000-000000000001',aal text default 'aal2') returns jsonb language sql as $$
- select private.menu_dashboard(actor,aal,'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-000000000001',command);
+ select private.menu_dashboard(actor,aal,'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',command);
 $$;
 select jsonb_set(:'menu_configuration','{optionGroups,0,options,1,taxRateBasisPoints}','1900') as mixed_config \gset
 select ok(private.valid_menu_configuration(:'mixed_config'),'explicit extra rate is valid');
