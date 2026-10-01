@@ -452,6 +452,7 @@ try {
     );
     await verifyOrderLiveBrowser(page, output, viewport.width);
     await verifyLocationOperationsBrowser(page, output, viewport.width);
+    await verifyHistoryBrowser(page, output, viewport.width);
     assert.deepEqual(errors, []);
     await context.close();
     console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);
@@ -460,3 +461,4 @@ try {
   await browser.close();
   await server.close();
 }
+import { verifyHistoryBrowser } from "./order-history.ts";

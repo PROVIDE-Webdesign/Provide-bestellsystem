@@ -12,6 +12,47 @@
   color: #f6f2e8;
 }
 
+.history-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.8rem;
+  margin: 1rem 0;
+  align-items: end;
+}
+.history-filters label {
+  min-width: 0;
+}
+.history-filters input,
+.history-filters select {
+  width: 100%;
+  min-width: 0;
+}
+.history-card {
+  border: 1px solid rgba(246, 242, 232, 0.18);
+  border-radius: 0.8rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  background: rgba(7, 19, 15, 0.72);
+  overflow-wrap: anywhere;
+}
+.history-card h4 {
+  margin: 0 0 1rem;
+  color: #f2cf84;
+}
+.history-card dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(5rem, 0.7fr);
+  gap: 0.6rem 1rem;
+}
+.history-card dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.history-card dt {
+  color: #d7ded9;
+}
+
 * {
   box-sizing: border-box;
 }

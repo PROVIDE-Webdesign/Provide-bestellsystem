@@ -1,0 +1,45 @@
+{
+  "restaurantId": "f2000000-0000-0000-0000-000000000001",
+  "locationId": "f3000000-0000-0000-0000-000000000001",
+  "timezone": "Europe/Berlin",
+  "fromDate": "2026-10-01",
+  "toDate": "2026-10-01",
+  "serverNow": "2026-10-01T20:00:00.000Z",
+  "orders": [
+    {
+      "orderId": "fc000000-0000-0000-0000-000000000001",
+      "orderNumber": "BS-00000421",
+      "status": "completed",
+      "fulfillmentType": "pickup",
+      "paymentCollectionMode": "on_fulfillment",
+      "paymentState": null,
+      "requestedFor": "2026-10-01T14:00:00.000Z",
+      "currency": "EUR",
+      "totalAmountMinor": 1250,
+      "itemCount": 1,
+      "updatedAt": "2026-10-01T14:00:00.000Z",
+      "allowedTransitions": []
+    }
+  ],
+  "nextCursor": null,
+  "metrics": [
+    {
+      "period": "total",
+      "date": "2026-10-01",
+      "currency": "EUR",
+      "orderCount": 1,
+      "completedCount": 1,
+      "rejectedCount": 0,
+      "cancelledCount": 0,
+      "pickupCount": 1,
+      "deliveryCount": 0,
+      "completedGrossMinor": 1250,
+      "averageCompletedMinor": 1250,
+      "rejectionBasisPoints": 0,
+      "capturedMinor": 0,
+      "refundedMinor": 0
+    }
+  ],
+  "detail": null,
+  "purge": null
+}

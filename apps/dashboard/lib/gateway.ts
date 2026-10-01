@@ -127,7 +127,10 @@ function operationalFailure(status: OperationalFailureStatus) {
   return Response.json({ error: { code: codes[status] } }, { headers, status });
 }
 
-async function boundedJson(response: Response, maximum = 128 * 1024): Promise<unknown> {
+async function boundedJson(
+  response: Pick<Response, "headers" | "body">,
+  maximum = 128 * 1024,
+): Promise<unknown> {
   if (!response.headers.get("content-type")?.startsWith("application/json")) throw new Error();
   const reader = response.body?.getReader();
   if (!reader) throw new Error();
@@ -190,6 +193,40 @@ async function operationalRequest(
   } catch {
     return operationalFailure(503);
   }
+}
+
+export function fetchOrderHistory(
+  accessToken: string,
+  apiBaseUrl: string | undefined,
+  scope: { restaurantId: string; locationId: string },
+  query: HistoryQuery,
+  fetcher: typeof fetch = fetch,
+) {
+  const parsed = parseHistoryQuery(query);
+  if (!parsed || !uuidPattern.test(scope.restaurantId) || !uuidPattern.test(scope.locationId))
+    return Promise.resolve(operationalFailure(400));
+  return operationalRequest(
+    accessToken,
+    apiBaseUrl,
+    `/v1/dashboard/restaurants/${scope.restaurantId}/locations/${scope.locationId}/history`,
+    "POST",
+    parsed,
+    (value) => {
+      const data = parseOrderHistory(value);
+      return data?.restaurantId === scope.restaurantId &&
+        data.locationId === scope.locationId &&
+        (parsed.orderId === undefined || data.detail?.order.orderId === parsed.orderId)
+        ? data
+        : undefined;
+    },
+    fetcher,
+  );
+}
+
+export async function readHistoryBody(request: Request) {
+  const parsed = parseHistoryQuery(await boundedJson(request, 2048));
+  if (!parsed) throw Error("Invalid history query");
+  return parsed;
 }
 
 export function fetchDashboardOrders(
@@ -451,3 +488,4 @@ export async function fetchDashboardLocationOperations(
     return operationalFailure(503);
   }
 }
+import { parseHistoryQuery, parseOrderHistory, type HistoryQuery } from "@provide/contracts";

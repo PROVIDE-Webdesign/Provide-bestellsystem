@@ -10,6 +10,7 @@ import {
 } from "../../../dashboard/lib/order-live";
 import "../../app/styles.css";
 const operations = new URLSearchParams(location.search).has("operations");
+const history = new URLSearchParams(location.search).has("history");
 const dashboard = new URLSearchParams(location.search).has("dashboard");
 const board = new URLSearchParams(location.search).has("board");
 const live = new URLSearchParams(location.search).has("live");
@@ -34,10 +35,15 @@ const syntheticLive: OrderLiveSubscriber = (_restaurant, _location, onChange, on
     window.removeEventListener("synthetic-order-state", state);
   };
 };
-if (dashboard || board || operations) void import("../../../dashboard/app/styles.css");
+if (dashboard || board || operations || history) void import("../../../dashboard/app/styles.css");
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {operations ? (
+    {history ? (
+      <OrderHistory
+        restaurantId="f2000000-0000-0000-0000-000000000001"
+        locations={[{ id: "f3000000-0000-0000-0000-000000000001", displayName: "Synthetic Mitte" }]}
+      />
+    ) : operations ? (
       <LocationOperations
         restaurantId="f2000000-0000-0000-0000-000000000001"
         locations={[{ id: "f3000000-0000-0000-0000-000000000001", displayName: "Synthetic Mitte" }]}
@@ -71,3 +77,4 @@ createRoot(document.getElementById("root")!).render(
     )}
   </StrictMode>,
 );
+import { OrderHistory } from "../../../dashboard/app/components/OrderHistory";

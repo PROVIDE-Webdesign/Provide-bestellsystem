@@ -60,3 +60,4 @@ export { isOrderNumber, orderReference } from "./order-number.js";
 export * from "./order-alerts.js";
 
 export * from "./location-operations.js";
+export * from "./order-history.js";

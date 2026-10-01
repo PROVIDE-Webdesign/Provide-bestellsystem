@@ -1,4 +1,5 @@
 "use client";
+import { OrderHistory } from "./OrderHistory.js";
 import { LocationOperations } from "./LocationOperations.js";
 import { MenuEditor } from "./MenuEditor.js";
 
@@ -23,12 +24,14 @@ export function DashboardClient({
   operationsEnabled = false,
   liveEnabled = false,
   alertsEnabled = false,
+  historyEnabled = false,
 }: {
   readonly enabled: boolean;
   readonly menuEnabled?: boolean;
   readonly operationsEnabled?: boolean;
   readonly liveEnabled?: boolean;
   readonly alertsEnabled?: boolean;
+  readonly historyEnabled?: boolean;
 }) {
   const [state, setState] = useState<ViewState>({ name: "loading" });
 
@@ -116,6 +119,9 @@ export function DashboardClient({
               restaurantId={membership.restaurantId}
               locations={membership.locations}
             />
+          )}
+          {historyEnabled && (membership.role === "owner" || membership.role === "manager") && (
+            <OrderHistory restaurantId={membership.restaurantId} locations={membership.locations} />
           )}
           <OrderBoard
             liveEnabled={liveEnabled}

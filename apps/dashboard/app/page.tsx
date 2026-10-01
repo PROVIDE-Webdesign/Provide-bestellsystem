@@ -11,6 +11,7 @@ export default function DashboardPage() {
       </header>
       <DashboardClient
         enabled={process.env.DASHBOARD_AUTH_ENABLED === "true"}
+        historyEnabled={process.env.DASHBOARD_HISTORY_ENABLED === "true"}
         operationsEnabled={process.env.DASHBOARD_LOCATION_OPERATIONS_ENABLED === "true"}
         menuEnabled={process.env.DASHBOARD_MENU_ENABLED === "true"}
         liveEnabled={process.env.DASHBOARD_REALTIME_ENABLED === "true"}
