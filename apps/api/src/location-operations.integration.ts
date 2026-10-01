@@ -198,8 +198,15 @@ export async function verifyLocationOperationsIntegration(admin: Client, sourceE
     post("controls-race-002", 3600000),
     postDelivery(),
   ]);
-  expect(responses.filter((r) => r.status === 201)).toHaveLength(1);
-  expect(responses.filter((r) => r.status === 409)).toHaveLength(2);
+  const raceEvidence = await Promise.all(
+    responses.map(async (response) => ({
+      status: response.status,
+      body: await response.clone().text(),
+    })),
+  );
+  expect(responses.map((response) => response.status).sort(), JSON.stringify(raceEvidence)).toEqual(
+    [201, 409, 409],
+  );
   const row = await admin.query<{ submission_key: string; id: string }>(
     "select submission_key,id from public.orders where submission_key like 'controls-race-%'",
   );

@@ -286,7 +286,7 @@ create function private.reserve_ordering_capacity(r uuid,l uuid,f text,t timesta
 returns boolean language plpgsql volatile security definer set search_path='' as $$
 begin
  perform pg_advisory_xact_lock(hashtextextended('delivery-policy:'||l::text,0));
- return private.reserve_ordering_capacity_before_location_controls(r,l,f,t,n,k,e);
+ return private.reserve_ordering_capacity_before_location_controls(r,l,f,t,n,k,e+(clock_timestamp()-statement_timestamp()));
 end;$$;
 revoke all on function private.reserve_ordering_capacity(uuid,uuid,text,timestamptz,integer,text,timestamptz) from public,anon,authenticated;
 grant execute on function private.reserve_ordering_capacity(uuid,uuid,text,timestamptz,integer,text,timestamptz) to service_role;
@@ -449,3 +449,35 @@ exception when invalid_text_representation or check_violation or unique_violatio
 end;$$;
 revoke all on function private.location_operations_dashboard(uuid,text,uuid,uuid,jsonb) from public,anon,authenticated;
 grant execute on function private.location_operations_dashboard(uuid,text,uuid,uuid,jsonb) to service_role;
+
+-- Checkout lock order must be location -> submission -> menu -> slot in every channel.
+-- Acquiring the new location lock only at reservation would invert delivery's existing
+-- location -> menu order against pickup's menu -> location order and permit deadlocks.
+alter function private.submit_order(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz) rename to submit_order_before_location_controls;
+revoke all on function private.submit_order_before_location_controls(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz) from public,anon,authenticated,service_role;
+create function private.submit_order(
+ target_restaurant_id uuid,target_location_id uuid,target_menu_id uuid,target_menu_version_id uuid,
+ target_fulfillment_type text,target_requested_for timestamptz,target_lines jsonb,target_submission_key text,
+ target_evaluated_at timestamptz default now()
+) returns uuid language plpgsql security definer set search_path='' as $$
+begin
+ perform pg_advisory_xact_lock(hashtextextended('delivery-policy:'||target_location_id::text,0));
+ return private.submit_order_before_location_controls(target_restaurant_id,target_location_id,target_menu_id,target_menu_version_id,
+  target_fulfillment_type,target_requested_for,target_lines,target_submission_key,target_evaluated_at);
+end;$$;
+revoke all on function private.submit_order(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz) from public,anon,authenticated;
+grant execute on function private.submit_order(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz) to service_role;
+
+alter function private.submit_priced_delivery_order(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz,uuid,bigint) rename to submit_priced_delivery_order_before_location_controls;
+revoke all on function private.submit_priced_delivery_order_before_location_controls(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz,uuid,bigint) from public,anon,authenticated,service_role;
+create function private.submit_priced_delivery_order(
+ target_restaurant_id uuid,target_location_id uuid,target_menu_id uuid,target_menu_version_id uuid,
+ target_fulfillment_type text,target_requested_for timestamptz,target_lines jsonb,target_submission_key text,
+ target_evaluated_at timestamptz,target_policy_id uuid,target_fee bigint
+) returns uuid language plpgsql security definer set search_path='' as $$
+begin
+ perform pg_advisory_xact_lock(hashtextextended('delivery-policy:'||target_location_id::text,0));
+ return private.submit_priced_delivery_order_before_location_controls(target_restaurant_id,target_location_id,target_menu_id,target_menu_version_id,
+  target_fulfillment_type,target_requested_for,target_lines,target_submission_key,target_evaluated_at,target_policy_id,target_fee);
+end;$$;
+revoke all on function private.submit_priced_delivery_order(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz,uuid,bigint) from public,anon,authenticated,service_role;

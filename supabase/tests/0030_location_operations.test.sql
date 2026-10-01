@@ -1,5 +1,5 @@
 begin;
-select plan(38);
+select plan(40);
 \ir fixtures/storefront.fixture.inc
 create function pg_temp.ops(c jsonb default null) returns jsonb language sql as $$
  select private.location_operations_dashboard('f1000000-0000-0000-0000-000000000001','aal2','f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',c);
@@ -57,5 +57,7 @@ select pg_temp.override('all',true,10);
 select is((select status from public.orders where id=:'order_id'),'accepted','new pause leaves accepted order untouched');
 select ok((select count(*)>0 from private.location_configuration_audit where before_state is not null and after_state is not null),'audit records before and after states');
 select ok(not has_function_privilege('service_role','private.reserve_ordering_capacity_before_location_controls(uuid,uuid,text,timestamptz,integer,text,timestamptz)','EXECUTE'),'unlocked reservation cannot be called directly');
+select ok(not has_function_privilege('service_role','private.submit_order_before_location_controls(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz)','EXECUTE'),'pickup cannot bypass the common first lock');
+select ok(not has_function_privilege('service_role','private.submit_priced_delivery_order_before_location_controls(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz,uuid,bigint)','EXECUTE'),'priced delivery cannot bypass the common first lock');
 select * from finish();
 rollback;

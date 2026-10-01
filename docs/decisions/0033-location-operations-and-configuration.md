@@ -27,11 +27,13 @@ Reguläre Obergrenze offener Bestellungen gilt für den ganzen Standort; globale
 und stornierte Aufträge zählen nicht. Neue Pausen verändern angenommene Bestellungen nicht.
 
 Finale Reservierung und Regeländerung nutzen zuerst das bestehende standortweite
-`delivery-policy:<location>`-Transaktionslock. Dadurch können konkurrierende Checkouts in
-unterschiedlichen Kanälen/Slots die gemeinsame Obergrenze nicht überschreiten. Bestehende
-Idempotenzantworten bleiben wiederholbar. Slotkapazität zählt Reservierungen auch über
-Konfigurationsversionen; bei geändertem Raster werden überlappende alte Slots konservativ
-berücksichtigt. Eine Veröffentlichung setzt belegte Kapazität nicht zurück.
+`delivery-policy:<location>`-Transaktionslock. Auch die nativen Bestellschreiber sperren den
+Standort vor Submission-, Menü- und Slotlocks; eine erst am Slot eingeführte Standortsperre würde
+die vorhandene Liefersperrreihenfolge invertieren. Die Auswertungszeit berücksichtigt das Warten im
+Statement. Dadurch können konkurrierende Checkouts in unterschiedlichen Kanälen/Slots die gemeinsame
+Obergrenze nicht überschreiten. Bestehende Idempotenzantworten bleiben wiederholbar. Slotkapazität
+zählt Reservierungen auch über Konfigurationsversionen; bei geändertem Raster werden überlappende
+alte Slots konservativ berücksichtigt. Eine Veröffentlichung setzt belegte Kapazität nicht zurück.
 
 ## Konfigurationsentwurf und Veröffentlichung
 
