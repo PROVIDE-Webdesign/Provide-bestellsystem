@@ -14,6 +14,8 @@ Helfer ohne service-role-Ausführungsrecht; der auditierte Befehl ist der einzig
 RPC-Schreibweg.
 
 Neue private Tabellen haben erzwungene RLS und keine direkten Browser-/Service-DML-Rechte.
+Service-DML an öffentlichen Prüfdefinitionen/-ergebnissen und Aktivierungsständen ist ebenfalls
+entzogen, damit auch der Tabellen-API-Weg die Nachweis-/Live-Gates nicht umgehen kann.
 Security-definer-Funktionen nutzen leeren search_path, explizite ACL und parameterisierte Aufrufe.
 Per-request PG-Verbindungen, Zeitlimits, abgeschalteter Hyperdrive-Cache, serverseitiges JWT und
 gleiche Origin am Dashboard-Gateway schließen den Browser von DB-Zugangsdaten aus.

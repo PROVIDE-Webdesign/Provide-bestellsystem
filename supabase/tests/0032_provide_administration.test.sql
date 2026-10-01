@@ -77,6 +77,8 @@ select is((select status from public.onboarding_check_results where restaurant_i
 select ok(not has_function_privilege('service_role','private.transition_restaurant_go_live(uuid,text,uuid,text)','execute'),'legacy service RPC cannot bypass audited command');
 select ok(not has_table_privilege('authenticated','private.provide_admin_grants','insert,update,delete'),'browser cannot self-grant PROVIDE authority');
 select ok(not has_table_privilege('service_role','private.provide_admin_audit','update,delete'),'service role cannot rewrite audit');
+select ok(not has_table_privilege('service_role','public.onboarding_check_results','insert,update,delete'),'service table API cannot forge evidence');
+select ok(not has_table_privilege('service_role','public.restaurant_activation_states','insert,update,delete'),'service table API cannot bypass live gate');
 select ok(not has_function_privilege('anon','private.command_provide_administration(uuid,text,jsonb,boolean)','execute'),'anonymous caller cannot execute administration');
 select throws_ok($$delete from private.provide_admin_audit$$,'23514','order records are append-only','audit entries are immutable even for table owner');
 select * from finish();

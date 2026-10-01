@@ -58,6 +58,8 @@ create trigger provide_admin_receipts_immutable before update or delete on priva
  for each row execute function private.prevent_order_record_mutation();
 -- Registry and flag DML belong to audited private commands, not a general service-role table API.
 revoke insert,update,delete on public.feature_definitions,public.restaurant_feature_flags from service_role;
+revoke insert,update,delete on public.onboarding_check_definitions,public.onboarding_check_results,
+ public.restaurant_activation_states,public.location_activation_states,public.onboarding_transitions from service_role;
 
 create function private.provide_admin_allowed(actor uuid,aal text,r uuid,l uuid) returns boolean
 language sql stable security definer set search_path='' as $$
@@ -389,7 +391,7 @@ do $guards$
 declare p record;original text;rewritten text;n integer:=0;
 begin
  for p in select f.oid,f.proname from pg_catalog.pg_proc f join pg_catalog.pg_namespace ns on ns.oid=f.pronamespace
-  where ns.nspname='private' and f.proname=any(array['resolve_ordering_availability','resolve_public_menu_version','read_storefront_catalog','initialize_order_payment','create_payment_attempt','submit_public_guest_online_order']) loop
+  where ns.nspname='private' and f.proname=any(array['resolve_ordering_availability','resolve_public_menu_version','read_storefront_catalog_without_stops','initialize_order_payment','create_payment_attempt','submit_public_guest_online_order']) loop
   original:=pg_catalog.pg_get_functiondef(p.oid);
   rewritten:=regexp_replace(original,'private\.is_restaurant_feature_enabled\(\s*target_restaurant_id\s*,','private.is_location_feature_enabled(target_restaurant_id, target_location_id,','g');
   rewritten:=regexp_replace(rewritten,'private\.is_restaurant_feature_enabled\(\s*selected_restaurant\.id\s*,','private.is_location_feature_enabled(selected_restaurant.id, selected_location.id,','g');
