@@ -11,6 +11,7 @@ import {
   type OrderCommunicationCommand,
   parseOrderCommunicationCommand,
   parseOrderCommunication,
+  parseDashboardAcceptance,
 } from "@provide/contracts";
 
 import type { RequestContext } from "./context.js";
@@ -27,6 +28,7 @@ import type { ApiLogger } from "./logger.js";
 import type { DashboardOrderRoute } from "./router.js";
 
 export interface DashboardOrdersEnvironment extends DashboardAuthEnvironment {
+  readonly DASHBOARD_ORDER_ALERTS_ENABLED?: string;
   readonly DASHBOARD_AUTH_ENABLED?: string;
   readonly DASHBOARD_ORDER_OPERATIONS_ENABLED?: string;
   readonly HYPERDRIVE_CACHE_DISABLED?: string;
@@ -34,6 +36,12 @@ export interface DashboardOrdersEnvironment extends DashboardAuthEnvironment {
 }
 
 export interface DashboardOrdersReader {
+  alerts?(
+    connectionString: string,
+    identity: DashboardIdentity,
+    scope: { restaurantId: string; locationId: string },
+  ): Promise<unknown>;
+  escalateAlerts?(connectionString: string): Promise<number>;
   communicate?(
     connectionString: string,
     identity: DashboardIdentity,
@@ -169,6 +177,17 @@ export async function handleDashboardOrders(
   logger: ApiLogger,
   cors: Headers,
 ): Promise<Response> {
+  if (
+    route.name === "dashboardOrderAlerts" &&
+    environment.DASHBOARD_ORDER_ALERTS_ENABLED !== "true"
+  )
+    return jsonError(
+      "service_unavailable",
+      "Order alerts are not enabled.",
+      context.requestId,
+      503,
+      cors,
+    );
   const identity = await authenticate(request, environment, verifier);
   if (identity === "unauthorized")
     return jsonError("unauthorized", "Authentication is required.", context.requestId, 401, cors);
@@ -191,6 +210,29 @@ export async function handleDashboardOrders(
 
   const connectionString = environment.HYPERDRIVE!.connectionString;
   try {
+    if (route.name === "dashboardOrderAlerts") {
+      if (new URL(request.url).search || !reader.alerts)
+        return jsonError(
+          "bad_request",
+          "Alert filters are not supported.",
+          context.requestId,
+          400,
+          cors,
+        );
+      const result = record(
+        await reader.alerts(connectionString, identity, {
+          restaurantId: route.restaurantId,
+          locationId: route.locationId,
+        }),
+      );
+      const mapped = errorResponse(result?.outcome, context, cors);
+      if (mapped) return mapped;
+      const data =
+        result?.outcome === "allowed" ? parseDashboardAcceptance(result.data) : undefined;
+      if (!data || data.restaurantId !== route.restaurantId || data.locationId !== route.locationId)
+        throw Error("Invalid scoped alert result");
+      return jsonSuccess(data, context.requestId, 200, cors);
+    }
     if (route.name === "dashboardOrders") {
       const filters = parseFilters(request);
       if (!filters)
@@ -213,6 +255,7 @@ export async function handleDashboardOrders(
       return jsonSuccess(data, context.requestId, 200, cors);
     }
 
+    if (route.orderId === undefined) throw Error("Missing order scope");
     const scope = {
       restaurantId: route.restaurantId,
       locationId: route.locationId,

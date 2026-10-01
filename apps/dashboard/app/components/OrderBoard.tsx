@@ -1,6 +1,8 @@
 "use client";
 
 import { OrderTax } from "./OrderTax";
+import { OrderInbox } from "./OrderInbox";
+import type { OrderLiveSubscriber } from "../../lib/order-live.js";
 
 import {
   paymentStateLabels,
@@ -34,6 +36,9 @@ interface OrderBoardProps {
   readonly restaurantId: string;
   readonly role: RestaurantRole;
   readonly locations: readonly DashboardLocationAccess[];
+  readonly liveEnabled?: boolean;
+  readonly alertsEnabled?: boolean;
+  readonly subscribeLive?: OrderLiveSubscriber;
 }
 
 const cancellationReasonLabels = {
@@ -49,7 +54,14 @@ function envelopeData(value: unknown): unknown {
     : undefined;
 }
 
-export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
+export function OrderBoard({
+  restaurantId,
+  role,
+  locations,
+  liveEnabled = false,
+  alertsEnabled = false,
+  subscribeLive,
+}: OrderBoardProps) {
   const [locationId, setLocationId] = useState(locations[0]?.id ?? "");
   const [status, setStatus] = useState<DashboardOrderStatus | "">("");
   const [fulfillment, setFulfillment] = useState("");
@@ -60,14 +72,36 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
   const [reasonCode, setReasonCode] = useState<OrderReasonCode>("unavailable");
   const [confirmedTime, setConfirmedTime] = useState("");
   const listRequest = useRef<AbortController | null>(null);
   const detailRequest = useRef<AbortController | null>(null);
+  const scopeBlocked = useRef(false);
+  const currentDetail = useRef(detail);
+  currentDetail.current = detail;
+  const currentUpdating = useRef(updating);
+  currentUpdating.current = updating;
+
+  function clearDenied() {
+    scopeBlocked.current = true;
+    listRequest.current?.abort();
+    detailRequest.current?.abort();
+    setAccessDenied(true);
+    setOrders(undefined);
+    setDetail(undefined);
+    setMessage("Zugriff nicht mehr bestätigt. Bitte neu anmelden und Standortrechte prüfen.");
+  }
 
   const loadOrders = useCallback(
     async (cursor?: string) => {
-      if (!locationId || document.visibilityState === "hidden") return;
+      if (
+        !locationId ||
+        role === "driver" ||
+        scopeBlocked.current ||
+        document.visibilityState === "hidden"
+      )
+        return;
       listRequest.current?.abort();
       const controller = new AbortController();
       listRequest.current = controller;
@@ -80,14 +114,28 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
         if (cursor) query.set("cursor", cursor);
         const response = await fetch(`/api/orders?${query}`, {
           cache: "no-store",
-          signal: controller.signal,
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]),
         });
+        if (response.status === 401 || response.status === 403) {
+          clearDenied();
+          return;
+        }
         if (!response.ok) throw new Error();
         const parsed = parseDashboardOrderList(envelopeData(await response.json()));
-        if (!parsed) throw new Error();
+        if (!parsed || parsed.restaurantId !== restaurantId || parsed.locationId !== locationId)
+          throw new Error();
         if (controller.signal.aborted) return;
         setOrders((current) =>
-          cursor && current ? { ...parsed, orders: [...current.orders, ...parsed.orders] } : parsed,
+          cursor && current
+            ? {
+                ...parsed,
+                orders: [
+                  ...new Map(
+                    [...current.orders, ...parsed.orders].map((o) => [o.orderId, o]),
+                  ).values(),
+                ],
+              }
+            : parsed,
         );
         setMessage("");
       } catch {
@@ -97,36 +145,65 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
         if (!controller.signal.aborted) setLoading(false);
       }
     },
-    [locationId, restaurantId, status, fulfillment, numberFilter],
+    [locationId, restaurantId, role, status, fulfillment, numberFilter],
   );
 
   useEffect(() => {
+    scopeBlocked.current = false;
+    setAccessDenied(false);
+  }, [restaurantId, locationId]);
+  useEffect(() => {
     void loadOrders();
-    const interval = window.setInterval(() => void loadOrders(), 15_000);
     return () => {
-      window.clearInterval(interval);
       listRequest.current?.abort();
       detailRequest.current?.abort();
     };
   }, [loadOrders]);
 
-  async function loadDetail(orderId: string) {
+  async function loadDetail(orderId: string, refresh = false) {
+    if (scopeBlocked.current) return;
     detailRequest.current?.abort();
     const controller = new AbortController();
     detailRequest.current = controller;
-    setDetail(undefined);
-    setMessage("");
+    if (!refresh) {
+      setDetail(undefined);
+      setMessage("");
+    }
     try {
       const query = new URLSearchParams({ restaurantId, locationId });
       const response = await fetch(`/api/orders/${orderId}?${query}`, {
         cache: "no-store",
-        signal: controller.signal,
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]),
       });
+      if (response.status === 401 || response.status === 403) {
+        clearDenied();
+        return;
+      }
       if (!response.ok) throw new Error();
       const parsed = parseDashboardOrderDetail(envelopeData(await response.json()));
-      if (!parsed) throw new Error();
+      if (
+        !parsed ||
+        parsed.restaurantId !== restaurantId ||
+        parsed.locationId !== locationId ||
+        parsed.orderId !== orderId
+      )
+        throw new Error();
       if (controller.signal.aborted) return;
+      if (refresh && (currentUpdating.current || currentDetail.current?.orderId !== orderId))
+        return;
+      if (
+        refresh &&
+        currentDetail.current?.status === parsed.status &&
+        currentDetail.current?.updatedAt === parsed.updatedAt &&
+        currentDetail.current?.communication?.revision === parsed.communication?.revision &&
+        currentDetail.current?.paymentState === parsed.paymentState
+      )
+        return;
       setDetail(parsed);
+      if (refresh)
+        setMessage(
+          "Die Bestellung wurde aktualisiert. Bitte prüfe den neuen Stand vor der nächsten Aktion.",
+        );
       setConfirmedTime(
         new Intl.DateTimeFormat("sv-SE", {
           year: "numeric",
@@ -253,6 +330,23 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
 
   return (
     <div className="order-board">
+      {!accessDenied && (
+        <OrderInbox
+          key={`${restaurantId}:${locationId}`}
+          restaurantId={restaurantId}
+          locationId={locationId}
+          liveEnabled={liveEnabled}
+          alertsEnabled={alertsEnabled}
+          {...(subscribeLive ? { subscribeLive } : {})}
+          onDenied={clearDenied}
+          onOpen={(orderId) => void loadDetail(orderId)}
+          onInvalidate={async () => {
+            await loadOrders();
+            const open = currentDetail.current;
+            if (open && !currentUpdating.current) await loadDetail(open.orderId, true);
+          }}
+        />
+      )}
       <div className="order-controls">
         <label>
           Bestellart

@@ -43,6 +43,7 @@ function worker(
   verifier = { verify: vi.fn().mockResolvedValue(identity) },
 ) {
   const completeReader: DashboardOrdersReader = {
+    ...(reader.alerts ? { alerts: reader.alerts } : {}),
     ...(reader.communicate ? { communicate: reader.communicate } : {}),
     list: reader.list ?? (() => Promise.resolve(undefined)),
     detail: reader.detail ?? (() => Promise.resolve(undefined)),
@@ -61,6 +62,47 @@ function worker(
 }
 
 describe("dashboard order API", () => {
+  it("reads a fresh filter-independent acceptance snapshot and fails closed for disabled, unauthenticated and foreign results", async () => {
+    const alerts = vi.fn().mockResolvedValue({
+      outcome: "allowed",
+      data: {
+        restaurantId,
+        locationId,
+        serverNow: "2026-10-01T12:00:00Z",
+        timeoutRule: "manual_review",
+        totalPending: 0,
+        orders: [],
+      },
+    });
+    const url = base.replace(/orders$/, "order-alerts"),
+      enabled = { ...env, DASHBOARD_ORDER_ALERTS_ENABLED: "true" };
+    const api = worker({ alerts });
+    expect((await api.fetch(authorized(url), env)).status).toBe(503);
+    expect(alerts).not.toHaveBeenCalled();
+    expect((await api.fetch(new Request(url), enabled)).status).toBe(401);
+    expect((await api.fetch(authorized(`${url}?status=accepted`), enabled)).status).toBe(400);
+    const response = await api.fetch(authorized(url), enabled);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(alerts).toHaveBeenCalledWith(env.HYPERDRIVE.connectionString, identity, {
+      restaurantId,
+      locationId,
+    });
+    alerts.mockResolvedValueOnce({ outcome: "forbidden" });
+    expect((await api.fetch(authorized(url), enabled)).status).toBe(403);
+    alerts.mockResolvedValueOnce({
+      outcome: "allowed",
+      data: {
+        restaurantId,
+        locationId: orderId,
+        serverNow: "2026-10-01T12:00:00Z",
+        timeoutRule: "manual_review",
+        totalPending: 0,
+        orders: [],
+      },
+    });
+    expect((await api.fetch(authorized(url), enabled)).status).toBe(503);
+  });
   it("passes a validated number filter and rejects duplicate or out-of-range numbers", async () => {
     const list = vi.fn().mockResolvedValue({
       outcome: "allowed",

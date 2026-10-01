@@ -19,9 +19,13 @@ const roleLabels = { owner: "Inhaber", manager: "Manager", kitchen: "Küche", dr
 export function DashboardClient({
   enabled,
   menuEnabled = false,
+  liveEnabled = false,
+  alertsEnabled = false,
 }: {
   readonly enabled: boolean;
   readonly menuEnabled?: boolean;
+  readonly liveEnabled?: boolean;
+  readonly alertsEnabled?: boolean;
 }) {
   const [state, setState] = useState<ViewState>({ name: "loading" });
 
@@ -105,6 +109,8 @@ export function DashboardClient({
             <MenuEditor restaurantId={membership.restaurantId} locations={membership.locations} />
           )}
           <OrderBoard
+            liveEnabled={liveEnabled}
+            alertsEnabled={alertsEnabled}
             restaurantId={membership.restaurantId}
             role={membership.role}
             locations={membership.locations}

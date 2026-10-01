@@ -34,7 +34,7 @@ jobs:
 
   database:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -44,8 +44,10 @@ jobs:
         with:
           version: 2.117.0
 
-      - name: Start isolated test database
-        run: supabase db start
+      - name: Start isolated database, Auth and private Realtime
+        run:
+          supabase start -x
+          studio,mailpit,storage-api,imgproxy,postgres-meta,edge-runtime,logflare,vector,supavisor
 
       - name: Run database tests
         run: supabase test db
@@ -70,6 +72,14 @@ jobs:
 
       - name: Test public API against the migrated database
         run: pnpm --filter @provide/api exec vitest run src/storefront.integration.test.ts
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+      - name: Prepare masked loopback Realtime credentials
+        run: node scripts/ci-realtime-env.mjs
+
+      - name: Test two authenticated dashboards on real private Realtime
+        run: pnpm --filter @provide/api exec vitest run src/realtime.integration.test.ts
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
 
