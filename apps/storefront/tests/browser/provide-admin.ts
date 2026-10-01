@@ -90,8 +90,22 @@ export async function verifyProvideBrowser(page: Page, output: string, width: nu
   assert.equal(mutations, 2);
   await page.getByText("restaurant_feature_flags.update", { exact: false }).click();
   assert.ok(await page.getByText('"enabled": true', { exact: false }).isVisible());
-  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await page.screenshot({ path: `${output}/provide-admin-${width}.png`, fullPage: true });
+  const overflow = await page.evaluate(() =>
+    Array.from(document.querySelectorAll("*"))
+      .filter((e) => e.getBoundingClientRect().right > innerWidth + 1)
+      .map((e) => ({
+        tag: e.tagName,
+        class: e.className,
+        width: e.getBoundingClientRect().width,
+        right: e.getBoundingClientRect().right,
+      }))
+      .slice(0, 15),
+  );
+  assert.ok(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    JSON.stringify(overflow),
+  );
   await page
     .getByRole("combobox", { name: "Verwaltungsbereich" })
     .selectOption(raw.selected.locations[0]!.id);

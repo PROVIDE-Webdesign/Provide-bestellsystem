@@ -432,6 +432,28 @@ a:focus-visible {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
   gap: 0.75rem;
 }
+.provide-admin,
+.provide-admin label,
+.provide-admin form,
+.provide-admin .admin-checks > *,
+.provide-admin .admin-audit > * {
+  min-width: 0;
+}
+.provide-admin input,
+.provide-admin select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.provide-admin input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  min-height: 1.25rem;
+}
+.provide-admin summary,
+.provide-admin button {
+  overflow-wrap: anywhere;
+}
 .admin-actions {
   display: flex;
   flex-wrap: wrap;

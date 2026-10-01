@@ -151,7 +151,7 @@ declare r uuid;l uuid;ks text[];v jsonb;
 begin
  if tg_table_name='restaurant_launch_configuration' then
   if tg_op='UPDATE' and to_jsonb(new) is not distinct from to_jsonb(old) then return null; end if;
-  r:=new.restaurant_id;
+  r:=case when tg_op='DELETE' then old.restaurant_id else new.restaurant_id end;
  elsif tg_table_name='restaurants' then
   if (new.slug,new.display_name,new.timezone,new.currency_code) is not distinct from (old.slug,old.display_name,old.timezone,old.currency_code) then return null; end if;
   r:=new.id;
@@ -177,7 +177,7 @@ begin
  return null;
 end;
 $$;
-create trigger provide_launch_configuration_recheck after insert or update on private.restaurant_launch_configuration
+create trigger provide_launch_configuration_recheck after insert or update or delete on private.restaurant_launch_configuration
 for each row execute function private.provide_critical_change();
 create trigger provide_restaurant_profile_recheck after update on public.restaurants
 for each row execute function private.provide_critical_change();
@@ -325,7 +325,7 @@ begin
   end if;
  when 'check' then
   k:=q->>'checkKey';select scope into definition_scope from public.onboarding_check_definitions where key=k;
-  if definition_scope is distinct from case when l is null then 'restaurant' else 'location' end or q->>'status' not in ('pending','passed','failed') then return jsonb_build_object('outcome','invalid');end if;
+  if definition_scope is distinct from (case when l is null then 'restaurant' else 'location' end) or q->>'status' not in ('pending','passed','failed') then return jsonb_build_object('outcome','invalid');end if;
   if l is null then select onboarding_status into state from public.restaurant_activation_states where restaurant_id=r;
   else select onboarding_status into state from public.location_activation_states where restaurant_id=r and location_id=l;end if;
   if state='approved' then return jsonb_build_object('outcome','conflict');end if;

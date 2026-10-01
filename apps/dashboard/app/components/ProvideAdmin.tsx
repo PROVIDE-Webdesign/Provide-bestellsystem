@@ -270,7 +270,7 @@ export function ProvideAdmin() {
     : "";
   const selectedFeature = selected?.features.find((f) => f.key === featureKey);
   return (
-    <section className="panel" aria-label="Plattformverwaltung">
+    <section className="panel provide-admin" aria-label="Plattformverwaltung">
       <h2>Mandanten und Freigaben</h2>
       <p>
         Nur ausdrücklich zugewiesene PROVIDE-Rechte erlauben Änderungen. Restaurantrollen erteilen

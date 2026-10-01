@@ -42,7 +42,9 @@ if (dashboard || board || operations || history || provide)
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {provide ? (
-      <ProvideAdmin />
+      <main>
+        <ProvideAdmin />
+      </main>
     ) : history ? (
       <OrderHistory
         restaurantId="f2000000-0000-0000-0000-000000000001"
