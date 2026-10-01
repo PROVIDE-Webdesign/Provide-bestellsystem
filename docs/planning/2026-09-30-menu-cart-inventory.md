@@ -4,33 +4,29 @@ Stand: 30.09.2026, Europe/Berlin. Auftrag: Bestandsaufnahme; keine neue Produkti
 
 ## Ergebnis und verbindliche Grundlage
 
-Das technische Fundament für einfache Gerichte ist vorhanden und getestet.
-Menüpflege bis Warenkorb ist nach A2 noch nicht vollständig erfüllt.
-Versionierung, Zeitveröffentlichung, Rollback, Standortverfügbarkeit und serverseitige
-Grundpreise werden wiederverwendet. Fehlende Varianten, Extras, Allergene, Steuerdaten,
-Pflegeoberfläche und verständliche Warenkorb-Neubewertung bilden den nächsten Schnitt.
+Das technische Fundament für einfache Gerichte ist vorhanden und getestet. Menüpflege bis Warenkorb
+ist nach A2 noch nicht vollständig erfüllt. Versionierung, Zeitveröffentlichung, Rollback,
+Standortverfügbarkeit und serverseitige Grundpreise werden wiederverwendet. Fehlende Varianten,
+Extras, Allergene, Steuerdaten, Pflegeoberfläche und verständliche Warenkorb-Neubewertung bilden den
+nächsten Schnitt.
 
-Maßgeblich sind `PROVIDE_Bestellsystem_Architektur_Arbeitsplan_A2.md`, insbesondere
-3.1, 7, 8/8.1, 9 und 15, sowie `PROVIDE_Bestellsystem_Projektprotokoll_V2.pdf`
-einschließlich E01. Paket 2 bündelt Anforderungen der A2-Hauptblöcke 3 und 4;
-Menübedienung berührt Hauptblock 6, Import/Parität Hauptblock 10.
-Paketnummer 2 ist kein neuer A2-Hauptblock und kein Fortschrittsnenner.
+Maßgeblich sind `PROVIDE_Bestellsystem_Architektur_Arbeitsplan_A2.md`, insbesondere 3.1, 7, 8/8.1, 9
+und 15, sowie `PROVIDE_Bestellsystem_Projektprotokoll_V2.pdf` einschließlich E01. Paket 2 bündelt
+Anforderungen der A2-Hauptblöcke 3 und 4; Menübedienung berührt Hauptblock 6, Import/Parität
+Hauptblock 10. Paketnummer 2 ist kein neuer A2-Hauptblock und kein Fortschrittsnenner.
 
-Die Prüfung verwendet den Inhalt von PR #10 am Commit
-`484ec2d1aa5e602f76476cc82fc65ca6692f078e`,
-Baum `4672e41c607e985f9a77126dada053f9793162d1`.
-Der lokale Prüfbaum stimmt damit überein; seine lokal rekonstruierten Commit-IDs
-sind kein Ersatz für die GitHub-Referenz.
-Basis des gestapelten Implementierungsstands bleibt PR #8 am Commit
-`4e422f5b9ce7324e56bdb2b4e8d4cbd76ca3c8cc`.
-Beide PRs bleiben Entwürfe. Die Dokumentation liegt auf dem getrennten Planungsbranch
-von PR #9 und enthält keine Änderungen an Anwendung oder Datenbank.
+Die Prüfung verwendet den Inhalt von PR #10 am Commit `484ec2d1aa5e602f76476cc82fc65ca6692f078e`,
+Baum `4672e41c607e985f9a77126dada053f9793162d1`. Der lokale Prüfbaum stimmt damit überein; seine
+lokal rekonstruierten Commit-IDs sind kein Ersatz für die GitHub-Referenz. Basis des gestapelten
+Implementierungsstands bleibt PR #8 am Commit `4e422f5b9ce7324e56bdb2b4e8d4cbd76ca3c8cc`. Beide PRs
+bleiben Entwürfe. Die Dokumentation liegt auf dem getrennten Planungsbranch von PR #9 und enthält
+keine Änderungen an Anwendung oder Datenbank.
 
 ## Befundmatrix
 
-„Vorhanden“ bezeichnet den angegebenen Funktionsschnitt, keine vollständige A2-Abnahme.
-„Teilweise“ trennt existierende Grundlage und verbleibende Anforderung.
-„Offen“ bedeutet im geprüften Code nicht umgesetzt beziehungsweise nicht nachgewiesen.
+„Vorhanden“ bezeichnet den angegebenen Funktionsschnitt, keine vollständige A2-Abnahme. „Teilweise“
+trennt existierende Grundlage und verbleibende Anforderung. „Offen“ bedeutet im geprüften Code nicht
+umgesetzt beziehungsweise nicht nachgewiesen.
 
 | ID    | A2-Anforderung                                                   | Befund und Quelle                                                                                                                                                                                                                                                                                                          | Konsequenz für Paket 2                                                                                                                                                                                       |
 | ----- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -72,45 +68,42 @@ von PR #9 und enthält keine Änderungen an Anwendung oder Datenbank.
 | T5     | `supabase/tests/0021_secure_delivery_orders.test.sql`; `apps/api/src/delivery.integration.ts`; Onlinezahlungsregressionen                                       |
 | T6     | `apps/storefront/app/storefront/cart.test.ts` (drei einfache Warenkorbfälle); `packages/contracts/src/checkout.test.ts`                                         |
 
-Der bestehende [CI-Lauf 36753000640](https://github.com/PROVIDE-Webdesign/Provide-bestellsystem/actions/runs/36753000640)
-ist am geprüften Commit erfolgreich: `check` und `database`, 206 Unit-/Contracttests,
-1.042 pgTAP-Tests und ein separater API-Integrationslauf; die isolierte
-Supabase-Sicherheitsprüfung meldet „No issues found“.
-Diese Zahlen zählen alle bisherigen Pakete, keine neu geschriebenen Paket-2-Tests.
-Die vorhandenen Nachweise werden gemäß E01 wiederverwendet; ihre Ergebnisse
-belegen weder die fehlenden Funktionen noch eine Geräte- oder Pilotabnahme.
+Der bestehende
+[CI-Lauf 36753000640](https://github.com/PROVIDE-Webdesign/Provide-bestellsystem/actions/runs/36753000640)
+ist am geprüften Commit erfolgreich: `check` und `database`, 206 Unit-/Contracttests, 1.042
+pgTAP-Tests und ein separater API-Integrationslauf; die isolierte Supabase-Sicherheitsprüfung meldet
+„No issues found“. Diese Zahlen zählen alle bisherigen Pakete, keine neu geschriebenen
+Paket-2-Tests. Die vorhandenen Nachweise werden gemäß E01 wiederverwendet; ihre Ergebnisse belegen
+weder die fehlenden Funktionen noch eine Geräte- oder Pilotabnahme.
 
-Diese Bestandsaufnahme verändert nur Dokumentation. Dafür genügt die
-Repository-Formatprüfung; ein weiterer vollständiger Anwendungslauf würde
-keine neue Laufzeitbehauptung rechtfertigen.
+Diese Bestandsaufnahme verändert nur Dokumentation. Dafür genügt die Repository-Formatprüfung; ein
+weiterer vollständiger Anwendungslauf würde keine neue Laufzeitbehauptung rechtfertigen.
 
 ## Empfohlene Umsetzung in Abhängigkeitsreihenfolge
 
-1. **Gemeinsames Menü- und Auswahlfundament bis Preisprüfung.**
-   Versionsgebundene Varianten, Optionsgruppen/Extras, Produktinformationen und
-   fachlich bestätigte Steuerdaten; strikte Request-/Antwortverträge;
-   kanonische Auswahlidentität, Serverberechnung und vollständige Snapshots.
-   Dieselben Regeln für Pickup, Delivery und Onlinezahlung, einschließlich
-   Lieferminimum/-gebühr, Idempotenz und Zahlungsbetrag.
-   Ein eigener serverseitiger Neubewertungsweg liefert verständliche Konflikte.
-   Historische einfache Positionen bleiben ohne erfundene Auswahl-/Steuerdaten lesbar.
-2. **Menüpflege und bewusste Freigabe im Dashboard.**
-   Auf vorhandenen Entwurfs-/Veröffentlichungsfunktionen aufbauen: sichere
-   Bearbeitungsbefehle, Vorschau/Diff, Änderungsnotiz, Freigabevalidierung,
-   lokale Zeitplanung, Versionen und Rollback. Owner/Manager/MFA/Scope,
-   veraltete Bearbeitungsstände, konkurrierende Aktionen und Audit gemeinsam prüfen.
-3. **Auswahlbedienung, Warenkorb und Paritätsnachweis.**
-   Varianten/Extras/Informationen mobil und tastaturbedienbar darstellen,
-   Konfigurationen getrennt führen, Neubewertung erklären und bestätigen lassen.
-   24-Stunden-Speicherung mit sicheren Scope-/Ablaufgrenzen.
-   Befristete Produkt-/Variantensperren durchgehend prüfen.
-   Geschützte Pilotquelle extrahieren und den Importdiff liefern.
-   Fachlich unabhängige Änderungen bleiben getrennte, aufeinander aufbauende Commits/PRs.
+1. **Gemeinsames Menü- und Auswahlfundament bis Preisprüfung.** Versionsgebundene Varianten,
+   Optionsgruppen/Extras, Produktinformationen und fachlich bestätigte Steuerdaten; strikte
+   Request-/Antwortverträge; kanonische Auswahlidentität, Serverberechnung und vollständige
+   Snapshots. Dieselben Regeln für Pickup, Delivery und Onlinezahlung, einschließlich
+   Lieferminimum/-gebühr, Idempotenz und Zahlungsbetrag. Ein eigener serverseitiger Neubewertungsweg
+   liefert verständliche Konflikte. Historische einfache Positionen bleiben ohne erfundene
+   Auswahl-/Steuerdaten lesbar.
+2. **Menüpflege und bewusste Freigabe im Dashboard.** Auf vorhandenen
+   Entwurfs-/Veröffentlichungsfunktionen aufbauen: sichere Bearbeitungsbefehle, Vorschau/Diff,
+   Änderungsnotiz, Freigabevalidierung, lokale Zeitplanung, Versionen und Rollback.
+   Owner/Manager/MFA/Scope, veraltete Bearbeitungsstände, konkurrierende Aktionen und Audit
+   gemeinsam prüfen.
+3. **Auswahlbedienung, Warenkorb und Paritätsnachweis.** Varianten/Extras/Informationen mobil und
+   tastaturbedienbar darstellen, Konfigurationen getrennt führen, Neubewertung erklären und
+   bestätigen lassen. 24-Stunden-Speicherung mit sicheren Scope-/Ablaufgrenzen. Befristete
+   Produkt-/Variantensperren durchgehend prüfen. Geschützte Pilotquelle extrahieren und den
+   Importdiff liefern. Fachlich unabhängige Änderungen bleiben getrennte, aufeinander aufbauende
+   Commits/PRs.
 
-Empfehlungen innerhalb des freigegebenen A2-Umfangs folgen der delegierten
-Routineentscheidung. Keine neuen Produktgrenzen, Anbieter, Kosten oder
-Livefreigaben werden hier eingeführt. Die Reihenfolge ist eine Abhängigkeit,
-keine Aufforderung zur gleichzeitigen Umsetzung aller drei Schnitte.
+Empfehlungen innerhalb des freigegebenen A2-Umfangs folgen der delegierten Routineentscheidung.
+Keine neuen Produktgrenzen, Anbieter, Kosten oder Livefreigaben werden hier eingeführt. Die
+Reihenfolge ist eine Abhängigkeit, keine Aufforderung zur gleichzeitigen Umsetzung aller drei
+Schnitte.
 
 ## Erforderliche Abschlussfälle für Paket 2
 
@@ -127,32 +120,30 @@ keine Aufforderung zur gleichzeitigen Umsetzung aller drei Schnitte.
 | Parität                     | Zwölf Gerichte/drei Kategorien nach A2 mit der tatsächlichen 12.0-R1-Quelle vergleichen; Preise/Auswahlen/Informationen und offene Fachangaben einzeln ausweisen. |
 | Bedienung                   | Tastatur, Fokus, Screenreader und mobile Auswahl-/Fehlermeldungen; echte Geräte-/Restaurantprüfung bleibt ein eigener Nachweis.                                   |
 
-Zum späteren technischen Paketabschluss: Pflichtjobs `check` und `database`
-am endgültigen Implementierungs-Commit, relevante API-/PostgreSQL-Integration,
-Sicherheitsprüfung, Runbook und eine Matrix mit einzeln belegten Kriterien.
-Reale Stripe-Fälle aus PR #8, echte E-Mail-Zustellung sowie Merge/Deployment
-werden dadurch nicht freigegeben.
+Zum späteren technischen Paketabschluss: Pflichtjobs `check` und `database` am endgültigen
+Implementierungs-Commit, relevante API-/PostgreSQL-Integration, Sicherheitsprüfung, Runbook und eine
+Matrix mit einzeln belegten Kriterien. Reale Stripe-Fälle aus PR #8, echte E-Mail-Zustellung sowie
+Merge/Deployment werden dadurch nicht freigegeben.
 
 ## Fortschritt und nächster Schritt
 
-Keine Fortschrittsanhebung durch diese Bestandsaufnahme.
-Vorläufige A2-Planabdeckung weiterhin rund **50 % ±10 Prozentpunkte**:
-historische Arbeitsannahme 5¾ / 12 gleich gewichtete Hauptblöcke = 47,9 %,
-gerundet 50 %. Keine verbindliche Neu-Gewichtung, Zeitfortschritt oder Vollabnahme.
+Keine Fortschrittsanhebung durch diese Bestandsaufnahme. Vorläufige A2-Planabdeckung weiterhin rund
+**50 % ±10 Prozentpunkte**: historische Arbeitsannahme 5¾ / 12 gleich gewichtete Hauptblöcke = 47,9
+%, gerundet 50 %. Keine verbindliche Neu-Gewichtung, Zeitfortschritt oder Vollabnahme.
 
-Nächste Aufgabe: den ersten Umsetzungsschnitt „Gemeinsames Menü- und
-Auswahlfundament bis Preisprüfung“ konkret abgrenzen und technisch umsetzen.
-Empfohlener Modus dafür: **Work / Sol / hoch**, weil Auswahlregeln,
-Mandantenrechte, historische Snapshots und Zahlungsbeträge zusammenwirken.
-Für diese Arbeit ist keine Laptop-Aufgabe des Nutzers erforderlich.
+Nächste Aufgabe: den ersten Umsetzungsschnitt „Gemeinsames Menü- und Auswahlfundament bis
+Preisprüfung“ konkret abgrenzen und technisch umsetzen. Empfohlener Modus dafür: **Work / Sol /
+hoch**, weil Auswahlregeln, Mandantenrechte, historische Snapshots und Zahlungsbeträge
+zusammenwirken. Für diese Arbeit ist keine Laptop-Aufgabe des Nutzers erforderlich.
 
 ## Umsetzung des ersten Schnitts – 30.09.2026
 
-Der Nutzer hat das Menü- und Auswahlfundament bis zur serverseitigen Preisprüfung beauftragt.
-Die Implementierung liegt in [Entwurfs-PR #11](https://github.com/PROVIDE-Webdesign/Provide-bestellsystem/pull/11)
-auf dem unveränderten E-Mail-Paketstand von PR #10. Der finale Commit und seine Laufzeitnachweise
-werden im Implementierungs-PR geführt. Die obige Befundmatrix dokumentiert weiterhin den
-Ausgangsstand der Bestandsaufnahme; dieser Nachtrag ergänzt den Fortschritt einzeln.
+Der Nutzer hat das Menü- und Auswahlfundament bis zur serverseitigen Preisprüfung beauftragt. Die
+Implementierung liegt in
+[Entwurfs-PR #11](https://github.com/PROVIDE-Webdesign/Provide-bestellsystem/pull/11) auf dem
+unveränderten E-Mail-Paketstand von PR #10. Der finale Commit und seine Laufzeitnachweise werden im
+Implementierungs-PR geführt. Die obige Befundmatrix dokumentiert weiterhin den Ausgangsstand der
+Bestandsaufnahme; dieser Nachtrag ergänzt den Fortschritt einzeln.
 
 | Inventar          | Neuer Teilnachweis                                                                                                                           | Noch offen                                                                                            |
 | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -165,18 +156,27 @@ Ausgangsstand der Bestandsaufnahme; dieser Nachtrag ergänzt den Fortschritt ein
 
 Nachweis am endgültigen Head `7703d45e7df26ad935cfd9780b208ee14effcc15`:
 [CI-Lauf 36766533426](https://github.com/PROVIDE-Webdesign/Provide-bestellsystem/actions/runs/36766533426)
-mit `check` und `database` erfolgreich; 236 Unit-/Contracttests, 1.087 pgTAP-Tests
-(einschließlich 45 neuer Prüfungen) und der separate API/PostgreSQL-Integrationslauf bestanden.
-Security Advisors melden „No issues found“. Lokaler Implementierungsbaum, GitHub-Head und
-CI-Mergebaum stimmen überein. Der Integrationstest belegt auch Online-Lieferbetrag samt Gebühr
-und eine erst während tatsächlicher Sperrwartezeit wirksam werdende Veröffentlichung.
+mit `check` und `database` erfolgreich; 236 Unit-/Contracttests, 1.087 pgTAP-Tests (einschließlich
+45 neuer Prüfungen) und der separate API/PostgreSQL-Integrationslauf bestanden. Security Advisors
+melden „No issues found“. Lokaler Implementierungsbaum, GitHub-Head und CI-Mergebaum stimmen
+überein. Der Integrationstest belegt auch Online-Lieferbetrag samt Gebühr und eine erst während
+tatsächlicher Sperrwartezeit wirksam werdende Veröffentlichung.
 
 Die API-Vorschau ist standardmäßig geschlossen und erzeugt keine Bestellung oder Reservierung.
-Automatisierte Prüfungen ersetzen weder die Produkt-/Geräteabnahme noch fachliche Steuer-/Allergenangaben.
-Die Fixture ist synthetisch. Entscheidung 0028, Runbook und Arbeitsblock 3.11 führen den technischen
-Vertrag und die Grenzen. Dieses Planungsdokument enthält keine Produktänderungen.
+Automatisierte Prüfungen ersetzen weder die Produkt-/Geräteabnahme noch fachliche
+Steuer-/Allergenangaben. Die Fixture ist synthetisch. Entscheidung 0028, Runbook und Arbeitsblock
+3.11 führen den technischen Vertrag und die Grenzen. Dieses Planungsdokument enthält keine
+Produktänderungen.
 
 Nächste Aufgabe: **Menüpflege und bewusste Freigabe im Dashboard**, anschließend Auswahlbedienung,
 Warenkorb und Parität entsprechend der bestehenden Reihenfolge. Empfehlung: **Work / Sol / hoch**.
 Keine Laptop-Aufgabe erforderlich. Vorläufige A2-Planabdeckung bleibt **50 % ±10 Prozentpunkte**;
 kein automatischer Fortschrittsanstieg, kein Merge oder Deployment.
+
+## Fortschrittsabgleich vom 1. Oktober 2026
+
+Der vorläufige Gesamtwert von 50 % ist für aktuelle Statusmeldungen durch den
+[vollständigen A2-Abgleich](2026-10-01-a2-progress-reconciliation.md) ersetzt: **57 % Umsetzung**
+über zwölf gleich gewichtete Hauptblöcke und 82 Prüfpositionen. Automatische Nachweise und
+praktische Abnahme bleiben getrennt. Historische Zahlen und damalige Teilbewertungen oben bleiben
+als Verlauf erhalten; sie sind keine aktuelle Gesamtbewertung.
