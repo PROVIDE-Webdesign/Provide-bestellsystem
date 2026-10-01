@@ -2,7 +2,7 @@
 
 ## Ergebnis und Geltungsbereich
 
-Der aktualisierte Umsetzungsstand beträgt **57 %** (rechnerisch 57,142857 %). Bewertet werden alle
+Der aktualisierte Umsetzungsstand beträgt **57 %** (rechnerisch 56,547619 %). Bewertet werden alle
 zwölf A2-Hauptblöcke 0–11; Unterarbeitsblöcke vergrößern den Nenner nicht. Grundlage sind 82
 nachvollziehbare Prüfpositionen. Der Wert umfasst vorhandene Umsetzung einschließlich der geprüften,
 noch nicht zusammengeführten Entwurfs-PRs #8, #10 und #11. Er bedeutet weder 57 % produktiv
@@ -30,7 +30,7 @@ Produkts.
 
 Die Aufteilung und Halbpunktbewertung bleiben eine fachliche Schätzung, kein objektiver
 Fertigstellungsgrad oder Zeitaufwand. Würden sämtliche Halbpunktpositionen stattdessen mit 0,25
-beziehungsweise 0,75 bewertet, läge der Gesamtwert zwischen 51,4 % und 62,9 %. Das ist eine
+beziehungsweise 0,75 bewertet, läge der Gesamtwert zwischen 50,5 % und 62,6 %. Das ist eine
 Sensitivität der Bewertungsmethode, kein statistisches Vertrauensintervall.
 
 Automatische Prüfungen werden als Nachweise für vorhandene Teilumfänge geführt. Testanzahlen werden
@@ -47,7 +47,7 @@ erfunden.
 | 2 – Mandanten, Auth und Onboarding         |    71,4 % |               5 / 7 | RLS/Auth/Onboarding automatisiert geprüft; keine vollständige Onboarding-/Admin-Bedienabnahme.                                                  |
 | 3 – Menü und Verfügbarkeit                 |    50,0 % |               4 / 8 | Versions-/Auswahl-/Preis-/Konkurrenztests belegt; Editor, Kundenauswahl und Pilotparität offen.                                                 |
 | 4 – Warenkorb und Regeln                   |    66,7 % |               6 / 9 | Manipulations-/Zeit-/Kapazitäts-/Lieferprüfungen belegt; echte Adressprüfung und vollständiger Warenkorbpfad offen.                             |
-| 5 – Bestellung, Status und Ereignisse      |    78,6 % |             5,5 / 7 | Transaktions-/Status-/Snapshot-/Idempotenztests belegt; externe Ereigniszustellung offen.                                                       |
+| 5 – Bestellung, Status und Ereignisse      |    71,4 % |               5 / 7 | Transaktions-/Status-/Snapshot-/Idempotenztests belegt; garantiert eindeutige lesbare Bestellnummer und externe Zustellung offen.               |
 | 6 – Restaurant-Dashboard und Betriebsmodus |    50,0 % |               4 / 8 | API-/Datenbankbefehle geprüft; Realtime, Ton, Mehrgeräte- und vollständige Betriebsbedienabnahme offen.                                         |
 | 7 – Zahlung                                |    57,1 % |               4 / 7 | Automatisierte Sandbox-Grenztests und einzelne echte Abhol-/Erstattungs-/verzögerte Zahlungsfälle belegt; vollständige Stripe-Fallmatrix offen. |
 | 8 – Kundenstatus und Nachrichten           |    78,6 % |             5,5 / 7 | Vorlagen-/Retry-/DLQ-/Statusprüfungen mit synthetischem Adapter belegt; echte Brevo-Zustellung offen.                                           |
@@ -170,15 +170,15 @@ Anforderung: A2 §§2,3.1,8,15.
 
 Anforderung: A2 §§6–8.2.
 
-| ID     | Prüfposition                                                   | Punkte | Beleg und verbleibender Umfang                                                  |
-| ------ | -------------------------------------------------------------- | -----: | ------------------------------------------------------------------------------- |
-| A2-5-1 | Atomare Abgabe, Bestellnummer und Idempotenz                   |      1 | ADR0015/0020/0025; Tests0012/0016/0021                                          |
-| A2-5-2 | Unveränderliche Artikel-, Auswahl-, Preis- und Adresssnapshots |      1 | ADR0015/0025/0028; Tests0012/0021/0025                                          |
-| A2-5-3 | Serverseitige Statusmaschine und lückenloser Verlauf           |      1 | ADR0015/0023/0027; Tests0012/0019/0024                                          |
-| A2-5-4 | Zeitkorrektur, Gründe und Liefer-Unterwegs-Ereignis            |      1 | ADR0027; Test0024                                                               |
-| A2-5-5 | Transaktionale, minimierte Outbox und interne Idempotenz       |      1 | ADR0006/0024/0027; Tests0003/0020/0023                                          |
-| A2-5-6 | Vollständige A2-v1-Ereignisnamen und Umschlagverträge          |    0,5 | Interne Ereignisse vorhanden; alle kanonischen A2-Verträge/Kompatibilität offen |
-| A2-5-7 | Signierte externe Zustellung, Retry, DLQ und Replay            |      0 | E-Mail-Consumer deckt keine allgemeine externe Integrationszustellung ab        |
+| ID     | Prüfposition                                                   | Punkte | Beleg und verbleibender Umfang                                                                                                      |
+| ------ | -------------------------------------------------------------- | -----: | ----------------------------------------------------------------------------------------------------------------------------------- |
+| A2-5-1 | Atomare Abgabe, Bestellnummer und Idempotenz                   |    0,5 | Atomare Abgabe/Idempotenz belegt; lesbarer UUID-Kurzsuffix ohne eigene Eindeutigkeitsgarantie. Siehe Nachprogrammierungsprüfung B7. |
+| A2-5-2 | Unveränderliche Artikel-, Auswahl-, Preis- und Adresssnapshots |      1 | ADR0015/0025/0028; Tests0012/0021/0025                                                                                              |
+| A2-5-3 | Serverseitige Statusmaschine und lückenloser Verlauf           |      1 | ADR0015/0023/0027; Tests0012/0019/0024                                                                                              |
+| A2-5-4 | Zeitkorrektur, Gründe und Liefer-Unterwegs-Ereignis            |      1 | ADR0027; Test0024                                                                                                                   |
+| A2-5-5 | Transaktionale, minimierte Outbox und interne Idempotenz       |      1 | ADR0006/0024/0027; Tests0003/0020/0023                                                                                              |
+| A2-5-6 | Vollständige A2-v1-Ereignisnamen und Umschlagverträge          |    0,5 | Interne Ereignisse vorhanden; alle kanonischen A2-Verträge/Kompatibilität offen                                                     |
+| A2-5-7 | Signierte externe Zustellung, Retry, DLQ und Replay            |      0 | E-Mail-Consumer deckt keine allgemeine externe Integrationszustellung ab                                                            |
 
 ### Block 6 – Restaurant-Dashboard und Betriebsmodus
 
@@ -300,3 +300,11 @@ Oberflächen.
 Validierung dieses Abgleichs: rechnerische Auswertung der 82 Positionen, Abgleich der zwölf
 Blockquoten, Quellen-/Codeprüfung und Repository-Prettier-Prüfung. Keine Laufzeitänderung;
 vorhandene CI-Nachweise wurden wiederverwendet.
+
+## Vertiefte Nachprogrammierungsprüfung vom 01.10.2026
+
+Die [projektweite Programmierungslückenprüfung](2026-10-01-missing-implementation-audit.md)
+konkretisiert fehlende Bedienwege, Provideranschlüsse und Betriebsabläufe. Sie korrigiert A2-5-1 auf
+0,5, weil der sichtbare UUID-Kurzsuffix keine eigene Eindeutigkeitsgarantie besitzt. Atomare Abgabe
+und Idempotenz bleiben belegt. Der ursprüngliche Rechenwert 57,142857 % ist damit durch 56,547619 %
+ersetzt; der gerundete Umsetzungsstand bleibt 57 %.
