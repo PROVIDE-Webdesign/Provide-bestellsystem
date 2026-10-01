@@ -1,0 +1,65 @@
+{
+  "serverNow": "2026-10-01T12:00:00.000Z",
+  "liveActionsEnabled": false,
+  "canCreateRestaurant": true,
+  "restaurants": [
+    {
+      "id": "f2000000-0000-0000-0000-000000000001",
+      "slug": "storefront-restaurant-a",
+      "displayName": "PROVIDE Testküche"
+    }
+  ],
+  "nextRestaurantCursor": null,
+  "selected": {
+    "restaurantId": "f2000000-0000-0000-0000-000000000001",
+    "scopeSlug": "storefront-restaurant-a",
+    "scopeDisplayName": "PROVIDE Testküche",
+    "slug": "storefront-restaurant-a",
+    "displayName": "PROVIDE Testküche",
+    "revision": 10,
+    "canManageRestaurant": true,
+    "locationId": null,
+    "locations": [
+      {
+        "id": "f3000000-0000-0000-0000-000000000001",
+        "slug": "storefront-a-mitte",
+        "displayName": "Teststandort Mitte"
+      }
+    ],
+    "nextLocationCursor": null,
+    "profileStatus": "setup",
+    "onboardingStatus": "in_progress",
+    "goLiveStatus": "blocked",
+    "configuration": {
+      "merchantRole": null,
+      "payoutAccountReference": null,
+      "productionDomain": null,
+      "dataRegion": null,
+      "responsibleUserId": null
+    },
+    "checks": [
+      {
+        "key": "restaurant.owner",
+        "description": "Owner reviewed.",
+        "required": true,
+        "status": "pending",
+        "checkedAt": null,
+        "checkedByUserId": null,
+        "evidenceKind": null,
+        "evidenceReference": null
+      }
+    ],
+    "features": [
+      {
+        "key": "ordering.accept_orders",
+        "description": "New orders.",
+        "mode": "inherit",
+        "expiresAt": null,
+        "reason": null,
+        "effectiveEnabled": false,
+        "restaurantEnabled": false
+      }
+    ],
+    "audit": []
+  }
+}

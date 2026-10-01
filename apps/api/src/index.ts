@@ -1,4 +1,9 @@
 import {
+  handleProvideAdmin,
+  postgresProvideAdmin,
+  type ProvideAdminRepository,
+} from "./provide-admin.js";
+import {
   handleLocationOperations,
   postgresLocationOperations,
   type LocationOperationsRepository,
@@ -55,6 +60,8 @@ interface HyperdriveBinding {
 }
 
 interface Env extends OnlineEnvironment {
+  readonly PROVIDE_ADMIN_ENABLED?: string;
+  readonly PROVIDE_ADMIN_LIVE_ENABLED?: string;
   readonly DASHBOARD_HISTORY_ENABLED?: string;
   readonly GUEST_RETENTION_PURGE_ENABLED?: string;
   readonly DASHBOARD_ORDER_ALERTS_ENABLED?: string;
@@ -104,6 +111,7 @@ export function createApiWorker(
   locationOperations: LocationOperationsRepository = postgresLocationOperations,
   historyRepository: HistoryRepository = postgresHistory,
   guestPurge: typeof postgresGuestPurge = postgresGuestPurge,
+  provideAdmin: ProvideAdminRepository = postgresProvideAdmin,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -129,6 +137,16 @@ export function createApiWorker(
         return jsonError("not_found", "Resource was not found.", context.requestId, 404, cors);
       }
 
+      if (route.name === "provideAdmin")
+        return handleProvideAdmin(
+          request,
+          env,
+          dashboardTokenVerifier,
+          provideAdmin,
+          context,
+          logger,
+          cors,
+        );
       if (route.name === "dashboardHistory")
         return handleOrderHistory(
           request,

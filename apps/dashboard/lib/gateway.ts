@@ -1,4 +1,9 @@
 import {
+  parseProvideAdminCommand,
+  parseProvideAdminState,
+  type ProvideAdminCommand,
+} from "@provide/contracts";
+import {
   parseLocationOperationsCommand,
   parseLocationOperationsState,
   type LocationOperationsCommand,
@@ -40,6 +45,55 @@ function safeApiBase(value: string | undefined): URL | undefined {
     return url;
   } catch {
     return undefined;
+  }
+}
+
+export async function readProvideAdminBody(request: Request): Promise<ProvideAdminCommand> {
+  const command = parseProvideAdminCommand(await boundedJson(request, 4096));
+  if (!command) throw Error("Invalid administration request");
+  return command;
+}
+export async function fetchProvideAdmin(
+  accessToken: string,
+  apiBaseUrl: string | undefined,
+  command: ProvideAdminCommand,
+  fetcher: typeof fetch = fetch,
+): Promise<Response> {
+  const base = safeApiBase(apiBaseUrl),
+    validated = parseProvideAdminCommand(command);
+  if (!base || !validated || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(accessToken))
+    return operationalFailure(400);
+  try {
+    const response = await fetcher(new URL("/v1/provide/administration", base), {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+        authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(validated),
+      cache: "no-store",
+      redirect: "manual",
+      signal: AbortSignal.timeout(8000),
+    });
+    if ([400, 401, 403, 404, 409].includes(response.status))
+      return operationalFailure(response.status as 400 | 401 | 403 | 404 | 409);
+    if (!response.ok) return operationalFailure(503);
+    const envelope = (await boundedJson(response)) as { data?: unknown },
+      data = parseProvideAdminState(envelope.data);
+    if (
+      !data ||
+      (validated.restaurantId !== undefined &&
+        data.selected?.restaurantId !== validated.restaurantId) ||
+      (validated.action !== "read" && data.selected?.locationId !== validated.locationId) ||
+      (validated.action === "read" &&
+        validated.locationId !== undefined &&
+        data.selected?.locationId !== validated.locationId)
+    )
+      return operationalFailure(503);
+    return Response.json({ data }, { headers });
+  } catch {
+    return operationalFailure(503);
   }
 }
 

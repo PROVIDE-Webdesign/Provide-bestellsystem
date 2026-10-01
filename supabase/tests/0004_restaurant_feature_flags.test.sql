@@ -125,20 +125,20 @@ select ok(
   'authenticated users have no restaurant feature flag privileges'
 );
 select ok(
-  has_table_privilege(
+  not has_table_privilege(
     'service_role',
     'public.feature_definitions',
-    'select,insert,update,delete'
+    'insert,update,delete'
   ),
-  'the server role can manage feature definitions'
+  'the server role cannot bypass audited feature administration'
 );
 select ok(
-  has_table_privilege(
+  not has_table_privilege(
     'service_role',
     'public.restaurant_feature_flags',
-    'select,insert,update,delete'
+    'insert,update,delete'
   ),
-  'the server role can manage restaurant feature flags'
+  'the server role cannot mutate feature flags through the table API'
 );
 
 select ok(
