@@ -19,3 +19,8 @@ weiterverwendet. Die Rollen- und Einladungsverwaltung aus A1 ist dadurch nicht e
 
 Alle aktuellen Arbeiten sind überprüfbare Codeentwürfe. Keine Live-Schaltung, kein Merge, keine
 Wiederaufnahme eingefrorener Umgebungs- oder Geräteprüfungen.
+
+Fortschreibung: B7 ist mit PR #14/CI #119 technisch geprüft. B1/B2 sind anschließend gemeinsam in
+[Arbeitsblock 3.15](../work-blocks/3.15-realtime-order-alerts.md) implementiert; ihr technischer
+Abschluss setzt die dort genannten finalen CI-Nachweise voraus. Die Ausgangsmatrix oben bleibt als
+Bestandsaufnahme erhalten. Danach sind B3/B4 die nächste gebündelte Umsetzung; B5 folgt mit Paket 4.

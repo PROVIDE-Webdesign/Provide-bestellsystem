@@ -1,4 +1,5 @@
 import { handleMenuAdmin, postgresMenuAdmin, type MenuAdminRepository } from "./menu-admin.js";
+import { dispatchAcceptanceAlerts } from "./order-alerts.js";
 import { handleCartQuote, postgresCartQuoteReader, type CartQuoteReader } from "./cart-quote.js";
 import { handleDelivery, type DeliveryRepository } from "./delivery.js";
 import {
@@ -49,6 +50,7 @@ interface HyperdriveBinding {
 }
 
 interface Env extends OnlineEnvironment {
+  readonly DASHBOARD_ORDER_ALERTS_ENABLED?: string;
   readonly DASHBOARD_MENU_ENABLED?: string;
   readonly CART_QUOTE_ENABLED?: string;
   readonly DELIVERY_ORDERING_ENABLED?: string;
@@ -184,6 +186,7 @@ export function createApiWorker(
 
       if (
         route.name === "dashboardOrders" ||
+        route.name === "dashboardOrderAlerts" ||
         route.name === "dashboardOrder" ||
         route.name === "dashboardOrderStatus" ||
         route.name === "dashboardRefundRetry" ||
@@ -245,6 +248,7 @@ export function createApiWorker(
       }
     },
     scheduled(_controller: ScheduledController, env: Env, context: ExecutionContext) {
+      context.waitUntil(dispatchAcceptanceAlerts(env, dashboardOrdersReader, logger));
       context.waitUntil(dispatchOnlinePayments(env, onlineRepository, onlineProvider));
       context.waitUntil(dispatchEmailNotifications(env, emailRepository, emailAdapter, logger));
       context.waitUntil(

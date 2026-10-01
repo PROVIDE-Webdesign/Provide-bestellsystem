@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { verifyOrderLiveBrowser } from "./order-live.ts";
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
@@ -363,6 +364,7 @@ try {
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
       false,
     );
+    await page.waitForLoadState("networkidle");
     assert.deepEqual(errors, []);
     await page.screenshot({ path: output + `editor-${viewport.width}.png`, fullPage: true });
     const fileInput = page.getByLabel("Importdatei (JSON)");
@@ -447,6 +449,7 @@ try {
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
       false,
     );
+    await verifyOrderLiveBrowser(page, output, viewport.width);
     assert.deepEqual(errors, []);
     await context.close();
     console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);

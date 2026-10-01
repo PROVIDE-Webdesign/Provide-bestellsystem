@@ -137,6 +137,14 @@ export async function verifyOnlineIntegration(
   const raw: unknown = await response.json();
   const confirmation = parseOnlineOrderConfirmation(object(raw)?.data);
   if (!confirmation) throw new Error("Invalid online confirmation");
+  expect(
+    (
+      await admin.query<{ n: number }>(
+        "select count(*)::integer as n from private.order_acceptance_alerts where order_id=$1",
+        [confirmation.orderId],
+      )
+    ).rows[0]?.n,
+  ).toBe(0);
   expect(confirmation.orderNumber).toMatch(/^BS-[0-9]{8,19}$/);
   const repeat: unknown = await (await post("online-orders", command)).json();
   expect(object(object(repeat)?.data)?.orderId).toBe(confirmation.orderId);
@@ -199,6 +207,19 @@ export async function verifyOnlineIntegration(
   session.intent = "pi_" + job.id.replaceAll("-", "");
   session.url = null;
   await run(confirmation.orderId);
+  expect(
+    (
+      await admin.query<{ n: number }>(
+        "select count(*)::integer as n from private.order_acceptance_alerts where order_id=$1 and resolved_at is null and deadline=started_at+interval '5 minutes'",
+        [confirmation.orderId],
+      )
+    ).rows[0]?.n,
+  ).toBe(1);
+  const independentClock = await admin.query<{ independent: boolean }>(
+    "select a.deadline<>j.deadline as independent from private.order_acceptance_alerts a join public.online_payment_jobs j on j.order_id=a.order_id where a.order_id=$1",
+    [confirmation.orderId],
+  );
+  expect(independentClock.rows[0]?.independent).toBe(true);
   const status = await post("order-status", {
     orderId: confirmation.orderId,
     statusAccessToken: confirmation.statusAccessToken,

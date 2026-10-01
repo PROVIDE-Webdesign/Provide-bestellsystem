@@ -1,4 +1,5 @@
 import {
+  parseDashboardAcceptance,
   parseMenuAdminCommand,
   parseMenuAdminState,
   type MenuAdminCommand,
@@ -224,6 +225,25 @@ export function fetchDashboardOrders(
     "GET",
     undefined,
     parseDashboardOrderList,
+    fetcher,
+  );
+}
+
+export function fetchDashboardAcceptance(
+  accessToken: string,
+  apiBaseUrl: string | undefined,
+  scope: { restaurantId: string; locationId: string },
+  fetcher: typeof fetch = fetch,
+) {
+  if (!uuidPattern.test(scope.restaurantId) || !uuidPattern.test(scope.locationId))
+    return Promise.resolve(operationalFailure(400));
+  return operationalRequest(
+    accessToken,
+    apiBaseUrl,
+    `/v1/dashboard/restaurants/${scope.restaurantId}/locations/${scope.locationId}/order-alerts`,
+    "GET",
+    undefined,
+    parseDashboardAcceptance,
     fetcher,
   );
 }

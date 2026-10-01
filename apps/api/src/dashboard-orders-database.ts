@@ -35,6 +35,25 @@ async function query(
 }
 
 export const postgresDashboardOrdersReader: DashboardOrdersReader = {
+  alerts(connectionString, identity, scope) {
+    return query(
+      connectionString,
+      true,
+      "select private.read_dashboard_acceptance($1::uuid,$2::text,$3::uuid,$4::uuid) as data",
+      [identity.userId, identity.aal, scope.restaurantId, scope.locationId],
+    );
+  },
+  async escalateAlerts(connectionString) {
+    const result = await query(
+      connectionString,
+      false,
+      "select private.escalate_order_acceptance(100) as data",
+      [],
+    );
+    if (typeof result !== "number" || !Number.isInteger(result) || result < 0 || result > 100)
+      throw Error("Invalid escalation result");
+    return result;
+  },
   communicate(connectionString, identity, scope, command) {
     return query(
       connectionString,

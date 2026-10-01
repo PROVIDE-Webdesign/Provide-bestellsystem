@@ -66,6 +66,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 5.20260901.1
         version: 5.20260901.1
+      '@supabase/supabase-js':
+        specifier: 'catalog:'
+        version: 2.116.0
       '@types/node':
         specifier: 26.4.0
         version: 26.4.0

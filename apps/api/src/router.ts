@@ -2,7 +2,7 @@ import type { StorefrontRoute } from "./storefront.js";
 
 export type DashboardOrderRoute =
   | {
-      readonly name: "dashboardOrders";
+      readonly name: "dashboardOrders" | "dashboardOrderAlerts";
       readonly restaurantId: string;
       readonly locationId: string;
       readonly orderId?: undefined;
@@ -33,6 +33,11 @@ function matchPath(request: Request): MatchedRoute | undefined {
   const menu = /^\/v1\/dashboard\/restaurants\/([^/]+)\/locations\/([^/]+)\/menu$/.exec(path);
   if (menu?.[1] && menu[2])
     return { name: "dashboardMenu", restaurantId: menu[1], locationId: menu[2] };
+  const alerts = /^\/v1\/dashboard\/restaurants\/([^/]+)\/locations\/([^/]+)\/order-alerts$/.exec(
+    path,
+  );
+  if (alerts?.[1] && alerts[2])
+    return { name: "dashboardOrderAlerts", restaurantId: alerts[1], locationId: alerts[2] };
   const dashboardOrder =
     /^\/v1\/dashboard\/restaurants\/([^/]+)\/locations\/([^/]+)\/orders(?:\/([^/]+)(\/status|\/refund-retry|\/communication)?)?$/.exec(
       path,

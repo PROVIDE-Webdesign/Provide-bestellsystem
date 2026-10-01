@@ -12,6 +12,8 @@ export default function DashboardPage() {
       <DashboardClient
         enabled={process.env.DASHBOARD_AUTH_ENABLED === "true"}
         menuEnabled={process.env.DASHBOARD_MENU_ENABLED === "true"}
+        liveEnabled={process.env.DASHBOARD_REALTIME_ENABLED === "true"}
+        alertsEnabled={process.env.DASHBOARD_ORDER_ALERTS_ENABLED === "true"}
       />
     </main>
   );
