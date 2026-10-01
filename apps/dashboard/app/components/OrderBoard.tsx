@@ -83,7 +83,8 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
           cursor && current ? { ...parsed, orders: [...current.orders, ...parsed.orders] } : parsed,
         );
         setMessage("");
-      } catch {
+      } catch (error) {
+        console.error("Order list load failed", error);
         if (controller.signal.aborted) return;
         setMessage("Die Bestellungen konnten nicht sicher aktualisiert werden.");
       } finally {
