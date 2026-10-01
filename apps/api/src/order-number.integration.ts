@@ -82,7 +82,7 @@ export async function verifyOrderNumberIntegration(admin: Client, env: Env) {
       .status,
   ).toBe(404);
   const dashboard =
-    "https://api.test/v1/dashboard/restaurants/f2000000-0000-0000-000000000001/locations/f3000000-0000-0000-000000000001/orders";
+    "https://api.test/v1/dashboard/restaurants/f2000000-0000-0000-0000-000000000001/locations/f3000000-0000-0000-0000-000000000001/orders";
   const search = await worker.fetch(
     new Request(`${dashboard}?orderNumber=${first.orderNumber}`, {
       headers: { authorization: "Bearer header.payload.signature" },
