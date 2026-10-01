@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { verifyOrderLiveBrowser } from "./order-live.js";
+import { verifyOrderLiveBrowser } from "./order-live.ts";
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";

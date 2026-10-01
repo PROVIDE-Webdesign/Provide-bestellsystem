@@ -116,6 +116,7 @@ export function OrderBoard({
           cache: "no-store",
           signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]),
         });
+        if (controller.signal.aborted) return;
         if (response.status === 401 || response.status === 403) {
           clearDenied();
           return;
@@ -175,6 +176,7 @@ export function OrderBoard({
         cache: "no-store",
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]),
       });
+      if (controller.signal.aborted) return;
       if (response.status === 401 || response.status === 403) {
         clearDenied();
         return;
@@ -191,14 +193,7 @@ export function OrderBoard({
       if (controller.signal.aborted) return;
       if (refresh && (currentUpdating.current || currentDetail.current?.orderId !== orderId))
         return;
-      if (
-        refresh &&
-        currentDetail.current?.status === parsed.status &&
-        currentDetail.current?.updatedAt === parsed.updatedAt &&
-        currentDetail.current?.communication?.revision === parsed.communication?.revision &&
-        currentDetail.current?.paymentState === parsed.paymentState
-      )
-        return;
+      if (refresh && JSON.stringify(currentDetail.current) === JSON.stringify(parsed)) return;
       setDetail(parsed);
       if (refresh)
         setMessage(
@@ -244,6 +239,10 @@ export function OrderBoard({
         await loadOrders();
         return;
       }
+      if (response.status === 401 || response.status === 403) {
+        clearDenied();
+        return;
+      }
       if (!response.ok) throw new Error();
       if (!parseDashboardOrderStatusResult(envelopeData(await response.json()))) throw new Error();
       setDetail(undefined);
@@ -268,6 +267,10 @@ export function OrderBoard({
           body: "{}",
         },
       );
+      if (r.status === 401 || r.status === 403) {
+        clearDenied();
+        return;
+      }
       if (!r.ok) throw new Error("Refund retry failed");
       await loadDetail(detail.orderId);
     } catch {
@@ -312,6 +315,10 @@ export function OrderBoard({
       if (r.status === 409) {
         await loadDetail(detail.orderId);
         setMessage("Die Bestellung wurde geändert. Prüfe den neu geladenen Stand.");
+        return;
+      }
+      if (r.status === 401 || r.status === 403) {
+        clearDenied();
         return;
       }
       if (!r.ok || !parseOrderCommunication(envelopeData(await r.json()))) throw new Error();

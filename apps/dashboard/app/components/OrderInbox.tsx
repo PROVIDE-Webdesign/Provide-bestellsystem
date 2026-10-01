@@ -89,6 +89,7 @@ export function OrderInbox({
               signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]),
             },
           );
+          if (disposed || controller.signal.aborted) return;
           if (response.status === 401 || response.status === 403) {
             blocked = true;
             stopLive();

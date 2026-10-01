@@ -33,11 +33,14 @@ Staging-Pilot.
 - Umsetzung und Nachweise: [Arbeitsblock 3.9](docs/work-blocks/3.9-sandbox-online-payments.md).
 - Paket 3 Restaurantbetrieb ist gestartet:
   [Arbeitsblock 3.14](docs/work-blocks/3.14-restaurant-operations.md).
+- Realtime und Bestellalarm sind gemeinsam umgesetzt:
+  [Arbeitsblock 3.15](docs/work-blocks/3.15-realtime-order-alerts.md), Entwurfs-PR #15.
 - Externe Pilot-/Gerätefälle sind bis zur Laptopverfügbarkeit
   [eingefroren](docs/planning/2026-10-01-frozen-pilot-acceptance.md).
-- Gesamtfortschritt: **61 %** (positionsweiser A2-Abgleich über zwölf Hauptblöcke; nach grüner B7-CI
-  61,135913 %, technische Umsetzung, keine Produktionsreife). Die frühere 84-%-Schätzung ist
-  ersetzt.
+- Gesamtfortschritt nach fünf grünen B1/B2-Pflichtjobs am finalen PR-Head: **63 %** (62,698413 %, 19
+  technische Lücken). Bis dahin gilt der bestätigte B7-Ausgangsstand von 61,135913 %.
+  Positionsweiser A2-Abgleich über zwölf Hauptblöcke; technische Umsetzung, keine Produktionsreife.
+  Die frühere 84-%-Schätzung ist ersetzt.
 - Das Deployment der kundenbezogenen Arbeitsblöcke steht aus.
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 

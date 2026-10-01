@@ -130,6 +130,7 @@ describe.skipIf(!url || !db)("isolated real private Realtime transport", () => {
       const env = {
         APP_ENV: "test",
         CHECKOUT_WRITE_ENABLED: "true",
+        ORDER_STATUS_READ_ENABLED: "true",
         CHECKOUT_PRIVACY_NOTICE_VERSION: "preview-v1",
         CHECKOUT_RETENTION_DAYS: "30",
         ORDER_STATUS_TOKEN_SECRET: "synthetic-realtime-status-secret-at-least-32-bytes",

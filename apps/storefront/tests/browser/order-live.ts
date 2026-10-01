@@ -13,6 +13,7 @@ export async function verifyOrderLiveBrowser(page: Page, output: string, width: 
   let serverNow = Date.now();
   const deadline = serverNow + 300000;
   let escalated = false;
+  let contactName: string | null = "Synthetic Realtime Guest";
   await page.addInitScript(() => {
     sessionStorage.setItem("synthetic-tone-starts", "0");
     window.AudioContext = class extends AudioContext {
@@ -87,7 +88,7 @@ export async function verifyOrderLiveBrowser(page: Page, output: string, width: 
               ...order,
               restaurantId,
               locationId,
-              contactName: "Synthetic Realtime Guest",
+              contactName,
               lines: [
                 {
                   lineNumber: 1,
@@ -179,6 +180,20 @@ export async function verifyOrderLiveBrowser(page: Page, output: string, width: 
     )
     .waitFor();
   assert.equal(await tones(), muted, "Mute remains effective for subsequent updates");
+  contactName = null;
+  await signal(6);
+  await page.waitForLoadState("networkidle");
+  await page
+    .getByText(
+      "Die Bestellung wurde aktualisiert. Bitte prüfe den neuen Stand vor der nächsten Aktion.",
+      { exact: true },
+    )
+    .waitFor();
+  assert.equal(
+    await page.getByText("Synthetic Realtime Guest", { exact: false }).count(),
+    0,
+    "A refreshed redaction removes stale PII even with unchanged order timestamps",
+  );
   failed = true;
   await signal(4);
   await page.getByText(/Eingang nicht aktuell/).waitFor();
@@ -186,7 +201,12 @@ export async function verifyOrderLiveBrowser(page: Page, output: string, width: 
     window.dispatchEvent(new CustomEvent("synthetic-order-state", { detail: "fallback" })),
   );
   await page.getByText(/Live nicht verbunden/).waitFor();
+  await page.waitForLoadState("networkidle");
   failed = false;
+  // With no websocket hint, the normal 15-second safety poll recovers the inbox.
+  await page.waitForResponse((r) => r.url().includes("/api/order-alerts") && r.status() === 200);
+  await page.getByText("Keine Bestellung wartet auf Annahme.", { exact: true }).waitFor();
+  await page.getByText(/Live nicht verbunden/).waitFor();
   await page.evaluate(() =>
     window.dispatchEvent(new CustomEvent("synthetic-order-state", { detail: "live" })),
   );
