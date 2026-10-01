@@ -1,4 +1,9 @@
 import {
+  parseLocationOperationsCommand,
+  parseLocationOperationsState,
+  type LocationOperationsCommand,
+} from "@provide/contracts";
+import {
   parseDashboardAcceptance,
   parseMenuAdminCommand,
   parseMenuAdminState,
@@ -386,6 +391,61 @@ export async function fetchDashboardMenu(
       );
     const envelope = (await boundedJson(r, 1024 * 1024)) as { data?: unknown };
     const data = parseMenuAdminState(envelope.data);
+    return data ? Response.json({ data }, { headers }) : operationalFailure(503);
+  } catch {
+    return operationalFailure(503);
+  }
+}
+
+export async function readDashboardLocationOperationsBody(
+  request: Request,
+): Promise<LocationOperationsCommand> {
+  const body = await boundedJson(
+    new Response(request.body, {
+      headers: { "content-type": request.headers.get("content-type") ?? "" },
+    }),
+    512 * 1024,
+  );
+  const command = parseLocationOperationsCommand(body);
+  if (!command) throw Error("Invalid menu command");
+  return command;
+}
+export async function fetchDashboardLocationOperations(
+  accessToken: string,
+  apiBaseUrl: string | undefined,
+  scope: { restaurantId: string; locationId: string },
+  command: LocationOperationsCommand | null,
+  fetcher: typeof fetch = fetch,
+): Promise<Response> {
+  const base = safeApiBase(apiBaseUrl);
+  if (
+    !base ||
+    !uuidPattern.test(scope.restaurantId) ||
+    !uuidPattern.test(scope.locationId) ||
+    !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(accessToken)
+  )
+    return operationalFailure(400);
+  try {
+    const r = await fetcher(
+      new URL(
+        `/v1/dashboard/restaurants/${scope.restaurantId}/locations/${scope.locationId}/operations`,
+        base,
+      ),
+      {
+        method: command ? "POST" : "GET",
+        headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+        ...(command ? { body: JSON.stringify(command) } : {}),
+        cache: "no-store",
+        redirect: "manual",
+        signal: AbortSignal.timeout(10000),
+      },
+    );
+    if (!r.ok)
+      return operationalFailure(
+        [400, 401, 403, 404, 409].includes(r.status) ? (r.status as OperationalFailureStatus) : 503,
+      );
+    const envelope = (await boundedJson(r, 1024 * 1024)) as { data?: unknown };
+    const data = parseLocationOperationsState(envelope.data);
     return data ? Response.json({ data }, { headers }) : operationalFailure(503);
   } catch {
     return operationalFailure(503);

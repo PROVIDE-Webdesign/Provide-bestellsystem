@@ -1,3 +1,4 @@
+import { LocationOperations } from "../../../dashboard/app/components/LocationOperations";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import Storefront from "../../app/storefront/Storefront";
@@ -8,6 +9,7 @@ import {
   type OrderLiveSubscriber,
 } from "../../../dashboard/lib/order-live";
 import "../../app/styles.css";
+const operations = new URLSearchParams(location.search).has("operations");
 const dashboard = new URLSearchParams(location.search).has("dashboard");
 const board = new URLSearchParams(location.search).has("board");
 const live = new URLSearchParams(location.search).has("live");
@@ -32,10 +34,15 @@ const syntheticLive: OrderLiveSubscriber = (_restaurant, _location, onChange, on
     window.removeEventListener("synthetic-order-state", state);
   };
 };
-if (dashboard || board) void import("../../../dashboard/app/styles.css");
+if (dashboard || board || operations) void import("../../../dashboard/app/styles.css");
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {board ? (
+    {operations ? (
+      <LocationOperations
+        restaurantId="f2000000-0000-0000-0000-000000000001"
+        locations={[{ id: "f3000000-0000-0000-0000-000000000001", displayName: "Synthetic Mitte" }]}
+      />
+    ) : board ? (
       <OrderBoard
         liveEnabled={live}
         alertsEnabled={live}
