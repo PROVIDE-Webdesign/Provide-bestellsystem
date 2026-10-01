@@ -83,7 +83,7 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
           console.error(
             "Number list parse failed",
             JSON.stringify(payload),
-            JSON.stringify(numberParserDiagnostics()),
+            JSON.stringify(numberParserDiagnostics(payload)),
           );
         if (!parsed) throw new Error();
         if (controller.signal.aborted) return;

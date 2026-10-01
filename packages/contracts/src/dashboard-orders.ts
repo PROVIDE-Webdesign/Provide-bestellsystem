@@ -180,13 +180,28 @@ function parseSummary(value: unknown): DashboardOrderSummary | undefined {
   };
 }
 
-export function numberParserDiagnostics() {
-  return [
-    parseSummary.toString(),
-    uuidPattern.toString(),
-    isOrderNumber.toString(),
-    isExplicitInstant.toString(),
-  ];
+export function numberParserDiagnostics(value: unknown) {
+  const list = record(value);
+  const order = record(Array.isArray(list?.orders) ? list.orders[0] : undefined);
+  if (!order) return { order: false };
+  return {
+    listKeys: list
+      ? exactKeys(list, ["restaurantId", "locationId", "orders", "nextCursor"])
+      : false,
+    restaurant: typeof list?.restaurantId === "string" && uuidPattern.test(list.restaurantId),
+    location: typeof list?.locationId === "string" && uuidPattern.test(list.locationId),
+    orderKeys: Object.keys(order),
+    number: isOrderNumber(order.orderNumber),
+    orderId: typeof order.orderId === "string" && uuidPattern.test(order.orderId),
+    requested: typeof order.requestedFor === "string" && isExplicitInstant(order.requestedFor),
+    updated: typeof order.updatedAt === "string" && isExplicitInstant(order.updatedAt),
+    status: isStatus(order.status),
+    transitions: isStatus(order.status)
+      ? parseTransitions(order.allowedTransitions, order.status)
+      : null,
+    summary: parseSummary(order),
+    exactKeysSource: exactKeys.toString(),
+  };
 }
 
 export function parseDashboardOrderList(value: unknown): DashboardOrderList | undefined {
