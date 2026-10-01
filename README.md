@@ -78,6 +78,13 @@ Der standardmäßig deaktivierte Gast-Abholcheckout und seine synthetische Prüf
 Die standardmäßig deaktivierte Benachrichtigungsverarbeitung und ihre ausschließlich synthetische
 Adapterprüfung stehen im [Benachrichtigungs-Runbook](docs/runbooks/order-notifications.md).
 
+Die Menüpflege und der angeschlossene Warenkorb sind in
+[Entscheidung 0029](docs/decisions/0029-menu-administration-and-cart-completion.md), im
+[Prüf-Runbook](docs/runbooks/menu-cart-completion.md) und im
+[Arbeitsprotokoll 3.12](docs/work-blocks/3.12-menu-cart-completion.md) dokumentiert. Der
+[Fortschrittsabgleich](docs/planning/2026-10-01-menu-cart-progress-update.md) benennt offene
+Grenzen.
+
 ## Verbindliche Abschlussregel
 
 Nach jedem technisch abgeschlossenen Arbeitsblock nennt der Abschlussbericht den Gesamtfortschritt
