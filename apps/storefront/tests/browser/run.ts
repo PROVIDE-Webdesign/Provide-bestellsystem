@@ -58,7 +58,9 @@ try {
     const context = await browser.newContext({ viewport });
     const page = await context.newPage();
     const errors: string[] = [];
-    page.on("console", (event) => console.log("Browser console:", event.type(), event.text()));
+    page.on("console", (event) => {
+      if (event.type() === "error") console.log("Browser console:", event.text());
+    });
     page.on("pageerror", (e) => errors.push(e.message));
     let quoted = 0,
       submitted = 0;

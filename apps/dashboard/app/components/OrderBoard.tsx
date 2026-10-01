@@ -76,7 +76,14 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
           signal: controller.signal,
         });
         if (!response.ok) throw new Error();
-        const parsed = parseDashboardOrderList(envelopeData(await response.json()));
+        const payload = envelopeData(await response.json());
+        const parsed = parseDashboardOrderList(payload);
+        if (!parsed)
+          console.error(
+            "Number list parse failed",
+            JSON.stringify(payload),
+            parseDashboardOrderList.toString(),
+          );
         if (!parsed) throw new Error();
         if (controller.signal.aborted) return;
         setOrders((current) =>
