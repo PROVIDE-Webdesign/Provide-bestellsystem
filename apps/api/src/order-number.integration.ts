@@ -11,7 +11,7 @@ export async function verifyOrderNumberIntegration(admin: Client, env: Env) {
   });
   const base = "https://api.test/v1/storefront/storefront-restaurant-a/storefront-a-mitte";
   const time = await admin.query<{ requested_for: string }>(
-    "select to_char((date_trunc('hour',now())+interval '16 hours') at time zone 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') as requested_for",
+    "select to_char((date_trunc('hour',now())+interval '32 hours') at time zone 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') as requested_for",
   );
   const request = {
     menuId: "f4000000-0000-0000-0000-000000000001",
