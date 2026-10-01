@@ -41,7 +41,7 @@ select is(pg_temp.ops(jsonb_build_object('action','save_draft','versionId',:'dra
 select is(pg_temp.ops(jsonb_build_object('action','publish','versionId',:'draft','expectedRevision',1,'expectedPublicationId',null,'expectedDeliveryPolicyId',null,'reason','Stale publication'))->>'outcome','conflict','changed publication requires deliberate review');
 select pg_temp.ops() as current \gset
 select is(pg_temp.ops(jsonb_build_object('action','publish','versionId',:'draft','expectedRevision',1,'expectedPublicationId',:'current'::jsonb#>'{data,publicationId}','expectedDeliveryPolicyId',:'current'::jsonb#>'{data,deliveryPolicyId}','reason','Synthetic publish'))->>'outcome','allowed','configuration publication reuses native rules');
-select is(private.resolve_availability_schedule_version('f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001'),:'draft'::uuid,'published version becomes current');
+select is(private.resolve_availability_schedule_version('f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',statement_timestamp()),:'draft'::uuid,'published version becomes current');
 select is(pg_temp.ops(jsonb_build_object('action','save_draft','versionId',:'draft','expectedRevision',1,'configuration',:'config'::jsonb,'reason','Synthetic overwrite'))->>'outcome','conflict','published version cannot be edited');
 select throws_ok('delete from private.location_configuration_audit','23514','ordering availability history is append-only','configuration audit cannot be deleted');
 select pg_temp.ops(jsonb_build_object('action','clear_override','scope','pickup','expectedSequence',(pg_temp.ops()#>>'{data,operationSequence}')::integer,'reason','Synthetic resume'));

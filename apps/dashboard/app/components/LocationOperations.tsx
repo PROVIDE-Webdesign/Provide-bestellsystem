@@ -44,7 +44,11 @@ export function LocationOperations({
       <h3>Betriebssteuerung und Standortregeln</h3>
       <label>
         Standort für Betriebsregeln
-        <select value={location} onChange={(e) => setLocation(e.target.value)}>
+        <select
+          aria-label="Standort für Betriebsregeln"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+        >
           {locations.map((l) => (
             <option key={l.id} value={l.id}>
               {l.displayName}
@@ -260,7 +264,11 @@ function LocationOperationsEditor({
             </p>
             <label>
               Geltungsbereich
-              <select value={scope} onChange={(e) => setScope(e.target.value as OperationScope)}>
+              <select
+                aria-label="Geltungsbereich"
+                value={scope}
+                onChange={(e) => setScope(e.target.value as OperationScope)}
+              >
                 {Object.entries(channelNames).map(([id, label]) => (
                   <option key={id} value={id}>
                     {label}
@@ -376,7 +384,11 @@ function LocationOperationsEditor({
             <legend>Versionierte Standortkonfiguration</legend>
             <label>
               Konfigurationsversion
-              <select value={selected} onChange={(e) => applyVersion(state, e.target.value)}>
+              <select
+                aria-label="Konfigurationsversion"
+                value={selected}
+                onChange={(e) => applyVersion(state, e.target.value)}
+              >
                 {state.versions.map((v) => (
                   <option key={v.id} value={v.id}>
                     Version {v.number} · {v.status === "draft" ? "Entwurf" : "veröffentlicht"}
