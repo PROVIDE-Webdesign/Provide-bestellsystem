@@ -76,7 +76,11 @@ const featureKey = (x: unknown): x is string =>
   text(x, 3, 80) && /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/.test(x);
 const integer = (x: unknown): x is number =>
   typeof x === "number" && Number.isSafeInteger(x) && x >= 0;
-const instant = (x: unknown): x is string => typeof x === "string" && isExplicitInstant(x);
+// PostgreSQL emits up to six fractional digits. Validate the same calendar/
+// offset rules through the shared millisecond subset, retaining the original.
+const instant = (x: unknown): x is string =>
+  typeof x === "string" &&
+  isExplicitInstant(x.replace(/(\.\d{3})\d{1,3}(?=(?:Z|[+-]\d{2}:\d{2})$)/, "$1"));
 export function parseLaunchConfiguration(x: unknown): LaunchConfiguration | undefined {
   const s = object(x);
   if (

@@ -16,6 +16,10 @@ const feature = {
   expiresAt: "2026-10-02T12:00:00.000Z",
 };
 describe("PROVIDE administration contracts", () => {
+  it("accepts PostgreSQL RFC3339 microseconds without losing the original instant", () => {
+    const state = { ...raw, serverNow: "2026-10-01T12:00:00.123456+00:00" };
+    expect(parseProvideAdminState(JSON.parse(JSON.stringify(state)))).toEqual(state);
+  });
   it("preserves unknown configuration and nullable audit evidence through JSON", () => {
     expect(parseProvideAdminState(JSON.parse(JSON.stringify(raw)))).toEqual(raw);
     expect(parseProvideAdminState({ ...raw, selected: null })).toBeDefined();
