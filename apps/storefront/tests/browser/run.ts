@@ -453,6 +453,7 @@ try {
     await verifyOrderLiveBrowser(page, output, viewport.width);
     await verifyLocationOperationsBrowser(page, output, viewport.width);
     await verifyHistoryBrowser(page, output, viewport.width);
+    await verifyProvideBrowser(page, output, viewport.width);
     assert.deepEqual(errors, []);
     await context.close();
     console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);
@@ -462,3 +463,4 @@ try {
   await server.close();
 }
 import { verifyHistoryBrowser } from "./order-history.ts";
+import { verifyProvideBrowser } from "./provide-admin.ts";

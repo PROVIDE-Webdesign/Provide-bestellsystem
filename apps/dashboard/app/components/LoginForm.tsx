@@ -4,7 +4,13 @@ import { useState, type FormEvent } from "react";
 
 import { createDashboardBrowserClient } from "@/lib/supabase-browser.js";
 
-export function LoginForm({ enabled }: { readonly enabled: boolean }) {
+export function LoginForm({
+  enabled,
+  returnTo = "/",
+}: {
+  readonly enabled: boolean;
+  readonly returnTo?: "/" | "/provide";
+}) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -30,7 +36,7 @@ export function LoginForm({ enabled }: { readonly enabled: boolean }) {
       setBusy(false);
       return;
     }
-    window.location.assign("/");
+    window.location.assign(returnTo);
   }
 
   return (

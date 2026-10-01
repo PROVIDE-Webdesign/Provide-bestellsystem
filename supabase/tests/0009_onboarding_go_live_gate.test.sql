@@ -85,12 +85,12 @@ select has_trigger(
   'new locations initialize their activation state'
 );
 select ok(
-  has_function_privilege(
+  not has_function_privilege(
     'service_role',
     'private.transition_restaurant_go_live(uuid,text,uuid,text)',
     'execute'
   ),
-  'the service role may execute restaurant go-live transitions'
+  'the service role must use the audited administration command'
 );
 select ok(
   not has_function_privilege(
@@ -126,8 +126,8 @@ select is(
     from public.onboarding_check_definitions
     where required_for_go_live
   ),
-  8,
-  'eight required launch checks are registered'
+  21,
+  'twenty-one required launch checks are registered'
 );
 
 insert into auth.users (id, email)
@@ -262,7 +262,7 @@ select is(
     from public.onboarding_check_results
     where restaurant_id = '92000000-0000-0000-0000-000000000001'
   ),
-  12,
+  33,
   'restaurant and both locations receive their required check rows'
 );
 select results_eq(
@@ -275,7 +275,21 @@ select results_eq(
   'new restaurants start blocked and not started'
 );
 
-set local role service_role;
+-- Explicit platform grants, separate from the restaurant roles exercised below.
+insert into private.provide_admin_grants(user_id,restaurant_id,location_id) values
+('91000000-0000-0000-0000-000000000001','92000000-0000-0000-0000-000000000001',null),
+('91000000-0000-0000-0000-000000000002','92000000-0000-0000-0000-000000000001','93000000-0000-0000-0000-000000000001');
+-- This legacy transition test exercises the original checks; the new review points
+-- receive explicit synthetic evidence. The new command tests exercise all points.
+update public.onboarding_check_results set status='passed',
+ checked_by_user_id='91000000-0000-0000-0000-000000000001',checked_at=now(),
+ evidence_kind='test',evidence_reference='fixture:legacy-go-live'
+ where restaurant_id='92000000-0000-0000-0000-000000000001'
+ and check_key in ('restaurant.payment','restaurant.privacy','restaurant.domain','restaurant.region',
+ 'restaurant.responsible','location.menu','location.schedule','location.delivery','location.payment',
+ 'location.email','location.test_order','location.refund_test','location.training');
+-- Exercise legacy internal transition bodies as their database owner. They are
+-- no longer exposed to service-role callers; the command is tested separately.
 
 select throws_ok(
   $$
@@ -300,7 +314,7 @@ select throws_ok(
     )
   $$,
   'P0001',
-  'onboarding actor must be an active owner or manager',
+  'onboarding requires an assigned PROVIDE administrator',
   'an owner from another tenant cannot administer onboarding'
 );
 select throws_ok(
@@ -377,7 +391,7 @@ select is(
       and location_id is null
       and status = 'passed'
   ),
-  4,
+  9,
   'all required restaurant checks are recorded as passed'
 );
 select lives_ok(
@@ -459,7 +473,7 @@ select throws_ok(
     )
   $$,
   'P0001',
-  'manager is not assigned to the onboarding location',
+  'onboarding requires an assigned PROVIDE administrator',
   'a manager cannot administer an unassigned location'
 );
 select lives_ok(
@@ -817,7 +831,7 @@ select is(
     select count(*)::integer
     from public.onboarding_check_results
   ),
-  8,
+  21,
   'manager sees restaurant checks plus checks for their assigned location'
 );
 

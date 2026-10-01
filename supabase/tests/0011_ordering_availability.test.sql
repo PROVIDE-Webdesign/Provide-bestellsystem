@@ -728,10 +728,13 @@ select results_eq(
   'an overnight delivery window continues after local midnight'
 );
 
+-- Privileged fixture setup; service-role table DML is now intentionally denied.
+reset role;
 update public.restaurant_feature_flags
 set enabled = false
 where restaurant_id = 'b2000000-0000-0000-0000-000000000001'
   and feature_key = 'ordering.accept_orders';
+set local role service_role;
 
 select results_eq(
   $$
@@ -749,15 +752,21 @@ select results_eq(
   'the global ordering feature closes ordering immediately'
 );
 
+-- Privileged fixture setup; service-role table DML is now intentionally denied.
+reset role;
 update public.restaurant_feature_flags
 set enabled = true
 where restaurant_id = 'b2000000-0000-0000-0000-000000000001'
   and feature_key = 'ordering.accept_orders';
+set local role service_role;
 
+-- Privileged fixture setup; service-role table DML is now intentionally denied.
+reset role;
 update public.restaurant_feature_flags
 set enabled = false
 where restaurant_id = 'b2000000-0000-0000-0000-000000000001'
   and feature_key = 'catalog.public_menu';
+set local role service_role;
 
 select results_eq(
   $$
@@ -775,10 +784,13 @@ select results_eq(
   'a disabled public catalog closes ordering even when a schedule exists'
 );
 
+-- Privileged fixture setup; service-role table DML is now intentionally denied.
+reset role;
 update public.restaurant_feature_flags
 set enabled = true
 where restaurant_id = 'b2000000-0000-0000-0000-000000000001'
   and feature_key = 'catalog.public_menu';
+set local role service_role;
 
 update public.locations
 set status = 'suspended'
@@ -804,10 +816,13 @@ update public.locations
 set status = 'active'
 where id = 'b3000000-0000-0000-0000-000000000001';
 
+-- Privileged fixture setup; service-role table DML is now intentionally denied.
+reset role;
 update public.restaurant_feature_flags
 set enabled = false
 where restaurant_id = 'b2000000-0000-0000-0000-000000000001'
   and feature_key = 'fulfillment.delivery';
+set local role service_role;
 
 select results_eq(
   $$
@@ -825,10 +840,13 @@ select results_eq(
   'delivery closes immediately when its feature is disabled'
 );
 
+-- Privileged fixture setup; service-role table DML is now intentionally denied.
+reset role;
 update public.restaurant_feature_flags
 set enabled = true
 where restaurant_id = 'b2000000-0000-0000-0000-000000000001'
   and feature_key = 'fulfillment.delivery';
+set local role service_role;
 
 select lives_ok(
   $$

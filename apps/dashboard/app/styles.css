@@ -427,3 +427,50 @@ a:focus-visible {
 .location-operations small {
   display: block;
 }
+.admin-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 0.75rem;
+}
+.provide-admin,
+.provide-admin label,
+.provide-admin form,
+.provide-admin .admin-checks > *,
+.provide-admin .admin-audit > * {
+  min-width: 0;
+}
+.provide-admin input,
+.provide-admin select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.provide-admin input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  min-height: 1.25rem;
+}
+.provide-admin summary,
+.provide-admin button {
+  overflow-wrap: anywhere;
+}
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+.admin-audit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 1rem;
+}
+.admin-audit pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+.admin-checks p,
+.history-card p {
+  overflow-wrap: anywhere;
+}

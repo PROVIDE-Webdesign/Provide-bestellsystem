@@ -4,6 +4,10 @@ import { dispatchEmailNotifications, type EmailEnvironment } from "./email-notif
 import { postgresEmailRepository } from "./email-notifications-database.js";
 import { createSyntheticEmailAdapter } from "./synthetic-email.js";
 import { postgresDashboardOrdersReader } from "./dashboard-orders-database.js";
+import {
+  captureActivationFixture,
+  restoreActivationFixture,
+} from "./activation-fixture.integration.js";
 
 export async function verifyEmailIntegration(
   admin: Client,
@@ -186,6 +190,9 @@ export async function verifyEmailIntegration(
     "select display_name from public.restaurants where id=$1",
     [scope.restaurantId],
   );
+  // Snapshot only the disposable fixture before deliberately changing critical
+  // profile metadata. Rechecks must fire; later scenarios need explicit isolation.
+  const activation = await captureActivationFixture(admin, scope.restaurantId);
   await admin.query(
     "update private.email_deliveries set status='uncertain',available_at=statement_timestamp()-interval '1 second',last_error_code='provider_timeout' where order_id=$1",
     [validOrder],
@@ -211,5 +218,12 @@ export async function verifyEmailIntegration(
       scope.restaurantId,
       original.rows[0]!.display_name,
     ]);
+    const reopened = await admin.query<{ blocked: boolean; pending: boolean }>(
+      `select (select go_live_status='blocked' from public.restaurant_activation_states where restaurant_id=$1) blocked,
+      (select bool_and(status='pending') from public.onboarding_check_results where restaurant_id=$1) pending`,
+      [scope.restaurantId],
+    );
+    expect(reopened.rows[0]).toEqual({ blocked: true, pending: true });
+    await restoreActivationFixture(admin, scope.restaurantId, activation);
   }
 }

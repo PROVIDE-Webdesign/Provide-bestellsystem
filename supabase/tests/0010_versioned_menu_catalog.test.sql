@@ -585,8 +585,11 @@ select is(
   'public resolver remains closed while its feature flag is disabled'
 );
 
+-- Privileged fixture setup; runtime service-role flags use audited commands.
+reset role;
 insert into public.restaurant_feature_flags (restaurant_id, feature_key, enabled)
 values ('a2000000-0000-0000-0000-000000000001', 'catalog.public_menu', true);
+set local role service_role;
 
 select is(
   private.resolve_public_menu_version(
