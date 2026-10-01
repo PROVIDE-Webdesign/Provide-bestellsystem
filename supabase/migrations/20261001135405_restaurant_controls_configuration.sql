@@ -465,8 +465,7 @@ begin
  return private.submit_order_before_location_controls(target_restaurant_id,target_location_id,target_menu_id,target_menu_version_id,
   target_fulfillment_type,target_requested_for,target_lines,target_submission_key,target_evaluated_at);
 end;$$;
-revoke all on function private.submit_order(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz) from public,anon,authenticated;
-grant execute on function private.submit_order(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz) to service_role;
+revoke all on function private.submit_order(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz) from public,anon,authenticated,service_role;
 
 alter function private.submit_priced_delivery_order(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz,uuid,bigint) rename to submit_priced_delivery_order_before_location_controls;
 revoke all on function private.submit_priced_delivery_order_before_location_controls(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz,uuid,bigint) from public,anon,authenticated,service_role;
