@@ -1,5 +1,5 @@
 begin;
-select plan(37);
+select plan(38);
 \ir fixtures/storefront.fixture.inc
 create function pg_temp.ops(c jsonb default null) returns jsonb language sql as $$
  select private.location_operations_dashboard('f1000000-0000-0000-0000-000000000001','aal2','f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',c);
@@ -15,6 +15,7 @@ select is(private.location_operations_dashboard('f1000000-0000-0000-0000-0000000
 select is(private.location_operations_dashboard('f1000000-0000-0000-0000-000000000006','aal2','f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',null)->>'outcome','forbidden','unassigned manager denied');
 select is(private.location_operations_dashboard('f1000000-0000-0000-0000-000000000001','aal2','f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000002',null)->>'outcome','forbidden','foreign location denied');
 select is(pg_temp.ops()->>'outcome','allowed','existing configuration can be read');
+select ok((pg_temp.ops()#>>'{data,serverNow}') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}Z$','server clock uses the millisecond UTC wire contract');
 select is(pg_temp.override('delivery',true,20)->>'outcome','allowed','delivery pause is accepted');
 select is(private.location_ordering_paused('f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001','pickup',statement_timestamp()),false,'delivery pause does not pause pickup');
 select is(private.location_ordering_paused('f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001','delivery',statement_timestamp()),true,'delivery is paused');

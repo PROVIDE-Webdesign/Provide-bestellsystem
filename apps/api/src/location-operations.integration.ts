@@ -1,10 +1,14 @@
 import { expect } from "vitest";
 import type { Client } from "pg";
-import { parseLocationOperationsState } from "@provide/contracts";
+import { parseDeliveryQuote, parseLocationOperationsState } from "@provide/contracts";
 import { createApiWorker } from "./index.js";
 type Env = Parameters<ReturnType<typeof createApiWorker>["fetch"]>[1];
 export async function verifyLocationOperationsIntegration(admin: Client, sourceEnv: Env) {
-  const env = { ...sourceEnv, DASHBOARD_LOCATION_OPERATIONS_ENABLED: "true" };
+  const env = {
+    ...sourceEnv,
+    DASHBOARD_LOCATION_OPERATIONS_ENABLED: "true",
+    DELIVERY_ORDERING_ENABLED: "true",
+  };
   const r = "f2000000-0000-0000-0000-000000000001",
     l = "f3000000-0000-0000-0000-000000000001";
   const worker = createApiWorker(undefined, undefined, undefined, undefined, undefined, {
@@ -32,6 +36,14 @@ export async function verifyLocationOperationsIntegration(admin: Client, sourceE
     expect(state).toBeDefined();
     return state;
   };
+  const native = await admin.query<{ data: { data: unknown } }>(
+    "select private.location_operations_dashboard($1,'aal2',$2,$3,null) as data",
+    ["f1000000-0000-0000-0000-000000000001", r, l],
+  );
+  expect(
+    parseLocationOperationsState(native.rows[0]!.data.data),
+    JSON.stringify(native.rows[0]!.data.data),
+  ).toBeDefined();
   let state = (await read())!;
   const source = state.currentVersionId;
   state = (await read({
@@ -131,11 +143,60 @@ export async function verifyLocationOperationsIntegration(admin: Client, sourceE
       ),
       env,
     );
-  // Different submission keys and slots on independent DB connections, one shared open-order limit.
+  const deliveryRequestedFor = new Date(Date.parse(request.requestedFor) + 7200000).toISOString();
+  const postalCode = configuration.zones[0]!.postalCodes[0]!;
+  const deliveryLines = [{ ...request.lines[0]!, quantity: 2 }];
+  const quoteResponse = await worker.fetch(
+    new Request(
+      "https://api.test/v1/storefront/storefront-restaurant-a/storefront-a-mitte/delivery-quote",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          menuId: request.menuId,
+          menuVersionId: request.menuVersionId,
+          requestedFor: deliveryRequestedFor,
+          lines: deliveryLines,
+          postalCode,
+        }),
+      },
+    ),
+    env,
+  );
+  expect(quoteResponse.status, await quoteResponse.clone().text()).toBe(200);
+  const quoteEnvelope: { data?: unknown } = await quoteResponse.json();
+  const expectedQuote = parseDeliveryQuote(quoteEnvelope.data);
+  expect(expectedQuote).toBeDefined();
+  const postDelivery = () =>
+    worker.fetch(
+      new Request(
+        "https://api.test/v1/storefront/storefront-restaurant-a/storefront-a-mitte/delivery-orders",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            ...request,
+            requestedFor: deliveryRequestedFor,
+            lines: deliveryLines,
+            submissionKey: "controls-race-003",
+            expectedQuote,
+            delivery: {
+              addressLine1: "Synthetic Controlsweg 10",
+              addressLine2: null,
+              postalCode,
+              city: "Aachen",
+              countryCode: "DE",
+            },
+          }),
+        },
+      ),
+      env,
+    );
+  // Different channels, submission keys and slots on independent DB connections share one limit.
   const responses = await Promise.all([
     post("controls-race-001"),
     post("controls-race-002", 3600000),
-    post("controls-race-003", 7200000),
+    postDelivery(),
   ]);
   expect(responses.filter((r) => r.status === 201)).toHaveLength(1);
   expect(responses.filter((r) => r.status === 409)).toHaveLength(2);
@@ -145,14 +206,12 @@ export async function verifyLocationOperationsIntegration(admin: Client, sourceE
   expect(row.rows).toHaveLength(1);
   expect(
     (
-      await post(
-        row.rows[0]!.submission_key,
-        row.rows[0]!.submission_key.endsWith("002")
-          ? 3600000
-          : row.rows[0]!.submission_key.endsWith("003")
-            ? 7200000
-            : 0,
-      )
+      await (row.rows[0]!.submission_key.endsWith("003")
+        ? postDelivery()
+        : post(
+            row.rows[0]!.submission_key,
+            row.rows[0]!.submission_key.endsWith("002") ? 3600000 : 0,
+          ))
     ).status,
   ).toBe(201);
   const clock = await admin.query<{ duration: string }>(

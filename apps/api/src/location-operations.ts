@@ -125,7 +125,7 @@ export async function handleLocationOperations(
     if (r?.outcome === "conflict") return failure(409, "conflict");
     if (r?.outcome === "invalid") return failure(400, "bad_request");
     const data = r?.outcome === "allowed" ? parseLocationOperationsState(r.data) : undefined;
-    if (!data) throw Error("Invalid menu projection");
+    if (!data) throw Error("Invalid location operations projection");
     return jsonSuccess(data, context.requestId, 200, cors);
   } catch {
     logger.error(context, "location_operations_failed");

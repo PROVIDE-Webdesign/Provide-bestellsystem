@@ -24,3 +24,9 @@ Fortschreibung: B7 ist mit PR #14/CI #119 technisch geprüft. B1/B2 sind anschli
 [Arbeitsblock 3.15](../work-blocks/3.15-realtime-order-alerts.md) implementiert; ihr technischer
 Abschluss setzt die dort genannten finalen CI-Nachweise voraus. Die Ausgangsmatrix oben bleibt als
 Bestandsaufnahme erhalten. Danach sind B3/B4 die nächste gebündelte Umsetzung; B5 folgt mit Paket 4.
+
+Fortschreibung B3/B4: [Arbeitsblock 3.16](../work-blocks/3.16-location-operations-configuration.md)
+führt Betriebsmodus und Standortkonfiguration gemeinsam als Entwurfs-PR #16 fort. Verbindlicher
+Abschlussnachweis ist der finale CI-Head im PR/Projektprotokoll E06. B1/B2 sind mit PR #15/CI #123
+technisch geprüft. Nach B3/B4 folgt B5 gemeinsam mit Paket 4; die historische Ausgangstabelle oben
+beschreibt weiterhin den Zustand vor Paket 3.

@@ -433,15 +433,15 @@ begin
  select coalesce(max(e.sequence),0) into sequence_number from private.location_operation_events e where e.restaurant_id=r and e.location_id=l;
  select coalesce(jsonb_agg(jsonb_build_object('id',s.id,'number',s.version_number,'status',s.status,'revision',s.revision,'configuration',private.location_configuration_json(s)) order by s.version_number desc),'[]'::jsonb)
  into versions from (select * from public.availability_schedule_versions where restaurant_id=r and location_id=l order by version_number desc limit 50) s;
- select coalesce(jsonb_agg(jsonb_build_object('scope',e.scope,'sequence',e.sequence,'endsAt',e.ends_at,'reason',e.reason,'values',e.settings) order by e.scope),'[]'::jsonb)
+ select coalesce(jsonb_agg(jsonb_build_object('scope',e.scope,'sequence',e.sequence,'endsAt',to_char(e.ends_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),'reason',e.reason,'values',e.settings) order by e.scope),'[]'::jsonb)
  into overrides from (select distinct on(scope) * from private.location_operation_events where restaurant_id=r and location_id=l order by scope,sequence desc) e where e.ends_at>statement_timestamp();
- select overrides||coalesce(jsonb_agg(jsonb_build_object('scope',coalesce(p.fulfillment_type,'all'),'sequence',0,'endsAt',p.pause_until,
+ select overrides||coalesce(jsonb_agg(jsonb_build_object('scope',coalesce(p.fulfillment_type,'all'),'sequence',0,'endsAt',to_char(p.pause_until at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
   'reason',coalesce(p.reason,'Bestehende Betriebspause'),'values',jsonb_build_object('paused',true,'leadMinutes',null,'orderCapacity',null,'itemCapacity',null,'maxOpenOrders',null))),'[]'::jsonb)
  into overrides from (select distinct on(fulfillment_type) * from public.ordering_pause_events where restaurant_id=r and location_id=l order by fulfillment_type,event_sequence desc) p
  where p.event_kind='pause' and p.pause_until>statement_timestamp() and not exists(select 1 from jsonb_array_elements(overrides) o where o->>'scope'=coalesce(p.fulfillment_type,'all'));
- select coalesce(jsonb_agg(jsonb_build_object('id',a.id,'action',a.action,'actorId',a.actor_user_id,'reason',a.reason,'createdAt',a.created_at) order by a.created_at desc),'[]'::jsonb)
+ select coalesce(jsonb_agg(jsonb_build_object('id',a.id,'action',a.action,'actorId',a.actor_user_id,'reason',a.reason,'createdAt',to_char(a.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')) order by a.created_at desc),'[]'::jsonb)
  into audit from (select * from private.location_configuration_audit where restaurant_id=r and location_id=l order by created_at desc,id desc limit 30) a;
- return jsonb_build_object('outcome','allowed','data',jsonb_build_object('timezone',timezone,'serverNow',statement_timestamp(),'publicationId',publication,'deliveryPolicyId',policy,
+ return jsonb_build_object('outcome','allowed','data',jsonb_build_object('timezone',timezone,'serverNow',to_char(statement_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),'publicationId',publication,'deliveryPolicyId',policy,
  'currentVersionId',private.resolve_availability_schedule_version(r,l,statement_timestamp()),'operationSequence',sequence_number,'openOrders',private.location_open_order_count(r,l),
  'versions',versions,'overrides',overrides,'audit',audit));
 exception when invalid_text_representation or check_violation or unique_violation or datetime_field_overflow or raise_exception then
