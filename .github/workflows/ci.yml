@@ -101,6 +101,13 @@ jobs:
       - run: pnpm --filter @provide/contracts build
       - run:
           pnpm --filter @provide/storefront exec playwright install --with-deps ${{ matrix.engine }}
+      - name: Provide a clocked virtual audio output for Firefox
+        if: matrix.engine == 'firefox'
+        run: |
+          sudo apt-get install -y pulseaudio pulseaudio-utils
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=provide_ci
+          pactl set-default-sink provide_ci
       - run: pnpm --filter @provide/storefront test:browser
         env:
           BROWSER_ENGINE: ${{ matrix.engine }}

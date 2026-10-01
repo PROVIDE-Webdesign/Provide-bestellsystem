@@ -78,15 +78,15 @@ export function orderLiveTopic(restaurantId: string, locationId: string): string
 }
 export function parseOrderInvalidation(
   value: unknown,
-): { schemaVersion: 1; eventId: string } | undefined {
+): { schemaVersion: 1; id: string } | undefined {
   const v = record(value);
   if (
     !v ||
     Object.keys(v).length !== 2 ||
     v.schemaVersion !== 1 ||
-    typeof v.eventId !== "string" ||
-    !uuid.test(v.eventId)
+    typeof v.id !== "string" ||
+    !uuid.test(v.id)
   )
     return;
-  return { schemaVersion: 1, eventId: v.eventId };
+  return { schemaVersion: 1, id: v.id };
 }

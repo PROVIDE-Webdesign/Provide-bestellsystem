@@ -115,7 +115,7 @@ export async function verifyOrderLiveBrowser(page: Page, output: string, width: 
           new CustomEvent("synthetic-order-event", {
             detail: {
               schemaVersion: 1,
-              eventId: `fb000000-0000-0000-0000-${String(n).padStart(12, "0")}`,
+              id: `fb000000-0000-0000-0000-${String(n).padStart(12, "0")}`,
             },
           }),
         ),
@@ -181,8 +181,12 @@ export async function verifyOrderLiveBrowser(page: Page, output: string, width: 
     .waitFor();
   assert.equal(await tones(), muted, "Mute remains effective for subsequent updates");
   contactName = null;
+  const redacted = page.waitForResponse(
+    (r) => new URL(r.url()).pathname === `/api/orders/${orderId}` && r.status() === 200,
+  );
   await signal(6);
-  await page.waitForLoadState("networkidle");
+  await redacted;
+  await page.getByText("Synthetic Realtime Guest", { exact: false }).waitFor({ state: "hidden" });
   await page
     .getByText(
       "Die Bestellung wurde aktualisiert. Bitte prüfe den neuen Stand vor der nächsten Aktion.",

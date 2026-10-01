@@ -25,7 +25,7 @@ with check (topic not like 'orders:v1:%' and (select realtime.topic()) not like 
 
 create function private.invalidate_dashboard_orders(target_restaurant uuid,target_location uuid)
 returns void language sql volatile security definer set search_path='' as $$
-  select realtime.send(jsonb_build_object('schemaVersion',1,'eventId',gen_random_uuid()),
+  select realtime.send(jsonb_build_object('schemaVersion',1,'id',gen_random_uuid()),
     'orders.invalidated.v1','orders:v1:'||target_restaurant::text||':'||target_location::text,true);
 $$;
 revoke all on function private.invalidate_dashboard_orders(uuid,uuid) from public,anon,authenticated,service_role;

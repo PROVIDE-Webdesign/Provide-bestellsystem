@@ -9,7 +9,7 @@ describe("private live subscription", () => {
   it("ignores malformed hints and bounded duplicate event IDs", () => {
     const changed = vi.fn(),
       receive = createInvalidationReceiver(changed);
-    const first = { schemaVersion: 1, eventId: "fa000000-0000-0000-0000-000000000001" };
+    const first = { schemaVersion: 1, id: "fa000000-0000-0000-0000-000000000001" };
     receive(null);
     receive({ ...first, customer: "hidden" });
     receive(first);
@@ -18,7 +18,7 @@ describe("private live subscription", () => {
     for (let i = 2; i < 259; i++)
       receive({
         schemaVersion: 1,
-        eventId: `fa000000-0000-0000-0000-${String(i).padStart(12, "0")}`,
+        id: `fa000000-0000-0000-0000-${String(i).padStart(12, "0")}`,
       });
     receive(first); // Old IDs can evict safely: only a fresh authorized snapshot, never double mutation.
     expect(changed).toHaveBeenCalledTimes(259);

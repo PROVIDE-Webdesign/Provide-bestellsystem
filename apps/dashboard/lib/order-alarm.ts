@@ -27,12 +27,25 @@ export interface OrderTone {
   play(): Promise<void>;
   close(): Promise<void>;
 }
+async function boundedAudioOperation(operation: Promise<void>) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(Error("Audio output unavailable")), 2000);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
 export function createOrderTone(): OrderTone {
   let context: AudioContext | undefined;
   return {
     async enable() {
       context ??= new AudioContext();
-      await context.resume();
+      await boundedAudioOperation(context.resume());
       if (context.state !== "running") throw Error("Sound unavailable");
     },
     async play() {
@@ -45,15 +58,20 @@ export function createOrderTone(): OrderTone {
       gain.gain.linearRampToValueAtTime(0, context.currentTime + 0.25);
       oscillator.connect(gain);
       gain.connect(context.destination);
-      oscillator.start();
-      oscillator.stop(context.currentTime + 0.26);
-      await new Promise<void>((resolve) => {
+      const ended = new Promise<void>((resolve) => {
         oscillator.onended = () => {
-          oscillator.disconnect();
-          gain.disconnect();
           resolve();
         };
       });
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.26);
+      try {
+        await boundedAudioOperation(ended);
+      } finally {
+        oscillator.onended = null;
+        oscillator.disconnect();
+        gain.disconnect();
+      }
     },
     async close() {
       if (context) await context.close();

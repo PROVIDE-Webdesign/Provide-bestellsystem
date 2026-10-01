@@ -192,7 +192,7 @@ describe.skipIf(!url || !db)("isolated real private Realtime transport", () => {
         await first.channel.send({
           type: "broadcast",
           event: "orders.invalidated.v1",
-          payload: { schemaVersion: 1, eventId: orderId },
+          payload: { schemaVersion: 1, id: orderId },
         }),
       ).not.toBe("ok");
       await kitchen.removeChannel(second.channel);

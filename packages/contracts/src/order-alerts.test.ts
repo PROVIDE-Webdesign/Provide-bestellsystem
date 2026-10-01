@@ -29,11 +29,11 @@ describe("private order signals", () => {
     expect(() => orderLiveTopic("anything", locationId)).toThrow();
   });
   it("accepts only versioned minimal invalidations", () => {
-    expect(parseOrderInvalidation({ schemaVersion: 1, eventId: order.orderId })).toBeDefined();
+    expect(parseOrderInvalidation({ schemaVersion: 1, id: order.orderId })).toBeDefined();
     for (const v of [
-      { schemaVersion: 2, eventId: order.orderId },
-      { schemaVersion: 1, eventId: order.orderId, customer: "PII" },
-      { schemaVersion: 1, eventId: "x" },
+      { schemaVersion: 2, id: order.orderId },
+      { schemaVersion: 1, id: order.orderId, customer: "PII" },
+      { schemaVersion: 1, id: "x" },
       null,
     ])
       expect(parseOrderInvalidation(v)).toBeUndefined();

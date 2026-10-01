@@ -15,8 +15,8 @@ export function createInvalidationReceiver(onChange: () => void) {
   const seen = new Set<string>();
   return (value: unknown) => {
     const event = parseOrderInvalidation(value);
-    if (!event || seen.has(event.eventId)) return;
-    seen.add(event.eventId);
+    if (!event || seen.has(event.id)) return;
+    seen.add(event.id);
     if (seen.size > 256) seen.delete(seen.values().next().value!);
     onChange();
   };

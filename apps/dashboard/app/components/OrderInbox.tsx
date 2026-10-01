@@ -181,6 +181,7 @@ export function OrderInbox({
       await current.enable();
       if (operation !== soundOperation.current) return;
       await current.play();
+      if (operation !== soundOperation.current) return;
       enabled.current = true;
       setSound(true);
       setSoundError("");

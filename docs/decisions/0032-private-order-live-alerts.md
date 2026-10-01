@@ -8,6 +8,12 @@ Zahlung, Onlinejob und bestätigter Zeit erzeugen einen transaktionalen privaten
 zufällige Ereignis-ID. Keine Bestellzeile, Nummer, Kontaktdaten, Adresse oder Zahlungsreferenz wird
 über den Kanal gesendet. Browser dürfen weder Broadcasts senden noch Presence veröffentlichen.
 
+Die zufällige Ereignis-ID heißt `id`: `realtime.send` des isolierten Servers v2.130.0 ergänzt sonst
+selbst dieses Feld. Durch explizites Setzen bleibt der Anwendungs-Payload exakt zweifeldig
+(`schemaVersion`, `id`); die separate SDK-Transportmetadaten-ID wird nicht als Bestelldatum genutzt.
+Referenz:
+[Supabase send.sql v2.130.0](https://github.com/supabase/realtime/blob/v2.130.0/priv/repo/tenant_schema/realtime/functions/send.sql).
+
 Die RLS prüft JWT-Subjekt, aktive Mitgliedschaft, reale Mandanten-/Standortzugehörigkeit,
 Standortzuweisung und AAL: Owner/Manager `aal2`, zugewiesene Küche `aal1`/`aal2`, Fahrer gesperrt.
 Zusätzliche restriktive Policies schützen die Namespace-Grenze gegen spätere allgemeinere Policies.
@@ -46,6 +52,11 @@ entzogene Rechte erzeugen keinen Ton. Reload/Standortwechsel stellen Ton nicht a
 her. Browserblockade wird sichtbar; visuelle Hinweise bleiben. Der Countdown verwendet Serverzeit
 plus monotone Laufzeit, nicht eine verstellbare Geräteuhr. Bis zu 100 dringendste Einträge und die
 ungefilterte Gesamtzahl werden gezeigt; die Grenze wird nicht als vollständige Liste ausgegeben.
+
+Audiofreigabe und Tonabschluss sind auf zwei Sekunden begrenzt; eine fehlende oder blockierte
+Audioausgabe darf den Schalter nicht dauerhaft sperren. Der isolierte Firefox-CI-Runner erhält einen
+getakteten virtuellen PulseAudio-Ausgang, ohne Autoplayrechte zu lockern oder WebAudio zu ersetzen.
+Das prüft Browserabläufe, nicht Hörbarkeit auf einem physischen Gerät.
 
 ## Freigabegrenze
 
