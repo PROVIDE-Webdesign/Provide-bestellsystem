@@ -55,6 +55,8 @@ interface HyperdriveBinding {
 }
 
 interface Env extends OnlineEnvironment {
+  readonly DASHBOARD_HISTORY_ENABLED?: string;
+  readonly GUEST_RETENTION_PURGE_ENABLED?: string;
   readonly DASHBOARD_ORDER_ALERTS_ENABLED?: string;
   readonly DASHBOARD_LOCATION_OPERATIONS_ENABLED?: string;
   readonly DASHBOARD_MENU_ENABLED?: string;
@@ -100,6 +102,8 @@ export function createApiWorker(
   cartQuoteReader: CartQuoteReader = postgresCartQuoteReader,
   menuAdmin: MenuAdminRepository = postgresMenuAdmin,
   locationOperations: LocationOperationsRepository = postgresLocationOperations,
+  historyRepository: HistoryRepository = postgresHistory,
+  guestPurge: typeof postgresGuestPurge = postgresGuestPurge,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -125,6 +129,17 @@ export function createApiWorker(
         return jsonError("not_found", "Resource was not found.", context.requestId, 404, cors);
       }
 
+      if (route.name === "dashboardHistory")
+        return handleOrderHistory(
+          request,
+          route,
+          env,
+          dashboardTokenVerifier,
+          historyRepository,
+          context,
+          logger,
+          cors,
+        );
       if (route.name === "dashboardLocationOperations")
         return handleLocationOperations(
           request,
@@ -266,6 +281,7 @@ export function createApiWorker(
       }
     },
     scheduled(_controller: ScheduledController, env: Env, context: ExecutionContext) {
+      context.waitUntil(dispatchGuestPurge(env, logger, guestPurge));
       context.waitUntil(dispatchAcceptanceAlerts(env, dashboardOrdersReader, logger));
       context.waitUntil(dispatchOnlinePayments(env, onlineRepository, onlineProvider));
       context.waitUntil(dispatchEmailNotifications(env, emailRepository, emailAdapter, logger));
@@ -277,3 +293,10 @@ export function createApiWorker(
 }
 
 export default createApiWorker() satisfies ExportedHandler<Env>;
+import {
+  handleOrderHistory,
+  postgresHistory,
+  dispatchGuestPurge,
+  postgresGuestPurge,
+  type HistoryRepository,
+} from "./order-history.js";

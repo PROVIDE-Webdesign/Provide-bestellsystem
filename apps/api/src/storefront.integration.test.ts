@@ -284,6 +284,7 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       await verifyMenuCartIntegration(admin, env);
       await verifyOrderNumberIntegration(admin, env);
       await verifyLocationOperationsIntegration(admin, env);
+      await verifyHistoryIntegration(admin, env);
       expect(
         sendNotification.mock.calls.some(([command]) =>
           command.body.includes("bereit zur Auslieferung"),
@@ -299,3 +300,4 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
     }
   }, 30000);
 });
+import { verifyHistoryIntegration } from "./order-history.integration.js";
