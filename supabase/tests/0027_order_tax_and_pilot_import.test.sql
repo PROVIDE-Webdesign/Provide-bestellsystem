@@ -39,7 +39,6 @@ select private.submit_order('f2000000-0000-0000-0000-000000000001','f3000000-000
 select is((select tax_summary->>'taxAmountMinor' from public.orders where id=:'order_id'),'103','order header stores full tax snapshot');
 select throws_ok(format('update public.orders set tax_summary=null where id=%L',:'order_id'), 'P0001','order tax snapshot is immutable','tax header cannot be rewritten');
 select is(private.submit_order('f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001','f4000000-0000-0000-0000-000000000001',:'draft','pickup',date_trunc('hour',now())+interval '4 hours',:'lines','tax-pilot-synthetic-order-001',clock_timestamp()),:'order_id'::uuid,'exact retry preserves order and taxes');
-select is(private.read_dashboard_order('f1000000-0000-0000-0000-000000000001','aal2','f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',:'order_id')#>>'{data,taxSummary,taxAmountMinor}','103','authorized dashboard reads header taxes');
 select ok(not has_table_privilege('authenticated','private.delivery_tax_declarations','SELECT'),'delivery tax table is not a browser endpoint');
 select ok(not has_function_privilege('authenticated','private.menu_dashboard(uuid,text,uuid,uuid,jsonb)','EXECUTE'),'import endpoint remains backend only');
 
@@ -53,12 +52,13 @@ select is(pg_temp.menu(jsonb_set(:'tax_command','{taxRateBasisPoints}','null'))-
 select is(pg_temp.menu(:'tax_command','f1000000-0000-0000-0000-000000000003','aal1')->>'outcome','forbidden','kitchen cannot declare delivery taxes');
 select is(pg_temp.menu(:'tax_command')->>'outcome','allowed','delivery declaration creates a new policy');
 select pg_temp.menu(null)#>>'{data,deliveryTax,policyId}' as declared_policy \gset
-select isnt(:'declared_policy',:'old_policy','old quoted policy is never rewritten');
+select isnt(:'declared_policy'::uuid,:'old_policy'::uuid,'old quoted policy is never rewritten');
 select is(pg_temp.menu(:'tax_command')->>'outcome','conflict','stale delivery tax editor rejected');
 select private.quote_public_cart('storefront-restaurant-a','storefront-a-mitte','f4000000-0000-0000-0000-000000000001',:'draft','delivery',date_trunc('hour',now())+interval '4 hours',:'lines','52062') as delivery_cart \gset
 select is(:'delivery_cart'::jsonb#>>'{taxSummary,taxAmountMinor}','175','delivery cart includes 103 product plus 72 fee tax cents');
 select private.submit_public_guest_delivery_order('storefront-restaurant-a','storefront-a-mitte','f4000000-0000-0000-0000-000000000001',:'draft',date_trunc('hour',now())+interval '4 hours',:'lines','tax-pilot-delivery-synthetic-001','{"contact_name":"Synthetic Tax Guest","phone_e164":"+999100000031","email":"synthetic@example.invalid"}','{"address_line_1":"Synthetic Testweg 1","address_line_2":null,"postal_code":"52062","city":"Aachen","country_code":"DE"}',:'delivery_cart'::jsonb->'deliveryQuote','preview-v1',30) as delivery_confirmation \gset
 select is((select tax_summary from public.orders where id=(:'delivery_confirmation'::jsonb->>'orderId')::uuid),:'delivery_cart'::jsonb->'taxSummary','public delivery order persists exactly the reviewed tax split');
+select is(private.read_dashboard_order('f1000000-0000-0000-0000-000000000001','aal2','f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',(:'delivery_confirmation'::jsonb->>'orderId')::uuid)#>>'{data,taxSummary,taxAmountMinor}','175','authorized dashboard reads complete public order header taxes');
 select is((select tax_summary->>'knownNetAmountMinor' from public.orders where id=(:'delivery_confirmation'::jsonb->>'orderId')::uuid),'1775','persisted delivery net and tax conserve 1950 gross cents');
 select is(pg_temp.menu(jsonb_build_object('action','set_delivery_tax','expectedPolicyId',:'declared_policy','mode','proportional','taxRateBasisPoints',null,'informationConfirmed',true,'note','Synthetic proportional declaration'))->>'outcome','allowed','proportional declaration changes only future policies');
 select is((select tax_summary->>'taxAmountMinor' from public.orders where id=(:'delivery_confirmation'::jsonb->>'orderId')::uuid),'175','later policy declaration preserves historic order tax');
