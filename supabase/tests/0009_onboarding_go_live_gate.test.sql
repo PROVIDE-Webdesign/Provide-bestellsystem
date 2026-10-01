@@ -391,7 +391,7 @@ select is(
       and location_id is null
       and status = 'passed'
   ),
-  4,
+  9,
   'all required restaurant checks are recorded as passed'
 );
 select lives_ok(
