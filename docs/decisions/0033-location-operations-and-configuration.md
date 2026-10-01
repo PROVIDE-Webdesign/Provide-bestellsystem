@@ -54,8 +54,9 @@ bei Prüfung aktuellen Lieferpolitik übernommen, fehlende Deklarationen bleiben
 Der Bestellschluss-Puffer sperrt neue Bestellungen ab Ende des zum angefragten Erfüllungszeitpunkt
 gehörenden lokalen Fensters minus Puffer. Zukunftsfenster werden nicht durch den heutigen
 Bestellschluss gesperrt. Annahmefrist ist 1–60 Minuten, Standard weiter fünf. Eine neue bearbeitbare
-Bestellung speichert die wirksame Frist einmal; Änderungen verschieben keine laufende Frist und
-ändern weder Zahlungsfrist noch die manuelle Timeout-Regel.
+Bestellung speichert die wirksame Frist zum tatsächlichen Eintritt der Bearbeitbarkeit einmal;
+Wartezeit auf Locks verbraucht keine Frist. Änderungen verschieben keine laufende Frist und ändern
+weder Zahlungsfrist noch die manuelle Timeout-Regel.
 
 ## Schutz, Nachweise und Grenzen
 

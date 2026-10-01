@@ -1,5 +1,5 @@
 begin;
-select plan(40);
+select plan(41);
 \ir fixtures/storefront.fixture.inc
 create function pg_temp.ops(c jsonb default null) returns jsonb language sql as $$
  select private.location_operations_dashboard('f1000000-0000-0000-0000-000000000001','aal2','f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',c);
@@ -59,5 +59,17 @@ select ok((select count(*)>0 from private.location_configuration_audit where bef
 select ok(not has_function_privilege('service_role','private.reserve_ordering_capacity_before_location_controls(uuid,uuid,text,timestamptz,integer,text,timestamptz)','EXECUTE'),'unlocked reservation cannot be called directly');
 select ok(not has_function_privilege('service_role','private.submit_order_before_location_controls(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz)','EXECUTE'),'pickup cannot bypass the common first lock');
 select ok(not has_function_privilege('service_role','private.submit_priced_delivery_order_before_location_controls(uuid,uuid,uuid,uuid,text,timestamptz,jsonb,text,timestamptz,uuid,bigint)','EXECUTE'),'priced delivery cannot bypass the common first lock');
+-- Publication becomes effective after the enclosing statement began, like a checkout waiting
+-- behind the location lock. Its new acceptance snapshot must use the rules at actionability.
+create function pg_temp.publish_then_submit() returns uuid language plpgsql as $$
+declare result jsonb;
+begin
+ perform pg_temp.ops(jsonb_build_object('action','clear_override','scope','all','expectedSequence',(pg_temp.ops()#>>'{data,operationSequence}')::integer,'reason','Synthetic clock boundary'));
+ perform private.publish_availability_schedule('f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001','f8000000-0000-0000-0000-000000000001',clock_timestamp(),'f1000000-0000-0000-0000-000000000001','aal2');
+ result:=private.submit_public_guest_pickup_order('storefront-restaurant-a','storefront-a-mitte','f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001',date_trunc('hour',statement_timestamp())+interval '6 hours','[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":1}]','b3b4-clock-boundary-001','{"contact_name":"Synthetic","phone_e164":"+999100000045","email":"synthetic@example.invalid"}','preview-v1',30);
+ return (result->>'orderId')::uuid;
+end;$$;
+select pg_temp.publish_then_submit() as fresh_order_id \gset
+select is((select deadline-started_at from private.order_acceptance_alerts where order_id=:'fresh_order_id'),interval '5 minutes','actionability after publication uses the newly effective acceptance configuration');
 select * from finish();
 rollback;

@@ -292,19 +292,19 @@ revoke all on function private.reserve_ordering_capacity(uuid,uuid,text,timestam
 grant execute on function private.reserve_ordering_capacity(uuid,uuid,text,timestamptz,integer,text,timestamptz) to service_role;
 create or replace function private.sync_order_acceptance(target_order uuid)
 returns void language plpgsql volatile security definer set search_path='' as $$
-declare a private.order_acceptance_alerts%rowtype;
+declare a private.order_acceptance_alerts%rowtype; evaluated_at timestamptz:=clock_timestamp();
 begin
   if private.order_acceptance_eligible(target_order) then
     insert into private.order_acceptance_alerts(order_id,restaurant_id,location_id,started_at,deadline)
-      select id,restaurant_id,location_id,statement_timestamp(),statement_timestamp()+make_interval(mins=>coalesce((select acceptance_minutes from public.availability_schedule_versions v
-        where v.id=private.resolve_availability_schedule_version(o.restaurant_id,o.location_id,statement_timestamp())),5))
+      select id,restaurant_id,location_id,evaluated_at,evaluated_at+make_interval(mins=>coalesce((select acceptance_minutes from public.availability_schedule_versions v
+        where v.id=private.resolve_availability_schedule_version(o.restaurant_id,o.location_id,evaluated_at)),5))
       from public.orders o where id=target_order on conflict(order_id) do nothing returning * into a;
     if a.order_id is not null then
       insert into private.order_acceptance_events(restaurant_id,location_id,order_id,kind,deadline)
         values(a.restaurant_id,a.location_id,a.order_id,'started',a.deadline);
     end if;
   else
-    update private.order_acceptance_alerts set resolved_at=statement_timestamp()
+    update private.order_acceptance_alerts set resolved_at=evaluated_at
       where order_id=target_order and resolved_at is null returning * into a;
     if a.order_id is not null then
       insert into private.order_acceptance_events(restaurant_id,location_id,order_id,kind,deadline)
