@@ -4,6 +4,10 @@ import { dispatchEmailNotifications, type EmailEnvironment } from "./email-notif
 import { postgresEmailRepository } from "./email-notifications-database.js";
 import { createSyntheticEmailAdapter } from "./synthetic-email.js";
 import { postgresDashboardOrdersReader } from "./dashboard-orders-database.js";
+import {
+  captureActivationFixture,
+  restoreActivationFixture,
+} from "./activation-fixture.integration.js";
 
 export async function verifyEmailIntegration(
   admin: Client,
@@ -188,18 +192,7 @@ export async function verifyEmailIntegration(
   );
   // Snapshot only the disposable fixture before deliberately changing critical
   // profile metadata. Rechecks must fire; later scenarios need explicit isolation.
-  const activation = await admin.query<{ state: unknown }>(
-    "select to_jsonb(a) state from public.restaurant_activation_states a where restaurant_id=$1",
-    [scope.restaurantId],
-  );
-  const locations = await admin.query<{ states: unknown }>(
-    "select jsonb_agg(to_jsonb(a)) states from public.location_activation_states a where restaurant_id=$1",
-    [scope.restaurantId],
-  );
-  const checks = await admin.query<{ states: unknown }>(
-    "select jsonb_agg(to_jsonb(c)) states from public.onboarding_check_results c where restaurant_id=$1",
-    [scope.restaurantId],
-  );
+  const activation = await captureActivationFixture(admin, scope.restaurantId);
   await admin.query(
     "update private.email_deliveries set status='uncertain',available_at=statement_timestamp()-interval '1 second',last_error_code='provider_timeout' where order_id=$1",
     [validOrder],
@@ -231,37 +224,6 @@ export async function verifyEmailIntegration(
       [scope.restaurantId],
     );
     expect(reopened.rows[0]).toEqual({ blocked: true, pending: true });
-    // Privileged synthetic fixture restoration, never a production transition.
-    const restoreFixture = async () => {
-      await admin.query("BEGIN");
-      try {
-        await admin.query(
-          `update public.onboarding_check_results c set status=s.status,checked_by_user_id=s.checked_by_user_id,
-        checked_at=s.checked_at,note=s.note,evidence_kind=s.evidence_kind,evidence_reference=s.evidence_reference
-        from jsonb_populate_recordset(null::public.onboarding_check_results,$2::jsonb) s
-        where c.restaurant_id=$1 and c.id=s.id`,
-          [scope.restaurantId, JSON.stringify(checks.rows[0]!.states)],
-        );
-        await admin.query(
-          `update public.location_activation_states a set onboarding_status=s.onboarding_status,go_live_status=s.go_live_status,
-        approved_by_user_id=s.approved_by_user_id,approved_at=s.approved_at,went_live_at=s.went_live_at,paused_at=s.paused_at
-        from jsonb_populate_recordset(null::public.location_activation_states,$2::jsonb) s
-        where a.restaurant_id=$1 and a.location_id=s.location_id`,
-          [scope.restaurantId, JSON.stringify(locations.rows[0]!.states)],
-        );
-        await admin.query(
-          `update public.restaurant_activation_states a set onboarding_status=s.onboarding_status,go_live_status=s.go_live_status,
-        approved_by_user_id=s.approved_by_user_id,approved_at=s.approved_at,went_live_at=s.went_live_at,paused_at=s.paused_at
-        from jsonb_populate_record(null::public.restaurant_activation_states,$2::jsonb) s
-        where a.restaurant_id=$1`,
-          [scope.restaurantId, JSON.stringify(activation.rows[0]!.state)],
-        );
-        await admin.query("COMMIT");
-      } catch (e) {
-        await admin.query("ROLLBACK");
-        throw e;
-      }
-    };
-    await restoreFixture();
+    await restoreActivationFixture(admin, scope.restaurantId, activation);
   }
 }

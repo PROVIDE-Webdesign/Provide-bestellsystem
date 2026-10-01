@@ -2,6 +2,10 @@ import type { Client } from "pg";
 import { expect, vi } from "vitest";
 import { parseProvideAdminState, type ProvideAdminCommand } from "@provide/contracts";
 import { createApiWorker } from "./index.js";
+import {
+  captureActivationFixture,
+  restoreActivationFixture,
+} from "./activation-fixture.integration.js";
 export async function verifyProvideIntegration(
   admin: Client,
   sourceEnv: Parameters<ReturnType<typeof createApiWorker>["fetch"]>[1],
@@ -9,6 +13,7 @@ export async function verifyProvideIntegration(
   const r = "f2000000-0000-0000-0000-000000000001",
     l = "f3000000-0000-0000-0000-000000000001",
     actor = "f1000000-0000-0000-0000-000000000009";
+  const activation = await captureActivationFixture(admin, r);
   await admin.query("insert into auth.users(id,email) values($1,'provide-http@example.invalid')", [
     actor,
   ]);
@@ -157,4 +162,7 @@ export async function verifyProvideIntegration(
   ).toBe(orders);
   expect((await worker.fetch(new Request(catalogUrl), env)).status).toBe(404);
   expect((await send(query))?.selected?.checks.every((x) => x.status === "pending")).toBe(true);
+  // The private Realtime scenario uses this same disposable restaurant next.
+  // Restore only after asserting the real critical-change gate and order preservation.
+  await restoreActivationFixture(admin, r, activation);
 }
