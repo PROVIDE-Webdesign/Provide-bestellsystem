@@ -1,5 +1,6 @@
 import { expect } from "vitest";
 import type { Client } from "pg";
+import { postgresMenuAdmin } from "./menu-admin.js";
 import { createApiWorker } from "./index.js";
 import {
   type MenuAdminCommand,
@@ -46,6 +47,19 @@ export async function verifyMenuCartIntegration(admin: Client, baseEnv: Env) {
       }),
       env,
     );
+  const projection = await postgresMenuAdmin(
+    env.HYPERDRIVE!.connectionString,
+    { userId: owner, aal: "aal2" },
+    restaurantId,
+    locationId,
+    null,
+  );
+  expect(projection).toMatchObject({ outcome: "allowed" });
+  expect(
+    projection && typeof projection === "object" && "data" in projection
+      ? parseMenuAdminState(projection.data)
+      : undefined,
+  ).toBeDefined();
   const before = parseMenuAdminState(await data(await read()))!;
   expect(before.timezone).toBe("Europe/Berlin");
   const created = parseMenuAdminState(

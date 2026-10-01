@@ -117,6 +117,8 @@ try {
     const dish = page
       .locator("li.dish")
       .filter({ has: page.getByRole("heading", { name: item.name, exact: true }) });
+    const nameBox = await dish.getByRole("heading", { name: item.name, exact: true }).boundingBox();
+    assert.ok(nameBox && nameBox.width >= 150, "Dish name must have a readable column on mobile");
     await dish.getByRole("button", { name: "Hinzufügen" }).click();
     await dish.getByRole("alert").waitFor();
     await page.screenshot({ path: output + `picker-${viewport.width}.png`, fullPage: true });

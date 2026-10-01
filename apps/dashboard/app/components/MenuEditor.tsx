@@ -25,6 +25,13 @@ const emptyConfiguration = (): MenuConfiguration => ({
   variants: [],
   optionGroups: [],
 });
+const move = <T,>(values: readonly T[], index: number, offset: number): readonly T[] => {
+  const next = index + offset;
+  if (next < 0 || next >= values.length) return values;
+  const items = [...values];
+  [items[index], items[next]] = [items[next]!, items[index]!];
+  return items;
+};
 const choice = (): MenuChoice => ({
   id: crypto.randomUUID(),
   name: "Neue Auswahl",
@@ -295,21 +302,55 @@ export function MenuEditor({
                 )}
                 {draft.status === "draft" && (
                   <>
-                    {draft.sections.map((section) => (
-                      <label key={section.key}>
-                        Kategorie
-                        <input
-                          value={section.name}
-                          onChange={(e) =>
+                    {draft.sections.map((section, index) => (
+                      <div key={section.key}>
+                        <label>
+                          Kategorie
+                          <input
+                            value={section.name}
+                            onChange={(e) =>
+                              change({
+                                ...draft,
+                                sections: draft.sections.map((s) =>
+                                  s.key === section.key ? { ...s, name: e.target.value } : s,
+                                ),
+                              })
+                            }
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          aria-label={`${section.name} nach oben`}
+                          disabled={index === 0}
+                          onClick={() =>
+                            change({ ...draft, sections: move(draft.sections, index, -1) })
+                          }
+                        >
+                          Nach oben
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`${section.name} nach unten`}
+                          disabled={index === draft.sections.length - 1}
+                          onClick={() =>
+                            change({ ...draft, sections: move(draft.sections, index, 1) })
+                          }
+                        >
+                          Nach unten
+                        </button>
+                        <button
+                          type="button"
+                          disabled={draft.items.some((i) => i.sectionKey === section.key)}
+                          onClick={() =>
                             change({
                               ...draft,
-                              sections: draft.sections.map((s) =>
-                                s.key === section.key ? { ...s, name: e.target.value } : s,
-                              ),
+                              sections: draft.sections.filter((s) => s.key !== section.key),
                             })
                           }
-                        />
-                      </label>
+                        >
+                          Leere Kategorie entfernen
+                        </button>
+                      </div>
                     ))}
                     <button
                       type="button"
@@ -328,7 +369,7 @@ export function MenuEditor({
                     >
                       Kategorie hinzufügen
                     </button>
-                    {draft.items.map((item) => (
+                    {draft.items.map((item, index) => (
                       <fieldset key={item.id}>
                         <legend>{item.name || "Gericht"}</legend>
                         <label>
@@ -423,6 +464,22 @@ export function MenuEditor({
                         )}
                         <button
                           type="button"
+                          aria-label={`${item.name} nach oben`}
+                          disabled={index === 0}
+                          onClick={() => change({ ...draft, items: move(draft.items, index, -1) })}
+                        >
+                          Nach oben
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`${item.name} nach unten`}
+                          disabled={index === draft.items.length - 1}
+                          onClick={() => change({ ...draft, items: move(draft.items, index, 1) })}
+                        >
+                          Nach unten
+                        </button>
+                        <button
+                          type="button"
                           onClick={() =>
                             change({ ...draft, items: draft.items.filter((i) => i.id !== item.id) })
                           }
@@ -433,7 +490,7 @@ export function MenuEditor({
                     ))}
                     <button
                       type="button"
-                      disabled={!draft.sections.length}
+                      disabled={!draft.sections.length || draft.items.length >= 200}
                       onClick={() =>
                         change({
                           ...draft,

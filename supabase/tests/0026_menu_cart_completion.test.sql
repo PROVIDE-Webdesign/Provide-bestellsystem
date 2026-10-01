@@ -8,6 +8,7 @@ create function pg_temp.menu(command jsonb, actor uuid default 'f1000000-0000-00
 $$;
 select is(pg_temp.menu(null)->>'outcome','allowed','owner reads scoped editor');
 select is(pg_temp.menu(null)#>>'{data,timezone}','Europe/Berlin','editor receives authoritative location timezone');
+select matches(pg_temp.menu(null)#>>'{data,menus,0,publications,0,effectiveAt}','[.][0-9]{3}Z$','database timestamps fit the millisecond UI contract');
 select is(pg_temp.menu(null,null)->>'outcome','forbidden','missing actor rejected');
 select is(pg_temp.menu(null,'f1000000-0000-0000-0000-000000000001',null)->>'outcome','forbidden','null MFA rejected');
 select is(pg_temp.menu(null,'f1000000-0000-0000-0000-000000000001','aal1')->>'outcome','forbidden','MFA required');

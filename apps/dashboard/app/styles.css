@@ -333,3 +333,13 @@ a:focus-visible {
 .line-list small {
   display: block;
 }
+
+.menu-editor input:not([type="checkbox"]),
+.menu-editor textarea,
+.menu-editor select {
+  background: #07130f;
+  color: #f6f2e8;
+  border: 1px solid rgba(246, 242, 232, 0.28);
+  border-radius: 0.5rem;
+  padding: 0.65rem;
+}

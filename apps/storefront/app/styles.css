@@ -457,3 +457,17 @@ footer {
 .cart-lines small {
   display: block;
 }
+
+@media (max-width: 600px) {
+  .dish {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .dish-action {
+    align-items: stretch;
+  }
+  .dish-action .price,
+  .dish-action .add-button {
+    align-self: flex-end;
+  }
+}
