@@ -1,4 +1,5 @@
 import {
+  isOrderNumber,
   parseDashboardOrderCursor,
   parseDashboardOrderDetail,
   parseDashboardOrderList,
@@ -49,6 +50,7 @@ export interface DashboardOrdersReader {
     identity: DashboardIdentity,
     scope: { restaurantId: string; locationId: string },
     filters: {
+      orderNumber?: string;
       status: DashboardOrderStatus | undefined;
       fulfillmentType?: "pickup" | "delivery";
       cursor: { requestedFor: string; orderId: string } | undefined;
@@ -124,13 +126,15 @@ function parseFilters(request: Request): Parameters<DashboardOrdersReader["list"
   const parameters = new URL(request.url).searchParams;
   if (
     [...parameters.keys()].some(
-      (key) => !["status", "cursor", "limit", "fulfillmentType"].includes(key),
+      (key) => !["status", "cursor", "limit", "fulfillmentType", "orderNumber"].includes(key),
     ) ||
-    ["status", "cursor", "limit", "fulfillmentType"].some(
+    ["status", "cursor", "limit", "fulfillmentType", "orderNumber"].some(
       (key) => parameters.getAll(key).length > 1,
     )
   )
     return undefined;
+  const orderNumber = parameters.get("orderNumber");
+  if (orderNumber !== null && !isOrderNumber(orderNumber)) return undefined;
   const statusValue = parameters.get("status");
   const status = statusValue
     ? publicOrderStatuses.find((candidate) => candidate === statusValue)
@@ -150,6 +154,7 @@ function parseFilters(request: Request): Parameters<DashboardOrdersReader["list"
     status,
     cursor,
     limit,
+    ...(orderNumber ? { orderNumber } : {}),
     ...(fulfillmentType ? { fulfillmentType } : {}),
   };
 }

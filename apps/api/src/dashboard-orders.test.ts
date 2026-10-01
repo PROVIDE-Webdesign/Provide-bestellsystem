@@ -61,6 +61,34 @@ function worker(
 }
 
 describe("dashboard order API", () => {
+  it("passes a validated number filter and rejects duplicate or out-of-range numbers", async () => {
+    const list = vi.fn().mockResolvedValue({
+      outcome: "allowed",
+      data: {
+        restaurantId,
+        locationId,
+        orders: [{ ...summary, orderNumber: "BS-00000421" }],
+        nextCursor: null,
+      },
+    });
+    expect(
+      (await worker({ list }).fetch(authorized(`${base}?orderNumber=BS-00000421`), env)).status,
+    ).toBe(200);
+    expect(list).toHaveBeenCalledWith(
+      env.HYPERDRIVE.connectionString,
+      identity,
+      { restaurantId, locationId },
+      expect.objectContaining({ orderNumber: "BS-00000421" }),
+    );
+    list.mockClear();
+    for (const query of [
+      "orderNumber=BS-00000421&orderNumber=BS-00000422",
+      "orderNumber=BS-9999999999999999999",
+      "orderNumber=",
+    ])
+      expect((await worker({ list }).fetch(authorized(`${base}?${query}`), env)).status).toBe(400);
+    expect(list).not.toHaveBeenCalled();
+  });
   it("routes communication commands and rejects stale/invalid changes", async () => {
     const communicate = vi
       .fn()

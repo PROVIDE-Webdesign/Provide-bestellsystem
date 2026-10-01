@@ -17,6 +17,8 @@ import {
   type OrderReasonCode,
   orderReasonLabels,
   locationTimeToInstant,
+  orderReference,
+  isOrderNumber,
 } from "@provide/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -26,13 +28,20 @@ import {
   orderStatusLabels,
   fulfillmentStatusLabel,
   fulfillmentTransitionLabel,
-} from "@/lib/order-ui.js";
+} from "../../lib/order-ui.js";
 
 interface OrderBoardProps {
   readonly restaurantId: string;
   readonly role: RestaurantRole;
   readonly locations: readonly DashboardLocationAccess[];
 }
+
+const cancellationReasonLabels = {
+  unavailable: "Restaurant nicht verfügbar",
+  sold_out: "Artikel ausverkauft",
+  customer_request: "Kundenwunsch",
+  operational: "Betriebliche Gründe",
+} as const;
 
 function envelopeData(value: unknown): unknown {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -44,6 +53,8 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
   const [locationId, setLocationId] = useState(locations[0]?.id ?? "");
   const [status, setStatus] = useState<DashboardOrderStatus | "">("");
   const [fulfillment, setFulfillment] = useState("");
+  const [numberQuery, setNumberQuery] = useState("");
+  const [numberFilter, setNumberFilter] = useState("");
   const [orders, setOrders] = useState<DashboardOrderList>();
   const [detail, setDetail] = useState<DashboardOrderDetail>();
   const [message, setMessage] = useState("");
@@ -64,6 +75,7 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
       try {
         const query = new URLSearchParams({ restaurantId, locationId, limit: "25" });
         if (fulfillment) query.set("fulfillmentType", fulfillment);
+        if (numberFilter) query.set("orderNumber", numberFilter);
         if (status) query.set("status", status);
         if (cursor) query.set("cursor", cursor);
         const response = await fetch(`/api/orders?${query}`, {
@@ -85,7 +97,7 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
         if (!controller.signal.aborted) setLoading(false);
       }
     },
-    [locationId, restaurantId, status, fulfillment],
+    [locationId, restaurantId, status, fulfillment, numberFilter],
   );
 
   useEffect(() => {
@@ -310,6 +322,55 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
           {message}
         </p>
       )}
+
+      <form
+        className="toolbar"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const value = numberQuery.trim();
+          if (value && !isOrderNumber(value)) {
+            setMessage("Bitte gib eine vollständige Bestellnummer im Format BS-00000421 ein.");
+            return;
+          }
+          if (value === numberFilter) {
+            void loadOrders();
+            return;
+          }
+          setNumberFilter(value);
+          setDetail(undefined);
+          setOrders(undefined);
+        }}
+      >
+        <label>
+          Bestellnummer suchen
+          <input
+            type="search"
+            maxLength={22}
+            value={numberQuery}
+            onChange={(event) => setNumberQuery(event.target.value)}
+            placeholder="BS-00000421"
+            disabled={updating}
+          />
+        </label>
+        <button type="submit" disabled={loading || updating}>
+          Suchen
+        </button>
+        {numberFilter && (
+          <button
+            type="button"
+            className="secondary"
+            disabled={updating}
+            onClick={() => {
+              setNumberQuery("");
+              setNumberFilter("");
+              setDetail(undefined);
+              setOrders(undefined);
+            }}
+          >
+            Suche zurücksetzen
+          </button>
+        )}
+      </form>
       {orders?.orders.length === 0 && <p>Für diesen Filter liegen keine Bestellungen vor.</p>}
       {orders && orders.orders.length > 0 && (
         <ul className="order-list" aria-label="Bestellungen">
@@ -320,7 +381,7 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
                 type="button"
                 onClick={() => void loadDetail(order.orderId)}
               >
-                <span className="order-number">#{order.orderId.slice(-8).toUpperCase()}</span>
+                <span className="order-number">#{orderReference(order)}</span>
                 <strong>{fulfillmentStatusLabel(order.status, order.fulfillmentType)}</strong>
                 {order.paymentState && <span>{paymentStateLabels[order.paymentState]}</span>}
                 <span>
@@ -351,7 +412,7 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
           <div className="detail-heading">
             <div>
               <p className="eyebrow">Bestelldetails</p>
-              <h3 id={`order-${detail.orderId}`}>#{detail.orderId.slice(-8).toUpperCase()}</h3>
+              <h3 id={`order-${detail.orderId}`}>#{orderReference(detail)}</h3>
             </div>
             <button className="secondary" type="button" onClick={() => setDetail(undefined)}>
               Schließen
@@ -484,11 +545,12 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
                     {(["unavailable", "sold_out", "customer_request", "operational"] as const).map(
                       (code) => (
                         <option key={code} value={code}>
-                          {orderReasonLabels[code]}
+                          {cancellationReasonLabels[code]}
                         </option>
                       ),
                     )}
                   </select>
+                  <small>{orderReasonLabels[reasonCode]}</small>
                 </label>
               )}
               {detail.allowedTransitions.map((target) => (

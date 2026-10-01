@@ -38,7 +38,7 @@ export const postgresEmailRepository: EmailRepository = {
   async claim(connection, lock, limit, now) {
     return (await query(
       connection,
-      "select private.claim_email_deliveries($1::uuid,$2::integer,$3::timestamptz) as data",
+      "select private.attach_order_number(private.claim_email_deliveries($1::uuid,$2::integer,$3::timestamptz)) as data",
       [lock, limit, now],
       async (data, client) => {
         if (!Array.isArray(data) || data.length > limit || data.length > 25)

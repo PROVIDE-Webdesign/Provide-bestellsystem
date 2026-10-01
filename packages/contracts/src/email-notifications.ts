@@ -1,5 +1,6 @@
 import { isExplicitInstant, isStorefrontScope } from "./storefront.js";
 import { isValidGuestEmail } from "./checkout.js";
+import { isOrderNumber } from "./order-number.js";
 
 export const emailTemplateKeys = [
   "order_submitted",
@@ -33,6 +34,7 @@ export interface EmailSendJob {
   readonly deliveryId: string;
   readonly lockToken: string;
   readonly orderId: string;
+  readonly orderNumber?: string;
   readonly mode: "send";
   readonly templateKey: EmailTemplateKey;
   readonly templateVersion: 1;
@@ -76,6 +78,7 @@ export function parseEmailDispatchJob(value: unknown): EmailDispatchJob | undefi
     "deliveryId",
     "lockToken",
     "orderId",
+    ...("orderNumber" in s ? ["orderNumber"] : []),
     "mode",
     "templateKey",
     "templateVersion",
@@ -96,6 +99,7 @@ export function parseEmailDispatchJob(value: unknown): EmailDispatchJob | undefi
     Object.keys(s).length !== keys.length ||
     !Object.keys(s).every((k) => keys.includes(k)) ||
     ![s.deliveryId, s.lockToken, s.orderId].every((v) => typeof v === "string" && uuid.test(v)) ||
+    (Object.hasOwn(s, "orderNumber") && !isOrderNumber(s.orderNumber)) ||
     s.mode !== "send" ||
     !emailTemplateKeys.includes(s.templateKey as EmailTemplateKey) ||
     s.templateVersion !== 1 ||

@@ -1,4 +1,5 @@
 import { verifyMenuCartIntegration } from "./menu-cart.integration.js";
+import { verifyOrderNumberIntegration } from "./order-number.integration.js";
 import { verifyMenuSelectionIntegration } from "./menu-selection.integration.js";
 import { URL } from "node:url";
 import { readFile } from "node:fs/promises";
@@ -116,6 +117,7 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
           : undefined;
       const orderPayload = parseGuestPickupOrderConfirmation(orderData);
       if (!orderPayload) throw new Error("Integration checkout confirmation is invalid");
+      expect(orderPayload.orderNumber).toMatch(/^BS-[0-9]{8,19}$/);
       expect(orderPayload).toMatchObject({
         status: "submitted",
         fulfillmentType: "pickup",
@@ -146,7 +148,11 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
           env,
         );
       await expect((await statusRequest()).json()).resolves.toMatchObject({
-        data: { status: "submitted", totalAmountMinor: 2500 },
+        data: {
+          status: "submitted",
+          totalAmountMinor: 2500,
+          orderNumber: orderPayload.orderNumber,
+        },
       });
       expect((await statusRequest("a".repeat(43))).status).toBe(404);
       await admin.query("BEGIN");
@@ -202,13 +208,22 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       const dashboardOrders = await dashboardRequest(`${dashboardBase}?status=accepted&limit=25`);
       expect(dashboardOrders.status).toBe(200);
       await expect(dashboardOrders.json()).resolves.toMatchObject({
-        data: { orders: [{ orderId: orderPayload.orderId, status: "accepted" }] },
+        data: {
+          orders: [
+            {
+              orderId: orderPayload.orderId,
+              status: "accepted",
+              orderNumber: orderPayload.orderNumber,
+            },
+          ],
+        },
       });
       const dashboardDetail = await dashboardRequest(`${dashboardBase}/${orderPayload.orderId}`);
       expect(dashboardDetail.status).toBe(200);
       await expect(dashboardDetail.json()).resolves.toMatchObject({
         data: {
           contactName: "Synthetic Integration Guest",
+          orderNumber: orderPayload.orderNumber,
           lines: [{ displayName: "Gemüsecurry", quantity: 2 }],
         },
       });
@@ -266,6 +281,7 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       await verifyEmailIntegration(admin, env);
       await verifyMenuSelectionIntegration(admin, env);
       await verifyMenuCartIntegration(admin, env);
+      await verifyOrderNumberIntegration(admin, env);
       expect(
         sendNotification.mock.calls.some(([command]) =>
           command.body.includes("bereit zur Auslieferung"),

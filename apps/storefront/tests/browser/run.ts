@@ -36,6 +36,7 @@ const server = await createServer({
   configFile: false,
   root: fileURLToPath(new URL("./", import.meta.url)),
   plugins: [react()],
+  resolve: { alias: { "@": fileURLToPath(new URL("../../../dashboard/", import.meta.url)) } },
   server: {
     host: "127.0.0.1",
     port: 4321,
@@ -60,10 +61,27 @@ try {
     page.on("pageerror", (e) => errors.push(e.message));
     let quoted = 0,
       submitted = 0;
+    const numbered = {
+      orderId: "fa000000-0000-0000-0000-000000000421",
+      orderNumber: "BS-00000421",
+      status: "submitted",
+      fulfillmentType: "pickup",
+      paymentCollectionMode: "on_fulfillment",
+      requestedFor: "2026-10-02T10:00:00.000Z",
+      currency: "EUR",
+      totalAmountMinor: 1500,
+      itemCount: 1,
+      updatedAt: "2026-10-01T10:00:00.000Z",
+      statusAvailableUntil: "2026-10-04T10:00:00.000Z",
+    };
     await page.route("**/api/storefront/**", async (route) => {
       const resource = new URL(route.request().url()).pathname.split("/").at(-1);
       if (resource === "catalog") {
         await route.fulfill({ json: { data: configuredCatalog } });
+        return;
+      }
+      if (resource === "order-status") {
+        await route.fulfill({ json: { data: { ...numbered, status: "accepted" } } });
         return;
       }
       const body = route.request().postDataJSON() as {
@@ -131,7 +149,11 @@ try {
       if (resource === "orders") {
         submitted++;
         assert.equal(body.lines?.[0]?.variantId, configuration.variants[1]!.id);
-        await route.fulfill({ status: 409, json: { error: { code: "conflict" } } });
+        await route.fulfill(
+          submitted === 1
+            ? { status: 409, json: { error: { code: "conflict" } } }
+            : { status: 201, json: { data: { ...numbered, statusAccessToken: "a".repeat(43) } } },
+        );
         return;
       }
       await route.fulfill({ status: 404, json: {} });
@@ -190,6 +212,21 @@ try {
       false,
     );
     await page.screenshot({ path: output + `cart-${viewport.width}.png`, fullPage: true });
+    await page.getByRole("button", { name: "Warenkorb und Preise prüfen" }).click();
+    await confirmation.waitFor();
+    await confirmation.check();
+    await page.getByRole("button", { name: "Abholbestellung absenden" }).click();
+    await page.getByText("Bestellnummer: BS-00000421", { exact: true }).waitFor();
+    await page.getByRole("heading", { name: "Bestellung angenommen", exact: true }).waitFor();
+    await page.waitForLoadState("networkidle");
+    await page.screenshot({
+      path: output + `order-number-guest-${viewport.width}.png`,
+      fullPage: true,
+    });
+    await page.reload();
+    await page.getByText("Bestellnummer: BS-00000421", { exact: true }).waitFor();
+    await page.getByRole("heading", { name: "Bestellung angenommen", exact: true }).waitFor();
+    await page.waitForLoadState("networkidle");
     // Expired recovery must clear itself; the cart never restores checkout approval.
     await page.evaluate(() => {
       for (let i = 0; i < localStorage.length; i++) {
@@ -207,6 +244,8 @@ try {
     });
     await page.reload();
     await page.getByRole("heading", { name: "0 Gerichte" }).waitFor();
+    await page.getByRole("heading", { name: "Bestellung angenommen", exact: true }).waitFor();
+    await page.waitForLoadState("networkidle");
     const published: MenuAdminVersion = {
       id: menu.versionId,
       number: 1,
@@ -353,6 +392,62 @@ try {
     await page.getByText("Version 3: Entwurf, für Kunden unsichtbar", { exact: false }).waitFor();
     assert.equal(imports, 1);
     await page.screenshot({ path: output + `import-${viewport.width}.png`, fullPage: true });
+    const { statusAvailableUntil: _until, ...summary } = numbered;
+    void _until;
+    await page.route("**/api/orders**", async (route) => {
+      const detailed = new URL(route.request().url()).pathname !== "/api/orders";
+      const order = { ...summary, allowedTransitions: ["accepted", "rejected", "cancelled"] };
+      await route.fulfill({
+        json: {
+          data: detailed
+            ? {
+                ...order,
+                restaurantId: "f2000000-0000-0000-0000-000000000001",
+                locationId: "f3000000-0000-0000-0000-000000000001",
+                contactName: "Synthetic Guest",
+                lines: [
+                  {
+                    lineNumber: 1,
+                    displayName: "Synthetic",
+                    quantity: 1,
+                    unitPriceAmountMinor: 1500,
+                    lineAmountMinor: 1500,
+                  },
+                ],
+              }
+            : {
+                restaurantId: "f2000000-0000-0000-0000-000000000001",
+                locationId: "f3000000-0000-0000-0000-000000000001",
+                orders: [order],
+                nextCursor: null,
+              },
+        },
+      });
+    });
+    await page.goto("http://127.0.0.1:4321/?board");
+    await page.getByLabel("Bestellnummer suchen").fill("BS-00000421");
+    await page.getByRole("button", { name: "Suchen", exact: true }).click();
+    await page.getByRole("button", { name: "Suche zurücksetzen", exact: true }).waitFor();
+    try {
+      await page.getByRole("button", { name: /BS-00000421/ }).click({ timeout: 10000 });
+    } catch (error) {
+      await page.screenshot({
+        path: output + `order-number-dashboard-failure-${viewport.width}.png`,
+        fullPage: true,
+      });
+      console.error("Dashboard number failure:", await page.locator("body").innerText(), errors);
+      throw error;
+    }
+    await page.getByRole("heading", { name: "#BS-00000421", exact: true }).waitFor();
+    await page.screenshot({
+      path: output + `order-number-dashboard-${viewport.width}.png`,
+      fullPage: true,
+    });
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
+      false,
+    );
+    assert.deepEqual(errors, []);
     await context.close();
     console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);
   }

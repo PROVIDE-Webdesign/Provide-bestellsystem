@@ -3,6 +3,10 @@
 Stand: 01.10.2026. Automatisierte Browserläufe und praktische Geräteabnahmen werden separat
 bewertet.
 
+**Eingefroren auf Nutzerauftrag:** Physische Abnahmen ruhen bis zur erneuten Laptopverfügbarkeit.
+Ausgangsnachweise und Wiederaufnahmebedingungen stehen im
+[Pausenprotokoll](../planning/2026-10-01-frozen-pilot-acceptance.md). Keine Abnahme angerechnet.
+
 | Umgebung                           | Automatischer Nachweis                                    | Praktische Abnahme                     |
 | ---------------------------------- | --------------------------------------------------------- | -------------------------------------- |
 | Chromium/Linux, 390 und 1440 Pixel | CI-Browsermatrix, Komponenten mit synthetischen Antworten | kein Android- oder Edge-Gerätenachweis |

@@ -62,6 +62,37 @@ describe("dashboard order gateway", () => {
     restaurantId: "f2000000-0000-0000-0000-000000000001",
     locationId: "f3000000-0000-0000-0000-000000000001",
   };
+  it("forwards a valid exact number search and rejects a malformed reference locally", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ data: { ...scope, orders: [], nextCursor: null } }));
+    expect(
+      (
+        await fetchDashboardOrders(
+          token,
+          "https://api.example.test",
+          scope,
+          { orderNumber: "BS-00000421" },
+          fetcher,
+        )
+      ).status,
+    ).toBe(200);
+    const url = fetcher.mock.calls[0]![0] as URL;
+    expect(url.searchParams.get("orderNumber")).toBe("BS-00000421");
+    fetcher.mockClear();
+    expect(
+      (
+        await fetchDashboardOrders(
+          token,
+          "https://api.example.test",
+          scope,
+          { orderNumber: "BS-00000421\n" },
+          fetcher,
+        )
+      ).status,
+    ).toBe(400);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
   const orderId = "fa000000-0000-0000-0000-000000000001";
   const summary = {
     orderId,

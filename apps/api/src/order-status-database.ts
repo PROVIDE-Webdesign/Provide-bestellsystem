@@ -14,7 +14,7 @@ export const postgresOrderStatusReader: OrderStatusReader = {
       await client.query("SET LOCAL ROLE service_role");
       await client.query("SET LOCAL statement_timeout = '5s'");
       const result = await client.query<{ data: unknown }>(
-        "SELECT private.read_public_guest_order_status($1::text,$2::text,$3::uuid) AS data",
+        "SELECT private.attach_order_number(private.read_public_guest_order_status($1::text,$2::text,$3::uuid)) AS data",
         [scope.restaurantSlug, scope.locationSlug, orderId],
       );
       await client.query("COMMIT");

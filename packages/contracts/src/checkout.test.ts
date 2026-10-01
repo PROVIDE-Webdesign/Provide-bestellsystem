@@ -20,6 +20,7 @@ describe("guest pickup checkout contracts", () => {
 
   it.each([
     { ...request, extra: "blocked" },
+    { ...request, orderNumber: "BS-00000001" },
     { ...request, lines: [] },
     { ...request, lines: [...request.lines, request.lines[0]] },
     { ...request, customer: { ...request.customer, marketing: true } },
@@ -69,5 +70,25 @@ describe("guest pickup checkout contracts", () => {
       totalAmountMinor: 2500,
       itemCount: 2,
     });
+  });
+
+  it("preserves a stored number and rejects a malformed supplied number", () => {
+    const confirmation = {
+      orderId: "fa000000-0000-0000-0000-000000000001",
+      orderNumber: "BS-00000421",
+      statusAccessToken: "a".repeat(43),
+      statusAvailableUntil: "2026-09-17T12:00:00Z",
+      status: "submitted",
+      fulfillmentType: "pickup",
+      paymentCollectionMode: "on_fulfillment",
+      requestedFor: "2026-09-15T12:00:00Z",
+      currency: "EUR",
+      totalAmountMinor: 2500,
+      itemCount: 2,
+    };
+    expect(parseGuestPickupOrderConfirmation(confirmation)?.orderNumber).toBe("BS-00000421");
+    expect(
+      parseGuestPickupOrderConfirmation({ ...confirmation, orderNumber: null }),
+    ).toBeUndefined();
   });
 });

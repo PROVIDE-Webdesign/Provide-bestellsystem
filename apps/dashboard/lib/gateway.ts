@@ -4,6 +4,7 @@ import {
   type MenuAdminCommand,
 } from "@provide/contracts";
 import {
+  isOrderNumber,
   parseDashboardAccessContext,
   parseDashboardOrderCursor,
   parseDashboardOrderDetail,
@@ -190,6 +191,7 @@ export function fetchDashboardOrders(
   apiBaseUrl: string | undefined,
   scope: { restaurantId: string; locationId: string },
   filters: {
+    orderNumber?: string | undefined;
     status?: DashboardOrderStatus | undefined;
     fulfillmentType?: string | undefined;
     cursor?: string | undefined;
@@ -200,6 +202,7 @@ export function fetchDashboardOrders(
   if (
     !uuidPattern.test(scope.restaurantId) ||
     !uuidPattern.test(scope.locationId) ||
+    (filters.orderNumber !== undefined && !isOrderNumber(filters.orderNumber)) ||
     (filters.fulfillmentType !== undefined &&
       !["pickup", "delivery"].includes(filters.fulfillmentType)) ||
     (filters.status !== undefined && !publicOrderStatuses.includes(filters.status)) ||
@@ -209,6 +212,7 @@ export function fetchDashboardOrders(
   )
     return Promise.resolve(operationalFailure(400));
   const query = new URLSearchParams();
+  if (filters.orderNumber) query.set("orderNumber", filters.orderNumber);
   if (filters.fulfillmentType) query.set("fulfillmentType", filters.fulfillmentType);
   if (filters.status) query.set("status", filters.status);
   if (filters.cursor) query.set("cursor", filters.cursor);

@@ -5,6 +5,7 @@ import { cartStorageKey, serializeCart, restoreCart } from "./cart-storage";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  orderReference,
   parseCartQuote,
   type CartQuote,
   parseOnlineOrderConfirmation,
@@ -695,6 +696,11 @@ export default function Storefront(scope: StorefrontProps) {
           </h2>
           {orderStatus?.taxSummary && (
             <TaxBreakdown summary={orderStatus.taxSummary} currency={orderStatus.currency} />
+          )}
+          {(orderStatus || confirmation) && (
+            <p className="order-reference">
+              Bestellnummer: {orderReference((orderStatus ?? confirmation)!)}
+            </p>
           )}
           {(orderStatus || confirmation) && (
             <p>

@@ -18,6 +18,7 @@ export async function GET(request: Request) {
     process.env.DASHBOARD_API_BASE_URL,
     { restaurantId: query.get("restaurantId") ?? "", locationId: query.get("locationId") ?? "" },
     {
+      orderNumber: query.get("orderNumber") ?? undefined,
       status: (query.get("status") || undefined) as Parameters<
         typeof fetchDashboardOrders
       >[3]["status"],

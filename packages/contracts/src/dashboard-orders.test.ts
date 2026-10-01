@@ -23,6 +23,34 @@ const summary = {
 };
 
 describe("dashboard order contracts", () => {
+  it("preserves the reference in list and detail without allowing an invalid value", () => {
+    const detail = {
+      ...summary,
+      orderNumber: "BS-00000421",
+      restaurantId: "f2000000-0000-0000-0000-000000000001",
+      locationId: "f3000000-0000-0000-0000-000000000001",
+      contactName: null,
+      lines: [
+        {
+          lineNumber: 1,
+          displayName: "Synthetic",
+          quantity: 2,
+          unitPriceAmountMinor: 1250,
+          lineAmountMinor: 2500,
+        },
+      ],
+    };
+    expect(parseDashboardOrderDetail(detail)?.orderNumber).toBe("BS-00000421");
+    expect(parseDashboardOrderDetail({ ...detail, orderNumber: "00000421" })).toBeUndefined();
+    expect(
+      parseDashboardOrderList({
+        restaurantId: detail.restaurantId,
+        locationId: detail.locationId,
+        orders: [{ ...summary, orderNumber: detail.orderNumber }],
+        nextCursor: null,
+      })?.orders[0]?.orderNumber,
+    ).toBe(detail.orderNumber);
+  });
   it("accepts a bounded order list and cursor", () => {
     const cursor = `${summary.requestedFor}|${summary.orderId}`;
     expect(parseDashboardOrderCursor(cursor)).toEqual({

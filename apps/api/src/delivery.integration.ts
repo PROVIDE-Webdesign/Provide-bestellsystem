@@ -100,6 +100,7 @@ export async function verifyDeliveryIntegration(
     envelopeData(await raced[winnerIndex]!.json()),
   );
   if (!confirmation) throw new Error("Invalid delivery integration confirmation");
+  expect(confirmation.orderNumber).toMatch(/^BS-[0-9]{8,19}$/);
   const winner = {
     ...command,
     submissionKey: winnerIndex === 0 ? "integration-delivery-1" : "integration-delivery-2",
@@ -124,6 +125,7 @@ export async function verifyDeliveryIntegration(
   await expect(detail.json()).resolves.toMatchObject({
     data: {
       fulfillmentType: "delivery",
+      orderNumber: confirmation.orderNumber,
       deliveryFeeAmountMinor: 350,
       delivery: { addressLine1: "Synthetic Lieferweg 10" },
     },
@@ -146,6 +148,7 @@ export async function verifyDeliveryIntegration(
   expect(status.status).toBe(200);
   expect(statusText).not.toContain("Lieferweg");
   expect(statusText).toContain("delivery");
+  expect(statusText).toContain(confirmation.orderNumber!);
   for (const [from, to] of [
     ["submitted", "accepted"],
     ["accepted", "preparing"],
