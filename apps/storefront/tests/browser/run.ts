@@ -365,7 +365,6 @@ try {
       false,
     );
     await page.waitForLoadState("networkidle");
-    await verifyOrderLiveBrowser(page, output, viewport.width);
     assert.deepEqual(errors, []);
     await page.screenshot({ path: output + `editor-${viewport.width}.png`, fullPage: true });
     const fileInput = page.getByLabel("Importdatei (JSON)");
@@ -450,6 +449,7 @@ try {
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
       false,
     );
+    await verifyOrderLiveBrowser(page, output, viewport.width);
     assert.deepEqual(errors, []);
     await context.close();
     console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);
