@@ -1,3 +1,4 @@
+import { parseTaxComponents, parseTaxSummary, type TaxComponent, type TaxSummary } from "./tax.js";
 import { isExplicitInstant, type FulfillmentType } from "./storefront.js";
 import {
   menuIdPattern,
@@ -15,6 +16,7 @@ export interface CartQuoteRequest {
   readonly postalCode?: string;
 }
 export interface SelectionSnapshot {
+  readonly taxComponents?: readonly TaxComponent[];
   readonly schemaVersion: 1;
   readonly variant: {
     readonly id: string;
@@ -48,6 +50,7 @@ export type CartQuote =
       readonly currency: string;
       readonly itemCount: number;
       readonly subtotalAmountMinor: number;
+      readonly taxSummary?: TaxSummary;
       readonly deliveryQuote: DeliveryQuote | null;
       readonly lines: readonly {
         readonly menuItemId: string;
@@ -116,13 +119,18 @@ export function parseSelectionSnapshot(v: unknown, gross: number): SelectionSnap
     s.schemaVersion !== 1 ||
     !amount(s.taxRateBasisPoints, 10000) ||
     !amount(s.taxAmountMinor) ||
-    s.taxAmountMinor !==
-      Number(
-        (2n * BigInt(gross) * BigInt(s.taxRateBasisPoints) + BigInt(10000 + s.taxRateBasisPoints)) /
-          (2n * BigInt(10000 + s.taxRateBasisPoints)),
-      )
+    (!("taxComponents" in s) &&
+      s.taxAmountMinor !==
+        Number(
+          (2n * BigInt(gross) * BigInt(s.taxRateBasisPoints) +
+            BigInt(10000 + s.taxRateBasisPoints)) /
+            (2n * BigInt(10000 + s.taxRateBasisPoints)),
+        ))
   )
     return;
+  const taxComponents =
+    "taxComponents" in s ? parseTaxComponents(s.taxComponents, gross, s.taxAmountMinor) : undefined;
+  if ("taxComponents" in s && !taxComponents) return;
   const choice = (v: unknown) => {
     const c = object(v);
     return c && id(c.id) && text(c.name, 100) && amount(c.priceDeltaAmountMinor, 1_000_000_000)
@@ -138,6 +146,18 @@ export function parseSelectionSnapshot(v: unknown, gross: number): SelectionSnap
     options.push(c);
   }
   if (new Set(options.map((o) => o.id.toLowerCase())).size !== options.length) return;
+  if (
+    taxComponents &&
+    (JSON.stringify(
+      taxComponents
+        .filter((c) => c.kind === "option")
+        .map((c) => c.choiceId!.toLowerCase())
+        .sort(),
+    ) !== JSON.stringify(options.map((c) => c.id.toLowerCase()).sort()) ||
+      (taxComponents.find((c) => c.kind === "variant")?.choiceId?.toLowerCase() ?? null) !==
+        (variant?.id.toLowerCase() ?? null))
+  )
+    return;
   const labels = (v: unknown): string[] | undefined =>
     Array.isArray(v) &&
     v.length <= 64 &&
@@ -150,6 +170,7 @@ export function parseSelectionSnapshot(v: unknown, gross: number): SelectionSnap
   if (!allergens || !additives) return;
   return {
     schemaVersion: 1,
+    ...(taxComponents ? { taxComponents } : {}),
     variant,
     options,
     allergens,
@@ -268,7 +289,16 @@ export function parseCartQuote(v: unknown): CartQuote | undefined {
         deliveryQuote.currency !== s.currency))
   )
     return;
+  const taxSummary =
+    "taxSummary" in s
+      ? parseTaxSummary(
+          s.taxSummary,
+          s.subtotalAmountMinor + (deliveryQuote?.deliveryFeeAmountMinor ?? 0),
+        )
+      : undefined;
+  if ("taxSummary" in s && !taxSummary) return;
   return {
+    ...(taxSummary ? { taxSummary } : {}),
     status: s.status,
     currentMenuVersionId: s.currentMenuVersionId,
     currency: s.currency,

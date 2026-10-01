@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 import react from "@vitejs/plugin-react";
-import { chromium } from "playwright";
+import { chromium, firefox, webkit } from "playwright";
 import catalogFixture from "../../../../fixtures/storefront-catalog.json" with { type: "json" };
 import rawConfiguration from "../../../../fixtures/menu-configuration.json" with { type: "json" };
 import {
@@ -43,7 +43,11 @@ const server = await createServer({
   },
 });
 await server.listen();
-const browser = await chromium.launch({ headless: true });
+const engine = process.env.BROWSER_ENGINE ?? "chromium";
+if (!["chromium", "firefox", "webkit"].includes(engine)) throw Error("Unsupported browser engine");
+const engines = { chromium, firefox, webkit };
+const selectedBrowser = engines[engine as "chromium" | "firefox" | "webkit"];
+const browser = await selectedBrowser.launch({ headless: true });
 try {
   for (const viewport of [
     { width: 1440, height: 1000 },
@@ -261,7 +265,7 @@ try {
     assert.deepEqual(errors, []);
     await page.screenshot({ path: output + `editor-${viewport.width}.png`, fullPage: true });
     await context.close();
-    console.log(`Browser menu/cart ${viewport.width}px PASS`);
+    console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);
   }
 } finally {
   await browser.close();

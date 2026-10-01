@@ -1,3 +1,4 @@
+import { parseTaxSummary, type TaxSummary } from "./tax.js";
 import { isPaymentState, type PaymentState } from "./online-payment.js";
 import { isExplicitInstant } from "./storefront.js";
 import { parseOrderCommunication, type OrderCommunication } from "./email-notifications.js";
@@ -20,6 +21,7 @@ export interface PublicOrderStatusRequest {
 }
 
 export interface PublicOrderStatus {
+  readonly taxSummary?: TaxSummary | null;
   readonly communication?: OrderCommunication;
   readonly orderId: string;
   readonly status: PublicOrderStatusName;
@@ -100,7 +102,15 @@ export function parsePublicOrderStatus(value: unknown): PublicOrderStatus | unde
       48 * 60 * 60 * 1000
   )
     return undefined;
+  const taxSummary =
+    source.taxSummary === null
+      ? null
+      : source.taxSummary === undefined
+        ? undefined
+        : parseTaxSummary(source.taxSummary, source.totalAmountMinor);
+  if (source.taxSummary !== undefined && source.taxSummary !== null && !taxSummary) return;
   return {
+    ...(taxSummary !== undefined ? { taxSummary } : {}),
     ...(communication ? { communication } : {}),
     orderId: source.orderId,
     status: source.status as PublicOrderStatusName,

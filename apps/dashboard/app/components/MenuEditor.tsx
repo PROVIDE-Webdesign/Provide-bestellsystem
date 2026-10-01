@@ -1,4 +1,5 @@
 "use client";
+import { MenuImport } from "./MenuImport";
 import { useEffect, useState } from "react";
 import {
   parseMenuAdminState,
@@ -68,6 +69,10 @@ export function MenuEditor({
   const [stopChoice, setStopChoice] = useState("");
   const [stopEnd, setStopEnd] = useState("");
   const [reason, setReason] = useState("");
+  const [deliveryTaxMode, setDeliveryTaxMode] = useState<"fixed" | "proportional">("fixed");
+  const [deliveryTaxRate, setDeliveryTaxRate] = useState("");
+  const [deliveryTaxConfirmed, setDeliveryTaxConfirmed] = useState(false);
+  const [deliveryTaxNote, setDeliveryTaxNote] = useState("");
   const menu = state?.menus.find((m) => m.id === menuId);
   const location = locations.find((l) => l.id === locationId);
   const timezone = state?.timezone;
@@ -125,7 +130,9 @@ export function MenuEditor({
           : data.menus.find((m) => m.id === menuId)) ?? data.menus[0];
       setMenu(chosen?.id ?? "");
       const selected =
-        command?.action === "create_draft" || command?.action === "create_menu"
+        command?.action === "create_draft" ||
+        command?.action === "create_menu" ||
+        command?.action === "import_draft"
           ? chosen?.versions[0]
           : (chosen?.versions.find((v) => v.id === versionId) ?? chosen?.versions[0]);
       setVersion(selected?.id ?? "");
@@ -135,6 +142,7 @@ export function MenuEditor({
       );
       setDirty(false);
       setPreview(false);
+      setDeliveryTaxConfirmed(false);
       setMessage(
         command
           ? "Änderung gespeichert. Veröffentlichte Stände bleiben unverändert."
@@ -221,6 +229,108 @@ export function MenuEditor({
         </button>
         {state && (
           <>
+            {state.deliveryTax && (
+              <fieldset>
+                <legend>Steuerregel für die Liefergebühr</legend>
+                <p>
+                  Aktuell:{" "}
+                  {state.deliveryTax.mode === "undeclared"
+                    ? "nicht deklariert"
+                    : state.deliveryTax.mode === "proportional"
+                      ? "nach bestätigten Bruttoanteilen verteilt"
+                      : `${(state.deliveryTax.taxRateBasisPoints ?? 0) / 100} %`}
+                </p>
+                <label>
+                  Berechnung
+                  <select
+                    value={deliveryTaxMode}
+                    onChange={(e) => {
+                      setDeliveryTaxMode(e.target.value as "fixed" | "proportional");
+                      setDeliveryTaxConfirmed(false);
+                    }}
+                  >
+                    <option value="fixed">Bestätigter eigener Steuersatz</option>
+                    <option value="proportional">Proportional zu den deklarierten Artikeln</option>
+                  </select>
+                </label>
+                {deliveryTaxMode === "fixed" && (
+                  <label>
+                    Bestätigter Liefergebühr-Steuersatz in Prozent
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={deliveryTaxRate}
+                      onChange={(e) => {
+                        setDeliveryTaxRate(e.target.value);
+                        setDeliveryTaxConfirmed(false);
+                      }}
+                    />
+                  </label>
+                )}
+                <label>
+                  Begründung
+                  <input
+                    value={deliveryTaxNote}
+                    maxLength={200}
+                    onChange={(e) => {
+                      setDeliveryTaxNote(e.target.value);
+                      setDeliveryTaxConfirmed(false);
+                    }}
+                  />
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={deliveryTaxConfirmed}
+                    onChange={(e) => setDeliveryTaxConfirmed(e.target.checked)}
+                  />
+                  Die fachliche Steuerregel wurde geprüft und bestätigt.
+                </label>
+                <button
+                  type="button"
+                  disabled={
+                    busy ||
+                    dirty ||
+                    !deliveryTaxConfirmed ||
+                    !deliveryTaxNote.trim() ||
+                    (deliveryTaxMode === "fixed" && deliveryTaxRate === "")
+                  }
+                  onClick={() =>
+                    submit({
+                      action: "set_delivery_tax",
+                      expectedPolicyId: state.deliveryTax!.policyId,
+                      mode: deliveryTaxMode,
+                      taxRateBasisPoints:
+                        deliveryTaxMode === "fixed"
+                          ? Math.round(Number(deliveryTaxRate) * 100)
+                          : null,
+                      informationConfirmed: true,
+                      note: deliveryTaxNote,
+                    })
+                  }
+                >
+                  Steuerregel als neue Lieferregel speichern
+                </button>
+              </fieldset>
+            )}
+            {menuId && (
+              <MenuImport
+                key={locationId + ":" + menuId}
+                disabled={busy || dirty}
+                onImport={(b) =>
+                  submit({
+                    action: "import_draft",
+                    menuId,
+                    source: b.source,
+                    sections: b.sections,
+                    items: b.items,
+                  })
+                }
+              />
+            )}
+
             <fieldset>
               <legend>Neue Speisekarte</legend>
               <label>
@@ -770,6 +880,19 @@ function ConfigurationEditor({
   const [additiveText, setAdditiveText] = useState(value.additives.join(", "));
   const updateChoice = (list: readonly MenuChoice[], id: string, part: Partial<MenuChoice>) =>
     list.map((c) => (c.id === id ? { ...c, ...part } : c));
+  const setChoiceTax = (id: string, text: string) => {
+    const replace = (c: MenuChoice): MenuChoice => {
+      if (c.id !== id) return c;
+      const { taxRateBasisPoints: _old, ...base } = c;
+      void _old;
+      return text === "" ? base : { ...base, taxRateBasisPoints: Math.round(Number(text) * 100) };
+    };
+    onChange({
+      ...value,
+      variants: value.variants.map(replace),
+      optionGroups: value.optionGroups.map((g) => ({ ...g, options: g.options.map(replace) })),
+    });
+  };
   const controls = (c: MenuChoice, update: (p: Partial<MenuChoice>) => void) => (
     <div key={c.id}>
       <label>
@@ -786,6 +909,17 @@ function ConfigurationEditor({
           onChange={(e) =>
             update({ priceDeltaAmountMinor: Math.round(Number(e.target.value) * 100) })
           }
+        />
+      </label>
+      <label>
+        Eigener Steuersatz für den Aufpreis in Prozent (leer = Produktsteuer)
+        <input
+          type="number"
+          min="0"
+          max="100"
+          step="0.01"
+          value={c.taxRateBasisPoints === undefined ? "" : c.taxRateBasisPoints / 100}
+          onChange={(e) => setChoiceTax(c.id, e.target.value)}
         />
       </label>
       <label>

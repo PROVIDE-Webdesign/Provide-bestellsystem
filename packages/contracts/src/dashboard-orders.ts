@@ -1,3 +1,4 @@
+import { parseTaxSummary, type TaxSummary } from "./tax.js";
 import { parseSelectionSnapshot, type SelectionSnapshot } from "./cart-quote.js";
 import { isPaymentState, type PaymentState } from "./online-payment.js";
 import { parseDeliveryAddress, type DeliveryAddress } from "./delivery.js";
@@ -43,6 +44,7 @@ export interface DashboardOrderLine {
 }
 
 export interface DashboardOrderDetail extends DashboardOrderSummary {
+  readonly taxSummary?: TaxSummary | null;
   readonly communication?: OrderCommunication;
   readonly delivery?: (DeliveryAddress & { recipientName: string; phoneE164: string }) | null;
   readonly deliveryFeeAmountMinor?: number;
@@ -271,6 +273,7 @@ export function parseDashboardOrderDetail(value: unknown): DashboardOrderDetail 
       "locationId",
       "contactName",
       "lines",
+      ...("taxSummary" in source ? ["taxSummary"] : []),
       ...("communication" in source ? ["communication"] : []),
       ...("delivery" in source ? ["delivery", "deliveryFeeAmountMinor"] : []),
     ]) ||
@@ -319,7 +322,15 @@ export function parseDashboardOrderDetail(value: unknown): DashboardOrderDetail 
       source.deliveryFeeAmountMinor > summary.totalAmountMinor)
   )
     return undefined;
+  const taxSummary =
+    source.taxSummary === null
+      ? null
+      : source.taxSummary === undefined
+        ? undefined
+        : parseTaxSummary(source.taxSummary, summary.totalAmountMinor);
+  if (source.taxSummary !== undefined && source.taxSummary !== null && !taxSummary) return;
   return {
+    ...(taxSummary !== undefined ? { taxSummary } : {}),
     ...summary,
     ...(communication ? { communication } : {}),
     ...("delivery" in source
