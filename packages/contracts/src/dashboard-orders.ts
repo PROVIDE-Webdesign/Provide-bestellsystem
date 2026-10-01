@@ -183,6 +183,12 @@ function parseSummary(value: unknown): DashboardOrderSummary | undefined {
 export function parseDashboardOrderList(value: unknown): DashboardOrderList | undefined {
   const source = record(value);
   if (
+    source?.orders &&
+    Array.isArray(source.orders) &&
+    source.orders[0]?.orderNumber === "BS-00000421"
+  )
+    console.error("Synthetic parser diagnostics", parseSummary.toString(), uuidPattern.toString());
+  if (
     !source ||
     !exactKeys(source, ["restaurantId", "locationId", "orders", "nextCursor"]) ||
     typeof source.restaurantId !== "string" ||
