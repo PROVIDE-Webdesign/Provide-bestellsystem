@@ -36,6 +36,13 @@ interface OrderBoardProps {
   readonly locations: readonly DashboardLocationAccess[];
 }
 
+const cancellationReasonLabels = {
+  unavailable: "Restaurant nicht verfügbar",
+  sold_out: "Artikel ausverkauft",
+  customer_request: "Kundenwunsch",
+  operational: "Betriebliche Gründe",
+} as const;
+
 function envelopeData(value: unknown): unknown {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>).data
@@ -538,11 +545,12 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
                     {(["unavailable", "sold_out", "customer_request", "operational"] as const).map(
                       (code) => (
                         <option key={code} value={code}>
-                          {orderReasonLabels[code]}
+                          {cancellationReasonLabels[code]}
                         </option>
                       ),
                     )}
                   </select>
+                  <small>{orderReasonLabels[reasonCode]}</small>
                 </label>
               )}
               {detail.allowedTransitions.map((target) => (
