@@ -180,14 +180,17 @@ function parseSummary(value: unknown): DashboardOrderSummary | undefined {
   };
 }
 
+export function numberParserDiagnostics() {
+  return [
+    parseSummary.toString(),
+    uuidPattern.toString(),
+    isOrderNumber.toString(),
+    isExplicitInstant.toString(),
+  ];
+}
+
 export function parseDashboardOrderList(value: unknown): DashboardOrderList | undefined {
   const source = record(value);
-  if (
-    source?.orders &&
-    Array.isArray(source.orders) &&
-    source.orders[0]?.orderNumber === "BS-00000421"
-  )
-    console.error("Synthetic parser diagnostics", parseSummary.toString(), uuidPattern.toString());
   if (
     !source ||
     !exactKeys(source, ["restaurantId", "locationId", "orders", "nextCursor"]) ||

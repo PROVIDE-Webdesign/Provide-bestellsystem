@@ -52,8 +52,11 @@ export async function verifyOrderNumberIntegration(admin: Client, env: Env) {
       }),
       env,
     );
-  const submit = async (key: string) => {
-    const response = await post("orders", { ...request, submissionKey: key });
+  const submit = async (key: string, distinctSlot = false) => {
+    const requestedFor = distinctSlot
+      ? new Date(Date.parse(request.requestedFor) + 3600000).toISOString()
+      : request.requestedFor;
+    const response = await post("orders", { ...request, requestedFor, submissionKey: key });
     expect(
       response.status,
       response.status === 201 ? undefined : await response.clone().text(),
@@ -67,7 +70,7 @@ export async function verifyOrderNumberIntegration(admin: Client, env: Env) {
   const [first, repeat, second] = await Promise.all([
     submit("number-api-race-001"),
     submit("number-api-race-001"),
-    submit("number-api-race-002"),
+    submit("number-api-race-002", true),
   ]);
   expect(repeat.orderId).toBe(first.orderId);
   expect(repeat.orderNumber).toBe(first.orderNumber);

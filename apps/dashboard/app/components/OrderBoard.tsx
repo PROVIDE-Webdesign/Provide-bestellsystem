@@ -19,6 +19,7 @@ import {
   locationTimeToInstant,
   orderReference,
   isOrderNumber,
+  numberParserDiagnostics,
 } from "@provide/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -82,7 +83,7 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
           console.error(
             "Number list parse failed",
             JSON.stringify(payload),
-            parseDashboardOrderList.toString(),
+            JSON.stringify(numberParserDiagnostics()),
           );
         if (!parsed) throw new Error();
         if (controller.signal.aborted) return;
