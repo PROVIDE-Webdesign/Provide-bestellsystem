@@ -423,7 +423,16 @@ try {
     await page.getByLabel("Bestellnummer suchen").fill("BS-00000421");
     await page.getByRole("button", { name: "Suchen", exact: true }).click();
     await page.getByRole("button", { name: "Suche zurücksetzen", exact: true }).waitFor();
-    await page.getByRole("button", { name: /BS-00000421/ }).click();
+    try {
+      await page.getByRole("button", { name: /BS-00000421/ }).click({ timeout: 10000 });
+    } catch (error) {
+      await page.screenshot({
+        path: output + `order-number-dashboard-failure-${viewport.width}.png`,
+        fullPage: true,
+      });
+      console.error("Dashboard number failure:", await page.locator("body").innerText(), errors);
+      throw error;
+    }
     await page.getByRole("heading", { name: "#BS-00000421", exact: true }).waitFor();
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
