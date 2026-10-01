@@ -218,6 +218,7 @@ try {
     await page.getByRole("button", { name: "Abholbestellung absenden" }).click();
     await page.getByText("Bestellnummer: BS-00000421", { exact: true }).waitFor();
     await page.getByRole("heading", { name: "Bestellung angenommen", exact: true }).waitFor();
+    await page.waitForLoadState("networkidle");
     await page.screenshot({
       path: output + `order-number-guest-${viewport.width}.png`,
       fullPage: true,
@@ -225,6 +226,7 @@ try {
     await page.reload();
     await page.getByText("Bestellnummer: BS-00000421", { exact: true }).waitFor();
     await page.getByRole("heading", { name: "Bestellung angenommen", exact: true }).waitFor();
+    await page.waitForLoadState("networkidle");
     // Expired recovery must clear itself; the cart never restores checkout approval.
     await page.evaluate(() => {
       for (let i = 0; i < localStorage.length; i++) {
@@ -243,6 +245,7 @@ try {
     await page.reload();
     await page.getByRole("heading", { name: "0 Gerichte" }).waitFor();
     await page.getByRole("heading", { name: "Bestellung angenommen", exact: true }).waitFor();
+    await page.waitForLoadState("networkidle");
     const published: MenuAdminVersion = {
       id: menu.versionId,
       number: 1,
