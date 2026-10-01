@@ -6,6 +6,7 @@ create table private.guest_purge_runs (
   cutoff timestamptz not null,
   purged_count integer not null check (purged_count between 0 and 500)
 );
+create index guest_purge_runs_latest_idx on private.guest_purge_runs(ran_at desc,id desc);
 alter table private.guest_purge_runs enable row level security;
 alter table private.guest_purge_runs force row level security;
 revoke all on private.guest_purge_runs from public,anon,authenticated,service_role;

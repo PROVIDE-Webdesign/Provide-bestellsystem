@@ -2,6 +2,12 @@ import { describe, it, expect } from "vitest";
 import raw from "../../../fixtures/order-history.json" with { type: "json" };
 import { parseHistoryQuery, parseHistoryCursor, parseOrderHistory } from "./order-history.js";
 describe("history source and query contracts", () => {
+  it("keeps nullable proof fields stable across API JSON serialization", () => {
+    const once = parseOrderHistory(raw);
+    expect(once?.purge).toBeNull();
+    const again: unknown = JSON.parse(JSON.stringify(once));
+    expect(parseOrderHistory(again)).toEqual(once);
+  });
   it("uses real calendar dates and inclusive bounded date windows", () => {
     expect(parseHistoryQuery({ fromDate: "2026-01-01", toDate: "2026-04-03" })).toBeDefined();
     expect(parseHistoryQuery({ fromDate: "2026-01-01", toDate: "2026-04-04" })).toBeUndefined();

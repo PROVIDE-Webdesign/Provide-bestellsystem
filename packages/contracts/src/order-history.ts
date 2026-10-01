@@ -271,6 +271,6 @@ export function parseOrderHistory(v: unknown): OrderHistory | undefined {
     nextCursor: s.nextCursor as string | null,
     metrics: metrics as HistoryMetric[],
     detail,
-    purge: p as OrderHistory["purge"],
+    purge: s.purge === null ? null : (p as OrderHistory["purge"]),
   };
 }

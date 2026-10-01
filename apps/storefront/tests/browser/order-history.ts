@@ -105,7 +105,7 @@ export async function verifyHistoryBrowser(page: Page, output: string, width: nu
     });
   });
   await page.goto("http://127.0.0.1:4321/?history");
-  await page.getByText("Bruttobestellwert (erfüllt)", { exact: true }).waitFor();
+  await page.getByRole("heading", { name: "Gesamt · EUR", exact: true }).waitFor();
   await page.getByLabel("Kundenname suchen").fill("Synthetic");
   await page.getByRole("button", { name: "Historie suchen", exact: true }).click();
   await page.getByRole("button", { name: /BS-00000421/ }).click();
