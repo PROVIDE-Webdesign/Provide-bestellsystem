@@ -3,7 +3,41 @@ import { parseMenuImportBundle, menuImportReady } from "./menu-import.js";
 import { parseMenuAdminCommand } from "./menu-admin.js";
 import pending from "../../../docs/pilot/asian-kitchen-12-0-r1-pending.json" with { type: "json" };
 import config from "../../../fixtures/menu-configuration.json" with { type: "json" };
+import synthetic from "../../../docs/pilot/asian-kitchen-staging-synthetic.json" with { type: "json" };
 describe("pilot import boundary", () => {
+  it("accepts the explicitly synthetic twelve-dish staging bundle without confirming real data", () => {
+    const b = parseMenuImportBundle(synthetic)!;
+    expect(b).toBeDefined();
+    expect(menuImportReady(b)).toBe(true);
+    expect(synthetic.testOnly).toBe(true);
+    expect(b.source.name).toContain("SYNTHETISCH");
+    expect(b.sections).toHaveLength(3);
+    expect(b.items).toHaveLength(12);
+    expect(b.items.every((i) => i.name.startsWith("TEST "))).toBe(true);
+    expect(b.items.every((i) => i.description?.includes("SYNTHETISCHER TESTARTIKEL"))).toBe(true);
+    expect(b.items.map((i) => i.priceAmountMinor)).toEqual(
+      pending.items.map((i) => i.priceAmountMinor),
+    );
+    expect(b.items.every((i) => !pending.items.some((p) => p.id === i.id))).toBe(true);
+    expect(new Set(b.items.map((i) => i.configuration!.taxRateBasisPoints))).toEqual(
+      new Set([700, 1900]),
+    );
+    b.items.forEach((item, index) => {
+      expect(item.configuration!.variants.map((v) => v.priceDeltaAmountMinor)).toEqual(
+        pending.pendingDeclarations[index]!.variants.map((v) => v.priceDeltaAmountMinor),
+      );
+    });
+    expect(
+      parseMenuAdminCommand({
+        action: "import_draft",
+        menuId: pending.items[0]!.id,
+        source: b.source,
+        sections: b.sections,
+        items: b.items,
+      }),
+    ).toBeDefined();
+    expect(menuImportReady(parseMenuImportBundle(pending)!)).toBe(false);
+  });
   it("preserves twelve source dishes without inventing declarations", () => {
     const b = parseMenuImportBundle(pending)!;
     expect(b.items).toHaveLength(12);

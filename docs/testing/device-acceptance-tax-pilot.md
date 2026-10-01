@@ -15,8 +15,11 @@ bewertet.
 
 ## Ein gebündelter Durchlauf je echtem Gerät
 
-Voraussetzungen: freigegebene Staging-URL, bestätigte Pilotdaten, synthetischer Gastkontakt und
-Testzahlung. Keine echten Kunden- oder Live-Zahlungsdaten verwenden.
+Voraussetzungen: erreichbare freigegebene Staging-URL, vollständig deklariertes synthetisches
+Testbundle, synthetischer Gastkontakt und Testzahlung. Dafür steht
+`docs/pilot/asian-kitchen-staging-synthetic.json` bereit. Echte Rezeptbestätigungen sind für diesen
+synthetischen Durchlauf nicht nötig; sie bleiben Voraussetzung für einen späteren echten Pilot.
+Keine echten Kunden- oder Live-Zahlungsdaten verwenden.
 
 1. Alle zwölf Pilotgerichte/Kategorien, Variantenpreise und Deklarationen vergleichen; Auswahl- und
    Pflichtgrenzen, Artikel-/Auswahlstopp und Freigabe prüfen.
@@ -42,5 +45,7 @@ Browser/Version, Szenarionummer, erwartet, tatsächlich, bestanden/fehlgeschlage
 Fehler-/Screenshot- Referenz. Ein offener oder fehlgeschlagener Fall wird nicht als bestanden
 markiert. Keine Übertragung früherer Website- oder Urlaubssystemabnahmen auf das Bestellsystem.
 
-Aktuell fehlen tatsächlicher Gerätezugriff, bestätigte Pilotdeklarationen und die vollständige
-Staging-Endabnahme. Diese Matrix ist vorbereitet; sie enthält keine erfundenen Ausführungsnachweise.
+Aktuell fehlen tatsächlicher Gerätezugriff, ein nutzbarer Staging-Zugang und die vollständige
+Staging-Endabnahme. Die dokumentierten Health-Endpunkte lieferten bei der Zugangsprüfung am
+01.10.2026 aus der Prüflaufzeit HTTP 403 / Code 1010. Echte Pilotdeklarationen bleiben separat
+offen. Diese Matrix ist vorbereitet; sie enthält keine erfundenen Ausführungsnachweise.

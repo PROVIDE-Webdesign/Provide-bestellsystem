@@ -38,6 +38,32 @@ Cent. Die Vorschau kennzeichnet deshalb Grundpreise mit „ab“.
 
 ## Fachliche Ergänzung und Import
 
+### Synthetischer Staging-Pilot
+
+`docs/pilot/asian-kitchen-staging-synthetic.json` ist ein vollständig konfiguriertes Testbundle mit
+zwölf Artikeln in drei Kategorien. Grundpreise und Variantenaufpreise entsprechen der Menüquelle;
+Artikel-, Varianten- und Kategoriebezeichnungen tragen sichtbar `TEST`. Artikel- und Auswahl-IDs
+sind von der echten Quelle getrennt. Beschreibungen warnen ausdrücklich vor einer Verwendung als
+echte Rezeptdeklaration. Die Steuerwerte 700/1900 und `TEST-Allergen A`/`TEST-Zusatzstoff B` sind
+frei gewählte Testwerte. `informationConfirmed: true` bestätigt ausschließlich diese synthetischen
+Werte; es ist keine Restaurant- oder Steuerfreigabe. Der erste Artikel besitzt ein optionales
+Testextra mit 50 Cent und abweichendem Testsatz 1900.
+
+Die Datei kann nach Zugriff auf die eindeutig zugeordnete Staging-Umgebung als neuer
+unveröffentlichter Entwurf importiert werden. Der CI-HTTP/PostgreSQL-Test importiert die komplette
+Datei und vergleicht sämtliche Kategorien, Artikel und Konfigurationen mit dem Datenbankergebnis.
+Das ist ein Import in einer isolierten Prüfdatenbank, keine externe Staging- oder Geräteabnahme. Die
+weiterhin gesperrte Datei `asian-kitchen-12-0-r1-pending.json` bleibt unverändert.
+
+Zugangsprüfung am 01.10.2026: die drei dokumentierten Storefront-/API-Health-Endpunkte unter
+`provide-bs-storefront-preview.alpaysey.workers.dev` bzw.
+`provide-bs-api-preview.alpaysey.workers.dev` liefern aus dieser Prüflaufzeit HTTP 403 / Code 1010.
+Das belegt keinen weltweiten Ausfall. Der Supabase-Zugang liefert ein inaktives, generisch benanntes
+Projekt; dessen Zuordnung zum Bestellsystem ist nicht belegt. Keine Wiederherstellung oder Änderung
+an einem unzugeordneten Projekt durchführen. Ein nutzbarer Staging-Zugang steht daher noch aus.
+
+### Tatsächliche Restaurantdeklarationen
+
 Bundleformat: `provide-menu-import-v1`, `source {name, sha256}`, `sections`, `items`. Die Datei
 `docs/pilot/asian-kitchen-12-0-r1-pending.json` besitzt zusätzlich `pendingDeclarations` als
 Arbeitsliste; diese wird bei der UI-Vorschau nicht als fertige Konfiguration übernommen. Jede aktive

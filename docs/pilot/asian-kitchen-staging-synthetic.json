@@ -1,0 +1,300 @@
+{
+  "format": "provide-menu-import-v1",
+  "source": {
+    "name": "SYNTHETISCH_asian-kitchen-staging-v1",
+    "sha256": "296f0a2ca89a59cf5e5832f8c1d974817a7523e6f2ce4fe03e52e63580ef26b7"
+  },
+  "testOnly": true,
+  "testPurpose": "Ausschließlich synthetischer Staging-Pilot ohne echte Kundendaten oder Zahlungen. informationConfirmed bestätigt nur die ausdrücklich erfundenen Testwerte, keine Restaurantfreigabe.",
+  "referenceSource": {
+    "name": "Asian_Kitchen_Arbeitsblock_12_0_R1.html",
+    "sha256": "f4bd1c373498c78e5fdaf93575fed8d40feb1d5b68d5794241a2c729ab4739ca"
+  },
+  "sections": [
+    {
+      "key": "vorspeisen",
+      "name": "TEST Vorspeisen"
+    },
+    {
+      "key": "hauptgerichte",
+      "name": "TEST Hauptgerichte"
+    },
+    {
+      "key": "desserts",
+      "name": "TEST Desserts"
+    }
+  ],
+  "items": [
+    {
+      "id": "1b8648a2-23f4-5dc5-abb0-93104ecde3ee",
+      "sectionKey": "vorspeisen",
+      "name": "TEST Frühlingsrollen",
+      "description": "SYNTHETISCHER TESTARTIKEL. Keine echte Rezept-, Allergen-, Zusatzstoff- oder Steuerdeklaration.",
+      "priceAmountMinor": 690,
+      "isActive": true,
+      "configuration": {
+        "schemaVersion": 1,
+        "informationConfirmed": true,
+        "taxRateBasisPoints": 700,
+        "allergens": ["TEST-Allergen A"],
+        "additives": ["TEST-Zusatzstoff B"],
+        "variants": [],
+        "optionGroups": [
+          {
+            "id": "2589754a-8289-5750-9d5f-69c9741344a5",
+            "name": "TEST-Extra",
+            "minSelections": 0,
+            "maxSelections": 1,
+            "options": [
+              {
+                "id": "2b8ead0a-63cc-5914-b158-4524fc903ffe",
+                "name": "TEST-Aufpreis anderer Steuersatz",
+                "priceDeltaAmountMinor": 50,
+                "taxRateBasisPoints": 1900,
+                "isActive": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "414f183b-6c0a-5403-9e9b-52a5ed0f2a5e",
+      "sectionKey": "vorspeisen",
+      "name": "TEST Gyoza",
+      "description": "SYNTHETISCHER TESTARTIKEL. Keine echte Rezept-, Allergen-, Zusatzstoff- oder Steuerdeklaration.",
+      "priceAmountMinor": 750,
+      "isActive": true,
+      "configuration": {
+        "schemaVersion": 1,
+        "informationConfirmed": true,
+        "taxRateBasisPoints": 1900,
+        "allergens": ["TEST-Allergen A"],
+        "additives": ["TEST-Zusatzstoff B"],
+        "variants": [
+          {
+            "id": "e77e2d08-ab5d-5e2a-ab40-d59b0aa1f8c9",
+            "name": "TEST Hähnchen",
+            "priceDeltaAmountMinor": 40,
+            "isActive": true
+          },
+          {
+            "id": "faafc593-2d2f-5caa-967c-bf4966b3ae69",
+            "name": "TEST Gemüse",
+            "priceDeltaAmountMinor": 0,
+            "isActive": true
+          }
+        ],
+        "optionGroups": []
+      }
+    },
+    {
+      "id": "f93c0a5a-ccfd-51fc-bb23-240a5ee21319",
+      "sectionKey": "vorspeisen",
+      "name": "TEST Edamame Meersalz",
+      "description": "SYNTHETISCHER TESTARTIKEL. Keine echte Rezept-, Allergen-, Zusatzstoff- oder Steuerdeklaration.",
+      "priceAmountMinor": 590,
+      "isActive": true,
+      "configuration": {
+        "schemaVersion": 1,
+        "informationConfirmed": true,
+        "taxRateBasisPoints": 700,
+        "allergens": ["TEST-Allergen A"],
+        "additives": ["TEST-Zusatzstoff B"],
+        "variants": [],
+        "optionGroups": []
+      }
+    },
+    {
+      "id": "9fdfa9dd-1aa4-5c2e-8521-58809760c10b",
+      "sectionKey": "vorspeisen",
+      "name": "TEST Tempura Garnelen",
+      "description": "SYNTHETISCHER TESTARTIKEL. Keine echte Rezept-, Allergen-, Zusatzstoff- oder Steuerdeklaration.",
+      "priceAmountMinor": 990,
+      "isActive": true,
+      "configuration": {
+        "schemaVersion": 1,
+        "informationConfirmed": true,
+        "taxRateBasisPoints": 1900,
+        "allergens": ["TEST-Allergen A"],
+        "additives": ["TEST-Zusatzstoff B"],
+        "variants": [],
+        "optionGroups": []
+      }
+    },
+    {
+      "id": "85bf81ee-3d7b-5392-9079-0c6dae0d17e0",
+      "sectionKey": "hauptgerichte",
+      "name": "TEST Crispy Duck",
+      "description": "SYNTHETISCHER TESTARTIKEL. Keine echte Rezept-, Allergen-, Zusatzstoff- oder Steuerdeklaration.",
+      "priceAmountMinor": 1990,
+      "isActive": true,
+      "configuration": {
+        "schemaVersion": 1,
+        "informationConfirmed": true,
+        "taxRateBasisPoints": 700,
+        "allergens": ["TEST-Allergen A"],
+        "additives": ["TEST-Zusatzstoff B"],
+        "variants": [],
+        "optionGroups": []
+      }
+    },
+    {
+      "id": "facf68b0-da4e-50b9-8510-3f8df91bd18c",
+      "sectionKey": "hauptgerichte",
+      "name": "TEST Beef Teriyaki",
+      "description": "SYNTHETISCHER TESTARTIKEL. Keine echte Rezept-, Allergen-, Zusatzstoff- oder Steuerdeklaration.",
+      "priceAmountMinor": 1890,
+      "isActive": true,
+      "configuration": {
+        "schemaVersion": 1,
+        "informationConfirmed": true,
+        "taxRateBasisPoints": 1900,
+        "allergens": ["TEST-Allergen A"],
+        "additives": ["TEST-Zusatzstoff B"],
+        "variants": [],
+        "optionGroups": []
+      }
+    },
+    {
+      "id": "a0682f4b-e991-513a-93a2-fa39bdd15ddf",
+      "sectionKey": "hauptgerichte",
+      "name": "TEST Miso Lachs",
+      "description": "SYNTHETISCHER TESTARTIKEL. Keine echte Rezept-, Allergen-, Zusatzstoff- oder Steuerdeklaration.",
+      "priceAmountMinor": 2190,
+      "isActive": true,
+      "configuration": {
+        "schemaVersion": 1,
+        "informationConfirmed": true,
+        "taxRateBasisPoints": 700,
+        "allergens": ["TEST-Allergen A"],
+        "additives": ["TEST-Zusatzstoff B"],
+        "variants": [],
+        "optionGroups": []
+      }
+    },
+    {
+      "id": "95bd31ff-5f51-5615-ab98-c87a0d9ceb53",
+      "sectionKey": "hauptgerichte",
+      "name": "TEST Thai Green Curry",
+      "description": "SYNTHETISCHER TESTARTIKEL. Keine echte Rezept-, Allergen-, Zusatzstoff- oder Steuerdeklaration.",
+      "priceAmountMinor": 1690,
+      "isActive": true,
+      "configuration": {
+        "schemaVersion": 1,
+        "informationConfirmed": true,
+        "taxRateBasisPoints": 1900,
+        "allergens": ["TEST-Allergen A"],
+        "additives": ["TEST-Zusatzstoff B"],
+        "variants": [
+          {
+            "id": "cc8caf56-ce4c-5835-8bd6-d39bbc0414af",
+            "name": "TEST Tofu",
+            "priceDeltaAmountMinor": 0,
+            "isActive": true
+          },
+          {
+            "id": "069a4c4a-56c1-51d7-81c3-db6acb50cb9d",
+            "name": "TEST Hähnchen",
+            "priceDeltaAmountMinor": 100,
+            "isActive": true
+          },
+          {
+            "id": "d10e6d78-e939-579c-a99e-002b899a6695",
+            "name": "TEST Ente",
+            "priceDeltaAmountMinor": 300,
+            "isActive": true
+          }
+        ],
+        "optionGroups": []
+      }
+    },
+    {
+      "id": "db810d2d-0cbf-52c5-9a0d-7a6d509f5173",
+      "sectionKey": "desserts",
+      "name": "TEST Mochi Trio",
+      "description": "SYNTHETISCHER TESTARTIKEL. Keine echte Rezept-, Allergen-, Zusatzstoff- oder Steuerdeklaration.",
+      "priceAmountMinor": 790,
+      "isActive": true,
+      "configuration": {
+        "schemaVersion": 1,
+        "informationConfirmed": true,
+        "taxRateBasisPoints": 700,
+        "allergens": ["TEST-Allergen A"],
+        "additives": ["TEST-Zusatzstoff B"],
+        "variants": [
+          {
+            "id": "e7b4bc8c-d2a4-5aba-a153-5e44a43c8491",
+            "name": "TEST Mango",
+            "priceDeltaAmountMinor": 0,
+            "isActive": true
+          },
+          {
+            "id": "e07000d7-b111-50e8-a213-96d9e5a78780",
+            "name": "TEST Kokos",
+            "priceDeltaAmountMinor": 0,
+            "isActive": true
+          },
+          {
+            "id": "86c7d3fa-2773-52be-a6e6-e91ed8297c02",
+            "name": "TEST Matcha",
+            "priceDeltaAmountMinor": 0,
+            "isActive": true
+          }
+        ],
+        "optionGroups": []
+      }
+    },
+    {
+      "id": "c4bb238b-a16e-592b-972d-4de5b12a8c9f",
+      "sectionKey": "desserts",
+      "name": "TEST Matcha Cheesecake",
+      "description": "SYNTHETISCHER TESTARTIKEL. Keine echte Rezept-, Allergen-, Zusatzstoff- oder Steuerdeklaration.",
+      "priceAmountMinor": 850,
+      "isActive": true,
+      "configuration": {
+        "schemaVersion": 1,
+        "informationConfirmed": true,
+        "taxRateBasisPoints": 1900,
+        "allergens": ["TEST-Allergen A"],
+        "additives": ["TEST-Zusatzstoff B"],
+        "variants": [],
+        "optionGroups": []
+      }
+    },
+    {
+      "id": "9d284e8e-7d9c-52b0-ae85-9cf7190a211f",
+      "sectionKey": "desserts",
+      "name": "TEST Mango Sticky Rice",
+      "description": "SYNTHETISCHER TESTARTIKEL. Keine echte Rezept-, Allergen-, Zusatzstoff- oder Steuerdeklaration.",
+      "priceAmountMinor": 750,
+      "isActive": true,
+      "configuration": {
+        "schemaVersion": 1,
+        "informationConfirmed": true,
+        "taxRateBasisPoints": 700,
+        "allergens": ["TEST-Allergen A"],
+        "additives": ["TEST-Zusatzstoff B"],
+        "variants": [],
+        "optionGroups": []
+      }
+    },
+    {
+      "id": "71c52b2a-d41a-51e5-a652-6b4fe570edaa",
+      "sectionKey": "desserts",
+      "name": "TEST Yuzu Crème Brûlée",
+      "description": "SYNTHETISCHER TESTARTIKEL. Keine echte Rezept-, Allergen-, Zusatzstoff- oder Steuerdeklaration.",
+      "priceAmountMinor": 890,
+      "isActive": true,
+      "configuration": {
+        "schemaVersion": 1,
+        "informationConfirmed": true,
+        "taxRateBasisPoints": 1900,
+        "allergens": ["TEST-Allergen A"],
+        "additives": ["TEST-Zusatzstoff B"],
+        "variants": [],
+        "optionGroups": []
+      }
+    }
+  ]
+}

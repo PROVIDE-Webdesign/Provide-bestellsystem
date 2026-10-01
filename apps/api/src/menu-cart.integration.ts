@@ -9,8 +9,10 @@ import {
   parseCartQuote,
   parseGuestPickupOrderConfirmation,
   parseDashboardOrderDetail,
+  parseMenuImportBundle,
 } from "@provide/contracts";
 import rawConfiguration from "../../../fixtures/menu-configuration.json" with { type: "json" };
+import syntheticPilot from "../../../docs/pilot/asian-kitchen-staging-synthetic.json" with { type: "json" };
 const configuration = parseMenuConfiguration({
   ...rawConfiguration,
   optionGroups: rawConfiguration.optionGroups.map((g) => ({
@@ -208,20 +210,24 @@ export async function verifyMenuCartIntegration(admin: Client, baseEnv: Env) {
   expect(history.rows[0]!.selection_snapshot).toEqual(snapshot);
   const retry = parseGuestPickupOrderConfirmation(await data(await post("orders", pickupRequest)))!;
   expect(retry.orderId).toBe(confirmation.orderId);
+  const pilot = parseMenuImportBundle(syntheticPilot)!;
   const imported = parseMenuAdminState(
     await data(
       await command({
         action: "import_draft",
         menuId,
-        source: { name: "synthetic-connected.json", sha256: "b".repeat(64) },
-        sections: draft.sections,
-        items: items.map((i) => ({ ...i, id: crypto.randomUUID() })),
+        source: pilot.source,
+        sections: pilot.sections,
+        items: pilot.items,
       }),
     ),
   )!;
   const importedVersion = imported.menus.find((m) => m.id === menuId)!.versions[0]!;
   expect(importedVersion.status).toBe("draft");
-  expect(importedVersion.items).toHaveLength(items.length);
+  expect(importedVersion.sections).toEqual(pilot.sections);
+  expect(importedVersion.items).toEqual(pilot.items);
+  expect(importedVersion.items).toHaveLength(12);
+  expect(importedVersion.items.every((i) => i.name.startsWith("TEST "))).toBe(true);
   expect(imported.deliveryTax?.mode).toBe("undeclared");
   const priorPolicy = imported.deliveryTax!.policyId;
   const taxCommand = {
