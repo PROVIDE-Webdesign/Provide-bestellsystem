@@ -191,6 +191,15 @@ a:focus-visible {
 .order-board {
   margin-top: 1.5rem;
 }
+.order-board label {
+  min-width: 0;
+  max-width: 100%;
+}
+.order-board select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
 .order-controls {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
@@ -235,6 +244,7 @@ a:focus-visible {
 }
 .detail-heading {
   align-items: flex-start;
+  flex-wrap: wrap;
 }
 .detail-heading h3 {
   margin: 0;
@@ -252,6 +262,9 @@ a:focus-visible {
 .status-actions {
   flex-wrap: wrap;
   justify-content: flex-start;
+}
+.status-actions label {
+  flex-basis: 100%;
 }
 .warning {
   border-left: 0.3rem solid #f2cf84;

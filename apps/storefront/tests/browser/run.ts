@@ -434,14 +434,14 @@ try {
       throw error;
     }
     await page.getByRole("heading", { name: "#BS-00000421", exact: true }).waitFor();
-    assert.equal(
-      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
-      false,
-    );
     await page.screenshot({
       path: output + `order-number-dashboard-${viewport.width}.png`,
       fullPage: true,
     });
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
+      false,
+    );
     assert.deepEqual(errors, []);
     await context.close();
     console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);
