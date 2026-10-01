@@ -85,7 +85,7 @@ export const postgresOnlineRepository: OnlineRepository = {
     const d = v.fulfillmentType === "delivery" ? v.delivery : null;
     return query(
       c,
-      "select private.submit_public_guest_online_order($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) as data",
+      "select private.attach_order_number(private.submit_public_guest_online_order($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)) as data",
       [
         s.restaurantSlug,
         s.locationSlug,

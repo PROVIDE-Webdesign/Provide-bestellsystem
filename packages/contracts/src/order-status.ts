@@ -1,4 +1,5 @@
 import { parseTaxSummary, type TaxSummary } from "./tax.js";
+import { isOrderNumber } from "./order-number.js";
 import { isPaymentState, type PaymentState } from "./online-payment.js";
 import { isExplicitInstant } from "./storefront.js";
 import { parseOrderCommunication, type OrderCommunication } from "./email-notifications.js";
@@ -21,6 +22,7 @@ export interface PublicOrderStatusRequest {
 }
 
 export interface PublicOrderStatus {
+  readonly orderNumber?: string;
   readonly taxSummary?: TaxSummary | null;
   readonly communication?: OrderCommunication;
   readonly orderId: string;
@@ -73,6 +75,7 @@ export function parsePublicOrderStatus(value: unknown): PublicOrderStatus | unde
   if (source && "communication" in source && !communication) return undefined;
   if (
     !source ||
+    (Object.hasOwn(source, "orderNumber") && !isOrderNumber(source.orderNumber)) ||
     typeof source.orderId !== "string" ||
     !idPattern.test(source.orderId) ||
     typeof source.status !== "string" ||
@@ -110,6 +113,7 @@ export function parsePublicOrderStatus(value: unknown): PublicOrderStatus | unde
         : parseTaxSummary(source.taxSummary, source.totalAmountMinor);
   if (source.taxSummary !== undefined && source.taxSummary !== null && !taxSummary) return;
   return {
+    ...(isOrderNumber(source.orderNumber) ? { orderNumber: source.orderNumber } : {}),
     ...(taxSummary !== undefined ? { taxSummary } : {}),
     ...(communication ? { communication } : {}),
     orderId: source.orderId,

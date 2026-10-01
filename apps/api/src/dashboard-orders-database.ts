@@ -65,7 +65,7 @@ export const postgresDashboardOrdersReader: DashboardOrdersReader = {
     return query(
       connectionString,
       true,
-      "SELECT private.read_dashboard_fulfillment_orders($1::uuid,$2::text,$3::uuid,$4::uuid,$5::text,$6::timestamptz,$7::uuid,$8::integer,$9::text) AS data",
+      "SELECT private.attach_order_number(private.read_dashboard_orders_by_number($1::uuid,$2::text,$3::uuid,$4::uuid,$5::text,$6::timestamptz,$7::uuid,$8::integer,$9::text,$10::bigint)) AS data",
       [
         identity.userId,
         identity.aal,
@@ -76,6 +76,7 @@ export const postgresDashboardOrdersReader: DashboardOrdersReader = {
         filters.cursor?.orderId ?? null,
         filters.limit,
         filters.fulfillmentType ?? null,
+        filters.orderNumber?.slice(3) ?? null,
       ],
     );
   },
@@ -83,7 +84,7 @@ export const postgresDashboardOrdersReader: DashboardOrdersReader = {
     return query(
       connectionString,
       true,
-      "SELECT private.read_dashboard_order($1::uuid,$2::text,$3::uuid,$4::uuid,$5::uuid) AS data",
+      "SELECT private.attach_order_number(private.read_dashboard_order($1::uuid,$2::text,$3::uuid,$4::uuid,$5::uuid)) AS data",
       [identity.userId, identity.aal, scope.restaurantId, scope.locationId, scope.orderId],
     );
   },

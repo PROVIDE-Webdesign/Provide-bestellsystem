@@ -137,8 +137,10 @@ export async function verifyOnlineIntegration(
   const raw: unknown = await response.json();
   const confirmation = parseOnlineOrderConfirmation(object(raw)?.data);
   if (!confirmation) throw new Error("Invalid online confirmation");
+  expect(confirmation.orderNumber).toMatch(/^BS-[0-9]{8,19}$/);
   const repeat: unknown = await (await post("online-orders", command)).json();
   expect(object(object(repeat)?.data)?.orderId).toBe(confirmation.orderId);
+  expect(object(object(repeat)?.data)?.orderNumber).toBe(confirmation.orderNumber);
   const action = {
     orderId: confirmation.orderId,
     paymentAccessToken: confirmation.paymentAccessToken,

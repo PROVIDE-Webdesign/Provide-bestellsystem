@@ -20,6 +20,15 @@ const response = {
 };
 
 describe("public order status contracts", () => {
+  it("returns the stored reference while keeping it separate from status access", () => {
+    expect(parsePublicOrderStatus({ ...response, orderNumber: "BS-00000421" })?.orderNumber).toBe(
+      "BS-00000421",
+    );
+    expect(parsePublicOrderStatus({ ...response, orderNumber: 421 })).toBeUndefined();
+    expect(
+      parsePublicOrderStatusRequest({ orderId: "BS-00000421", statusAccessToken: token }),
+    ).toBeUndefined();
+  });
   it("accepts only the capability request allowlist", () => {
     expect(
       parsePublicOrderStatusRequest({ orderId: response.orderId, statusAccessToken: token }),

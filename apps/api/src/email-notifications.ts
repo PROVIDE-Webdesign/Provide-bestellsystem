@@ -1,4 +1,9 @@
-import { orderReasonLabels, type EmailDispatchJob, type EmailSendJob } from "@provide/contracts";
+import {
+  orderReasonLabels,
+  orderReference,
+  type EmailDispatchJob,
+  type EmailSendJob,
+} from "@provide/contracts";
 import { createRequestContext } from "./context.js";
 import type { ApiLogger } from "./logger.js";
 import {
@@ -80,7 +85,7 @@ function escape(value: string): string {
     .replaceAll("'", "&#39;");
 }
 export function renderEmailNotification(job: EmailSendJob, statusUrl: string): EmailMessage {
-  const number = job.orderId.slice(-8).toUpperCase();
+  const number = orderReference(job);
   const time = job.confirmedFor
     ? new Intl.DateTimeFormat("de-DE", {
         dateStyle: "medium",

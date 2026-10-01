@@ -36,6 +36,15 @@ const env = {
   HYPERDRIVE: { connectionString: "synthetic" },
 };
 describe("transactional email worker", () => {
+  it("uses the persisted reference and a complete UUID for legacy mail", () => {
+    const numbered = { ...job, orderNumber: "BS-00000421" };
+    expect(parseEmailDispatchJob(numbered)).toEqual(numbered);
+    expect(parseEmailDispatchJob({ ...numbered, orderNumber: null })).toBeUndefined();
+    expect(renderEmailNotification(numbered, "https://store.test/").subject).toContain(
+      "BS-00000421",
+    );
+    expect(renderEmailNotification(job, "https://store.test/").subject).toContain(job.orderId);
+  });
   function setup() {
     const repo: EmailRepository = {
       claim: vi.fn().mockResolvedValue([job]),

@@ -1,4 +1,5 @@
 import { parseOrderSelectionLines, type OrderSelectionLine } from "./menu-selection.js";
+import { isOrderNumber } from "./order-number.js";
 import { isExplicitInstant, isStorefrontScope, type StorefrontScope } from "./storefront.js";
 
 export interface GuestPickupOrderRequest {
@@ -19,6 +20,7 @@ export interface GuestPickupOrderCommand extends GuestPickupOrderRequest, Storef
 
 export interface GuestPickupOrderConfirmation {
   readonly orderId: string;
+  readonly orderNumber?: string;
   readonly statusAccessToken: string;
   readonly statusAvailableUntil: string;
   readonly status: "submitted";
@@ -121,6 +123,7 @@ export function parseGuestPickupOrderConfirmation(
     !source ||
     typeof source.orderId !== "string" ||
     !idPattern.test(source.orderId) ||
+    (Object.hasOwn(source, "orderNumber") && !isOrderNumber(source.orderNumber)) ||
     typeof source.statusAccessToken !== "string" ||
     !statusAccessTokenPattern.test(source.statusAccessToken) ||
     typeof source.statusAvailableUntil !== "string" ||
@@ -145,6 +148,7 @@ export function parseGuestPickupOrderConfirmation(
     return undefined;
   return {
     orderId: source.orderId,
+    ...(isOrderNumber(source.orderNumber) ? { orderNumber: source.orderNumber } : {}),
     statusAccessToken: source.statusAccessToken,
     statusAvailableUntil: source.statusAvailableUntil,
     status: "submitted",

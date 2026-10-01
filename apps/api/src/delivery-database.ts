@@ -44,7 +44,7 @@ export const postgresDeliveryRepository: DeliveryRepository = {
     const d = command.delivery;
     return query(
       connectionString,
-      "SELECT private.submit_public_guest_delivery_order($1::text,$2::text,$3::uuid,$4::uuid,$5::timestamptz,$6::jsonb,$7::text,$8::jsonb,$9::jsonb,$10::jsonb,$11::text,$12::integer) AS data",
+      "SELECT private.attach_order_number(private.submit_public_guest_delivery_order($1::text,$2::text,$3::uuid,$4::uuid,$5::timestamptz,$6::jsonb,$7::text,$8::jsonb,$9::jsonb,$10::jsonb,$11::text,$12::integer)) AS data",
       [
         scope.restaurantSlug,
         scope.locationSlug,

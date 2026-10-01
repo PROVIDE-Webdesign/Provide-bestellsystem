@@ -22,7 +22,7 @@ export const postgresCheckoutWriter: CheckoutWriter = {
         email: command.customer.email,
       };
       const result = await client.query<{ data: unknown }>(
-        "SELECT private.submit_public_guest_pickup_order($1::text,$2::text,$3::uuid,$4::uuid,$5::timestamptz,$6::jsonb,$7::text,$8::jsonb,$9::text,$10::integer) AS data",
+        "SELECT private.attach_order_number(private.submit_public_guest_pickup_order($1::text,$2::text,$3::uuid,$4::uuid,$5::timestamptz,$6::jsonb,$7::text,$8::jsonb,$9::text,$10::integer)) AS data",
         [
           command.restaurantSlug,
           command.locationSlug,

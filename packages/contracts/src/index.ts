@@ -56,3 +56,4 @@ export * from "./menu-admin.js";
 export * from "./tax.js";
 
 export * from "./menu-import.js";
+export { isOrderNumber, orderReference } from "./order-number.js";

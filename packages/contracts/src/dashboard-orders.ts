@@ -1,4 +1,5 @@
 import { parseTaxSummary, type TaxSummary } from "./tax.js";
+import { isOrderNumber } from "./order-number.js";
 import { parseSelectionSnapshot, type SelectionSnapshot } from "./cart-quote.js";
 import { isPaymentState, type PaymentState } from "./online-payment.js";
 import { parseDeliveryAddress, type DeliveryAddress } from "./delivery.js";
@@ -15,6 +16,7 @@ export type DashboardOrderStatus = PublicOrderStatusName;
 
 export interface DashboardOrderSummary {
   readonly orderId: string;
+  readonly orderNumber?: string;
   readonly status: DashboardOrderStatus;
   readonly fulfillmentType: "pickup" | "delivery";
   readonly paymentCollectionMode: "on_fulfillment" | "online";
@@ -121,6 +123,7 @@ function parseSummary(value: unknown): DashboardOrderSummary | undefined {
     !source ||
     !exactKeys(source, [
       "orderId",
+      ...("orderNumber" in source ? ["orderNumber"] : []),
       "status",
       "fulfillmentType",
       "paymentCollectionMode",
@@ -134,6 +137,7 @@ function parseSummary(value: unknown): DashboardOrderSummary | undefined {
     ]) ||
     typeof source.orderId !== "string" ||
     !uuidPattern.test(source.orderId) ||
+    (Object.hasOwn(source, "orderNumber") && !isOrderNumber(source.orderNumber)) ||
     !isStatus(source.status) ||
     (source.fulfillmentType !== "pickup" && source.fulfillmentType !== "delivery") ||
     (source.paymentCollectionMode !== "on_fulfillment" &&
@@ -160,6 +164,7 @@ function parseSummary(value: unknown): DashboardOrderSummary | undefined {
   if (!allowedTransitions) return undefined;
   return {
     orderId: source.orderId,
+    ...(isOrderNumber(source.orderNumber) ? { orderNumber: source.orderNumber } : {}),
     status: source.status,
     fulfillmentType: source.fulfillmentType,
     paymentCollectionMode: source.paymentCollectionMode,
@@ -255,6 +260,7 @@ export function parseDashboardOrderDetail(value: unknown): DashboardOrderDetail 
   if (!source) return undefined;
   const summaryKeys = [
     "orderId",
+    ...("orderNumber" in source ? ["orderNumber"] : []),
     "status",
     "fulfillmentType",
     "paymentCollectionMode",

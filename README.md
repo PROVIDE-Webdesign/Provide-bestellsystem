@@ -31,8 +31,13 @@ Staging-Pilot.
 - Arbeitsblock 3.9 – Onlinezahlungen im Testbetrieb – ist formal freigegeben und umgesetzt;
   automatisierte Prüfungen sind erfolgreich, der echte Stripe-Sandbox-Nachweis steht noch aus.
 - Umsetzung und Nachweise: [Arbeitsblock 3.9](docs/work-blocks/3.9-sandbox-online-payments.md).
-- Gesamtfortschritt: **61 %** (positionsweiser A2-Abgleich über zwölf Hauptblöcke; 60,540675 %,
-  technische Umsetzung, keine Produktionsreife). Die frühere 84-%-Schätzung ist ersetzt.
+- Paket 3 Restaurantbetrieb ist gestartet:
+  [Arbeitsblock 3.14](docs/work-blocks/3.14-restaurant-operations.md).
+- Externe Pilot-/Gerätefälle sind bis zur Laptopverfügbarkeit
+  [eingefroren](docs/planning/2026-10-01-frozen-pilot-acceptance.md).
+- Gesamtfortschritt: **61 %** (positionsweiser A2-Abgleich über zwölf Hauptblöcke; nach grüner B7-CI
+  61,135913 %, technische Umsetzung, keine Produktionsreife). Die frühere 84-%-Schätzung ist
+  ersetzt.
 - Das Deployment der kundenbezogenen Arbeitsblöcke steht aus.
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 

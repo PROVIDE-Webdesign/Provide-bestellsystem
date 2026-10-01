@@ -33,6 +33,16 @@ export async function verifyEmailIntegration(
   );
   const orderId = rows[0]!.data.orderId;
   const adapter = createSyntheticEmailAdapter();
+  const sentReferences: string[] = [];
+  const send = adapter.send;
+  adapter.send = (message) => {
+    sentReferences.push(message.subject);
+    return send(message);
+  };
+  const stored = await admin.query<{ number: string }>(
+    "select private.format_order_number(order_number) as number from public.orders where id=$1",
+    [orderId],
+  );
   const emailEnv = {
     ...env,
     EMAIL_DISPATCH_ENABLED: "true",
@@ -49,6 +59,7 @@ export async function verifyEmailIntegration(
     [orderId],
   );
   expect(ledger.rows[0]?.status).toBe("accepted");
+  expect(sentReferences.some((subject) => subject.includes(stored.rows[0]!.number))).toBe(true);
   const count = adapter.acceptedCount();
   await dispatchEmailNotifications(emailEnv, postgresEmailRepository, adapter, {
     error: () => {

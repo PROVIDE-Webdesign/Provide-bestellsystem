@@ -343,3 +343,7 @@ a:focus-visible {
   border-radius: 0.5rem;
   padding: 0.65rem;
 }
+.order-number,
+.order-detail h3 {
+  overflow-wrap: anywhere;
+}
