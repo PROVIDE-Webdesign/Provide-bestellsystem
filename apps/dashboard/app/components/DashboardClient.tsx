@@ -1,4 +1,5 @@
 "use client";
+import { MenuEditor } from "./MenuEditor.js";
 
 import { parseDashboardAccessContext, type DashboardAccessContext } from "@provide/contracts";
 import { useCallback, useEffect, useState } from "react";
@@ -93,6 +94,9 @@ export function DashboardClient({ enabled }: { readonly enabled: boolean }) {
                 <li key={location.id}>{location.displayName}</li>
               ))}
             </ul>
+          )}
+          {(membership.role === "owner" || membership.role === "manager") && (
+            <MenuEditor restaurantId={membership.restaurantId} locations={membership.locations} />
           )}
           <OrderBoard
             restaurantId={membership.restaurantId}

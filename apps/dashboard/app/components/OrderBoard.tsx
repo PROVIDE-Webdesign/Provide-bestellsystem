@@ -448,6 +448,18 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
               <li key={line.lineNumber}>
                 <span>
                   {line.quantity} × {line.displayName}
+                  {line.selectionSnapshot && (
+                    <small>
+                      {" "}
+                      –{" "}
+                      {[
+                        line.selectionSnapshot.variant?.name,
+                        ...line.selectionSnapshot.options.map((o) => o.name),
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </small>
+                  )}
                 </span>
                 <span>{formatMoney(line.lineAmountMinor, detail.currency)}</span>
               </li>

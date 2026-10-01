@@ -1,7 +1,11 @@
 "use client";
+import { ItemPicker } from "./ItemPicker";
+import { cartStorageKey, serializeCart, restoreCart } from "./cart-storage";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  parseCartQuote,
+  type CartQuote,
   parseOnlineOrderConfirmation,
   parsePaymentAction,
   parsePaymentSession,
@@ -9,7 +13,6 @@ import {
   type PaymentAction,
   isStorefrontScope,
   isValidGuestEmail,
-  parseDeliveryQuote,
   parseGuestDeliveryOrderConfirmation,
   type DeliveryQuote,
   type GuestDeliveryOrderConfirmation,
@@ -25,6 +28,9 @@ import {
 } from "@provide/contracts";
 import {
   addCartItem,
+  cartLineKey,
+  cartSelectionLines,
+  applyCartQuote,
   cartItemCount,
   cartTotalAmountMinor,
   setCartItemQuantity,
@@ -68,6 +74,15 @@ export default function Storefront(scope: StorefrontProps) {
   const [answer, setAnswer] = useState("");
   const [checking, setChecking] = useState(false);
   const [cart, setCart] = useState<readonly CartLine[]>([]);
+  const [review, setReview] = useState<{
+    quote: Extract<CartQuote, { status: "current" | "changed" }>;
+    signature: string;
+    accepted: boolean;
+  } | null>(null);
+  const [reviewing, setReviewing] = useState(false);
+  const reviewRequest = useRef<AbortController | null>(null);
+  const cartCreatedAt = useRef(Date.now());
+  const [cartRestored, setCartRestored] = useState<string | null>(null);
   const [cartMessage, setCartMessage] = useState("");
   const [contactName, setContactName] = useState("");
   const [phoneE164, setPhoneE164] = useState("");
@@ -88,8 +103,6 @@ export default function Storefront(scope: StorefrontProps) {
   const [city, setCity] = useState("");
   const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
   const [quoteAccepted, setQuoteAccepted] = useState(false);
-  const [quoting, setQuoting] = useState(false);
-  const quoteRequest = useRef<AbortController | null>(null);
   const [orderStatus, setOrderStatus] = useState<PublicOrderStatus | null>(null);
   const [statusAccess, setStatusAccess] = useState<StoredOrderStatusAccess | null>(null);
   const [statusState, setStatusState] = useState<"idle" | "loading" | "error">("idle");
@@ -113,6 +126,110 @@ export default function Storefront(scope: StorefrontProps) {
       setPaymentAction(null);
     }
   }, [paymentStorageKey]);
+
+  const storageKey = cartStorageKey(scope);
+  useEffect(() => {
+    setReview(null);
+    setCart([]);
+    cartCreatedAt.current = Date.now();
+    try {
+      const restored = restoreCart(storageKey ? localStorage.getItem(storageKey) : null);
+      if (restored) {
+        setCart(restored.lines);
+        cartCreatedAt.current = restored.createdAt;
+        setCartMessage(
+          "Dein gespeicherter Warenkorb ist wieder da. Bitte prüfe die aktuellen Preise und Verfügbarkeit.",
+        );
+      }
+    } catch {
+      /* In-memory checkout remains available. */
+    }
+    setCartRestored(storageKey ?? null);
+  }, [storageKey]);
+  useEffect(() => {
+    if (!storageKey || cartRestored !== storageKey) return;
+    try {
+      if (!cart.length) {
+        localStorage.removeItem(storageKey);
+        cartCreatedAt.current = Date.now();
+      } else {
+        const stored = serializeCart(cart, cartCreatedAt.current);
+        if (stored) localStorage.setItem(storageKey, stored);
+        else localStorage.removeItem(storageKey);
+      }
+    } catch {
+      /* Persistence is optional. */
+    }
+  }, [cart, storageKey, cartRestored]);
+  const reviewSignature = JSON.stringify([cart, fulfillmentType, localTime, postalCode]);
+  const reviewIsAccepted = !!review?.accepted && review.signature === reviewSignature;
+  async function reviewCart() {
+    if (!catalog || !cart.length || reviewing) return;
+    if (fulfillmentType === "delivery" && !/^[0-9]{5}$/.test(postalCode)) {
+      setCartMessage("Bitte gib zuerst die fünfstellige Lieferpostleitzahl ein.");
+      return;
+    }
+    const requestedFor = locationTimeToInstant(localTime, catalog.location.timezone);
+    if (!requestedFor) {
+      setCartMessage("Bitte wähle zuerst einen gültigen Bestellzeitpunkt.");
+      return;
+    }
+    const controller = new AbortController();
+    reviewRequest.current?.abort();
+    reviewRequest.current = controller;
+    setReviewing(true);
+    setReview(null);
+    try {
+      const response = await fetch(base + "/cart-quote", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        cache: "no-store",
+        signal: controller.signal,
+        body: JSON.stringify({
+          menuId: cart[0]!.menuId,
+          menuVersionId: cart[0]!.menuVersionId,
+          fulfillmentType,
+          requestedFor,
+          lines: cartSelectionLines(cart),
+          ...(fulfillmentType === "delivery" ? { postalCode } : {}),
+        }),
+      });
+      const body = (await response.json()) as { data?: unknown };
+      if (controller.signal.aborted) return;
+      const quote = parseCartQuote(body.data);
+      if (!response.ok || !quote) throw Error("Quote unavailable");
+      if (quote.status === "unavailable") {
+        setCartMessage(
+          "Deine Auswahl, Wunschzeit oder Lieferung ist nicht mehr verfügbar. Bitte entferne betroffene Gerichte oder ändere deine Auswahl und prüfe erneut.",
+        );
+        setRefresh((n) => n + 1);
+        return;
+      }
+      const next = applyCartQuote(cart, quote);
+      setCart(next);
+      setDeliveryQuote(quote.deliveryQuote);
+      setQuoteAccepted(false);
+      submissionKey.current = null;
+      setReview({
+        quote,
+        signature: JSON.stringify([next, fulfillmentType, localTime, postalCode]),
+        accepted: false,
+      });
+      setCartMessage(
+        quote.status === "changed"
+          ? "Die Speisekarte hat sich geändert. Prüfe die neuen Positionen und Preise und bestätige sie bewusst."
+          : "Preise und Auswahl sind serverseitig geprüft. Bitte bestätige die Übersicht.",
+      );
+    } catch {
+      if (!controller.signal.aborted)
+        setCartMessage("Die Warenkorbprüfung ist gerade nicht verfügbar. Bitte erneut versuchen.");
+    } finally {
+      if (reviewRequest.current === controller) {
+        setReviewing(false);
+        reviewRequest.current = null;
+      }
+    }
+  }
 
   async function openPayment() {
     if (!paymentAction || openingPayment) return;
@@ -151,9 +268,10 @@ export default function Storefront(scope: StorefrontProps) {
 
   function invalidateSubmission(invalidateQuote = true) {
     if (invalidateQuote) {
-      quoteRequest.current?.abort();
-      quoteRequest.current = null;
-      setQuoting(false);
+      reviewRequest.current?.abort();
+      reviewRequest.current = null;
+      setReviewing(false);
+      setReview(null);
       setDeliveryQuote(null);
       setQuoteAccepted(false);
     }
@@ -284,11 +402,13 @@ export default function Storefront(scope: StorefrontProps) {
     checkoutRequest.current?.abort();
     availabilityRequest.current = null;
     checkoutRequest.current = null;
-    quoteRequest.current?.abort();
     setDeliveryQuote(null);
     setQuoteAccepted(false);
     setCatalog(null);
-    setCart([]);
+    setReview(null);
+    reviewRequest.current?.abort();
+    reviewRequest.current = null;
+    setReviewing(false);
     setAnswer("");
     setChecking(false);
     setLoadState("loading");
@@ -321,7 +441,7 @@ export default function Storefront(scope: StorefrontProps) {
     })();
     return () => {
       controller.abort();
-      quoteRequest.current?.abort();
+      reviewRequest.current?.abort();
       availabilityRequest.current?.abort();
       checkoutRequest.current?.abort();
       statusRequest.current?.abort();
@@ -381,61 +501,13 @@ export default function Storefront(scope: StorefrontProps) {
     }
   }
 
-  async function requestDeliveryQuote() {
-    if (!catalog || !cart.length || !/^[0-9]{5}$/.test(postalCode)) {
-      setCartMessage("Bitte wähle Gerichte und gib eine fünfstellige deutsche Postleitzahl ein.");
-      return;
-    }
-    const requestedFor = locationTimeToInstant(localTime, catalog.location.timezone);
-    if (!requestedFor) {
-      setCartMessage("Bitte wähle einen gültigen Lieferzeitpunkt.");
-      return;
-    }
-    const controller = new AbortController();
-    quoteRequest.current?.abort();
-    quoteRequest.current = controller;
-    setQuoting(true);
-    setDeliveryQuote(null);
-    setQuoteAccepted(false);
-    setCartMessage("");
-    try {
-      const response = await fetch(`${base}/delivery-quote`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        cache: "no-store",
-        signal: controller.signal,
-        body: JSON.stringify({
-          menuId: cart[0]!.menuId,
-          menuVersionId: cart[0]!.menuVersionId,
-          requestedFor,
-          lines: cart.map((l) => ({ menuItemId: l.menuItemId, quantity: l.quantity })),
-          postalCode,
-        }),
-      });
-      if (!response.ok) throw new Error("Delivery unavailable");
-      const body = (await response.json()) as { data?: unknown };
-      const quote = parseDeliveryQuote(body.data);
-      if (!quote) throw new Error("Invalid quote");
-      if (!controller.signal.aborted) {
-        setDeliveryQuote(quote);
-        submissionKey.current = null;
-      }
-    } catch {
-      if (!controller.signal.aborted)
-        setCartMessage(
-          "Lieferung aktuell nicht möglich. Bitte prüfe PLZ, Mindestbestellwert und Lieferzeit oder wähle Abholung.",
-        );
-    } finally {
-      if (quoteRequest.current === controller) {
-        setQuoting(false);
-        quoteRequest.current = null;
-      }
-    }
-  }
-
   async function submitCheckout() {
     if (!catalog || cart.length === 0 || checkoutState === "submitting") return;
     setConfirmation(null);
+    if (!reviewIsAccepted) {
+      setCartMessage("Bitte prüfe und bestätige zuerst den Warenkorb.");
+      return;
+    }
     const requestedFor = locationTimeToInstant(localTime, catalog.location.timezone);
     if (!requestedFor) {
       setCartMessage("Bitte wähle zuerst einen eindeutigen, gültigen Bestellzeitpunkt.");
@@ -477,10 +549,7 @@ export default function Storefront(scope: StorefrontProps) {
             menuId: cart[0]!.menuId,
             menuVersionId: cart[0]!.menuVersionId,
             requestedFor,
-            lines: cart.map((line) => ({
-              menuItemId: line.menuItemId,
-              quantity: line.quantity,
-            })),
+            lines: cartSelectionLines(cart),
             submissionKey: key,
             customer: {
               contactName: contactName.trim(),
@@ -506,6 +575,7 @@ export default function Storefront(scope: StorefrontProps) {
       if (controller.signal.aborted) return;
       if (!response.ok) {
         setCheckoutState("error");
+        if (response.status === 409) setReview(null);
         if (response.status === 409 && fulfillmentType === "delivery") {
           setDeliveryQuote(null);
           setQuoteAccepted(false);
@@ -562,6 +632,7 @@ export default function Storefront(scope: StorefrontProps) {
         }
       setCheckoutState("idle");
       setCart([]);
+      setReview(null);
       setContactName("");
       setPhoneE164("");
       setEmail("");
@@ -749,33 +820,23 @@ export default function Storefront(scope: StorefrontProps) {
                                   </span>
                                 )}
                               </div>
-                              <div className="dish-action">
-                                <span className="price">
-                                  {new Intl.NumberFormat("de-DE", {
-                                    style: "currency",
-                                    currency: menu.currency,
-                                  }).format(item.priceAmountMinor / 100)}
-                                </span>
-                                <button
-                                  type="button"
-                                  className="add-button"
-                                  disabled={item.availability !== "available"}
-                                  onClick={() => {
-                                    const next = addCartItem(cart, menu, item);
-                                    if (next === cart)
-                                      setCartMessage(
-                                        "Gerichte aus verschiedenen Speisekarten können noch nicht gemeinsam bestellt werden.",
-                                      );
-                                    else {
-                                      setCart(next);
-                                      setCartMessage("");
-                                      invalidateSubmission();
-                                    }
-                                  }}
-                                >
-                                  Hinzufügen
-                                </button>
-                              </div>
+                              <ItemPicker
+                                key={menu.versionId + ":" + item.id}
+                                item={item}
+                                currency={menu.currency}
+                                onAdd={(selection) => {
+                                  const next = addCartItem(cart, menu, item, selection);
+                                  if (next === cart)
+                                    setCartMessage(
+                                      "Diese Auswahl ist nicht gültig oder passt nicht zu deinem Warenkorb. Bitte prüfe Auswahl und Speisekarte.",
+                                    );
+                                  else {
+                                    setCart(next);
+                                    setCartMessage("");
+                                    invalidateSubmission();
+                                  }
+                                }}
+                              />
                             </li>
                           ))}
                         </ul>
@@ -869,9 +930,12 @@ export default function Storefront(scope: StorefrontProps) {
                     <>
                       <ul className="cart-lines">
                         {cart.map((line) => (
-                          <li key={line.menuItemId}>
+                          <li key={cartLineKey(line)}>
                             <div>
                               <strong>{line.name}</strong>
+                              {!!line.selectionLabels?.length && (
+                                <small>{line.selectionLabels.join(", ")}</small>
+                              )}
                               <span>{money(line.unitPriceAmountMinor * line.quantity)}</span>
                             </div>
                             <div className="quantity-controls">
@@ -881,7 +945,7 @@ export default function Storefront(scope: StorefrontProps) {
                                 aria-label={`${line.name} einmal weniger`}
                                 onClick={() => {
                                   setCart(
-                                    setCartItemQuantity(cart, line.menuItemId, line.quantity - 1),
+                                    setCartItemQuantity(cart, cartLineKey(line), line.quantity - 1),
                                   );
                                   invalidateSubmission();
                                 }}
@@ -895,7 +959,7 @@ export default function Storefront(scope: StorefrontProps) {
                                 aria-label={`${line.name} einmal mehr`}
                                 onClick={() => {
                                   setCart(
-                                    setCartItemQuantity(cart, line.menuItemId, line.quantity + 1),
+                                    setCartItemQuantity(cart, cartLineKey(line), line.quantity + 1),
                                   );
                                   invalidateSubmission();
                                 }}
@@ -916,6 +980,46 @@ export default function Storefront(scope: StorefrontProps) {
                     </>
                   )}
 
+                  <section aria-label="Warenkorb prüfen und bestätigen">
+                    <button
+                      type="button"
+                      disabled={!cart.length || reviewing}
+                      onClick={() => void reviewCart()}
+                    >
+                      {reviewing ? "Wird serverseitig geprüft …" : "Warenkorb und Preise prüfen"}
+                    </button>
+                    {review && review.signature === reviewSignature && (
+                      <>
+                        <p>
+                          {review.quote.status === "changed"
+                            ? "Aktualisierte Speisekarte – bitte erneut bestätigen."
+                            : "Aktuelle Speisekarte geprüft."}
+                        </p>
+                        <p>
+                          Artikel: {money(review.quote.subtotalAmountMinor)}
+                          {review.quote.deliveryQuote && (
+                            <>
+                              {" "}
+                              · Liefergebühr:{" "}
+                              {money(review.quote.deliveryQuote.deliveryFeeAmountMinor)} · Gesamt:{" "}
+                              {money(review.quote.deliveryQuote.totalAmountMinor)}
+                            </>
+                          )}
+                        </p>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={review.accepted}
+                            onChange={(e) => {
+                              setReview({ ...review, accepted: e.target.checked });
+                              setQuoteAccepted(e.target.checked);
+                            }}
+                          />
+                          Ich bestätige die angezeigten Gerichte, Auswahl und aktuellen Preise.
+                        </label>
+                      </>
+                    )}
+                  </section>
                   {fulfillmentType === "delivery" && (
                     <section aria-label="Liefergebiet und Lieferkosten">
                       <label htmlFor="delivery-postal">Postleitzahl (Deutschland)</label>
@@ -934,13 +1038,6 @@ export default function Storefront(scope: StorefrontProps) {
                         Wir prüfen vollständige Postleitzahlgebiete. Bitte kontrolliere Straße und
                         Hausnummer selbst.
                       </p>
-                      <button
-                        type="button"
-                        disabled={quoting || !cart.length}
-                        onClick={() => void requestDeliveryQuote()}
-                      >
-                        {quoting ? "Wird geprüft …" : "Liefergebiet und Kosten prüfen"}
-                      </button>
                       {deliveryQuote && (
                         <div aria-live="polite">
                           <p>Mindestbestellwert: {money(deliveryQuote.minimumAmountMinor)}</p>
@@ -950,14 +1047,6 @@ export default function Storefront(scope: StorefrontProps) {
                             <strong>Gesamt: {money(deliveryQuote.totalAmountMinor)}</strong> ·
                             Zahlung bei Lieferung
                           </p>
-                          <label>
-                            <input
-                              type="checkbox"
-                              checked={quoteAccepted}
-                              onChange={(e) => setQuoteAccepted(e.target.checked)}
-                            />
-                            Ich bestätige diese Preisübersicht.
-                          </label>
                         </div>
                       )}
                     </section>
@@ -1066,6 +1155,7 @@ export default function Storefront(scope: StorefrontProps) {
                       type="submit"
                       disabled={
                         cart.length === 0 ||
+                        !reviewIsAccepted ||
                         (fulfillmentType === "delivery" && (!deliveryQuote || !quoteAccepted)) ||
                         checkoutState === "submitting"
                       }

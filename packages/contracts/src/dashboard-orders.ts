@@ -1,3 +1,4 @@
+import { parseSelectionSnapshot, type SelectionSnapshot } from "./cart-quote.js";
 import { isPaymentState, type PaymentState } from "./online-payment.js";
 import { parseDeliveryAddress, type DeliveryAddress } from "./delivery.js";
 import { isExplicitInstant } from "./storefront.js";
@@ -33,6 +34,7 @@ export interface DashboardOrderList {
 }
 
 export interface DashboardOrderLine {
+  readonly selectionSnapshot?: SelectionSnapshot | null;
   readonly lineNumber: number;
   readonly displayName: string;
   readonly quantity: number;
@@ -201,6 +203,7 @@ function parseLine(value: unknown): DashboardOrderLine | undefined {
   if (
     !source ||
     !exactKeys(source, [
+      ...("selectionSnapshot" in source ? ["selectionSnapshot"] : []),
       "lineNumber",
       "displayName",
       "quantity",
@@ -226,7 +229,23 @@ function parseLine(value: unknown): DashboardOrderLine | undefined {
     source.lineAmountMinor !== source.unitPriceAmountMinor * source.quantity
   )
     return undefined;
-  return source as unknown as DashboardOrderLine;
+  if (
+    source.selectionSnapshot !== undefined &&
+    source.selectionSnapshot !== null &&
+    !parseSelectionSnapshot(source.selectionSnapshot, source.lineAmountMinor)
+  )
+    return undefined;
+  return {
+    ...source,
+    ...(source.selectionSnapshot
+      ? {
+          selectionSnapshot: parseSelectionSnapshot(
+            source.selectionSnapshot,
+            source.lineAmountMinor,
+          ),
+        }
+      : {}),
+  } as unknown as DashboardOrderLine;
 }
 
 export function parseDashboardOrderDetail(value: unknown): DashboardOrderDetail | undefined {
