@@ -119,6 +119,7 @@ try {
       .filter({ has: page.getByRole("heading", { name: item.name, exact: true }) });
     await dish.getByRole("button", { name: "Hinzufügen" }).click();
     await dish.getByRole("alert").waitFor();
+    await page.screenshot({ path: output + `picker-${viewport.width}.png`, fullPage: true });
     assert.match(await dish.getByRole("alert").innerText(), /vervollständige/);
     await dish.getByLabel("Variante", { exact: true }).selectOption(configuration.variants[1]!.id);
     await dish.getByRole("checkbox", { name: /Extra B/ }).check();

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   parseMenuAdminState,
   parseMenuAdminCommand,
@@ -38,6 +38,11 @@ export function MenuEditor({
   restaurantId: string;
   locations: readonly Location[];
 }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 15000);
+    return () => window.clearInterval(timer);
+  }, []);
   const [locationId, setLocation] = useState(locations[0]?.id ?? "");
   const [state, setState] = useState<MenuAdminState | null>(null);
   const [menuId, setMenu] = useState("");
@@ -143,8 +148,7 @@ export function MenuEditor({
     itemChange(item.id, { configuration: config });
   };
   const baseline = menu?.versions.find(
-    (v) =>
-      v.id === menu.publications.find((p) => Date.parse(p.effectiveAt) <= Date.now())?.versionId,
+    (v) => v.id === menu.publications.find((p) => Date.parse(p.effectiveAt) <= now)?.versionId,
   );
   const selectedStop = draft?.items.find((i) => i.id === stopItem);
   const stopChoices = selectedStop?.configuration
@@ -600,12 +604,15 @@ export function MenuEditor({
                                 .find((c) => c.id === s.choiceId)?.name ?? "Auswahl")
                             : "Ganzes Gericht"}
                           :{" "}
-                          {s.blocked && (!s.endsAt || Date.parse(s.endsAt) > Date.now())
+                          {s.blocked && (!s.endsAt || Date.parse(s.endsAt) > now)
                             ? "Ausverkauft"
                             : "Verfügbar"}
                           {s.endsAt
                             ? ` · Bis ${new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short", ...(timezone ? { timeZone: timezone } : {}) }).format(new Date(s.endsAt))}`
                             : ""}{" "}
+                          {s.blocked && s.endsAt && Date.parse(s.endsAt) > now
+                            ? ` · Noch ${Math.ceil((Date.parse(s.endsAt) - now) / 60000)} Minuten`
+                            : ""}
                           · {s.reason}
                         </li>
                       ))}

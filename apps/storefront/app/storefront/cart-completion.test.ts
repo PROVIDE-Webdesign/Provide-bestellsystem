@@ -8,6 +8,7 @@ import {
   setCartItemQuantity,
   cartSelectionLines,
   applyCartQuote,
+  cartQuoteMatchesSelection,
 } from "./cart.js";
 import { serializeCart, restoreCart, cartStorageKey } from "./cart-storage.js";
 const menu = parsePublicCatalog(catalog).menus[0]!,
@@ -101,6 +102,10 @@ describe("configured cart and local recovery", () => {
         },
       ],
     };
+    expect(cartQuoteMatchesSelection(cart, quote)).toBe(false);
+    const { variantId: _variant, ...plain } = cart[0]!;
+    void _variant;
+    expect(cartQuoteMatchesSelection([{ ...plain, optionIds: [] }], quote)).toBe(true);
     expect(applyCartQuote(cart, quote)[0]).toMatchObject({
       name: "Updated",
       unitPriceAmountMinor: 1600,

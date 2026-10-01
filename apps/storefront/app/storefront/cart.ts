@@ -146,3 +146,29 @@ export function applyCartQuote(
       : {}),
   }));
 }
+
+export function cartQuoteMatchesSelection(
+  cart: readonly CartLine[],
+  quote: Extract<CartQuote, { status: "current" | "changed" }>,
+): boolean {
+  if (cart.length !== quote.lines.length || cart[0]?.currency !== quote.currency) return false;
+  const key = (l: {
+    menuItemId: string;
+    variantId?: string | null;
+    optionIds?: readonly string[];
+  }) =>
+    [
+      l.menuItemId.toLowerCase(),
+      l.variantId?.toLowerCase() ?? "",
+      [...(l.optionIds ?? [])]
+        .map((i) => i.toLowerCase())
+        .sort()
+        .join(","),
+    ].join(":");
+  const requested = new Map(cart.map((l) => [key(l), l.quantity]));
+  return (
+    requested.size === cart.length &&
+    quote.lines.every((l) => requested.get(key(l)) === l.quantity) &&
+    new Set(quote.lines.map(key)).size === quote.lines.length
+  );
+}

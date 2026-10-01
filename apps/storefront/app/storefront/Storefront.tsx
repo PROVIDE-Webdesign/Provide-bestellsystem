@@ -31,6 +31,7 @@ import {
   cartLineKey,
   cartSelectionLines,
   applyCartQuote,
+  cartQuoteMatchesSelection,
   cartItemCount,
   cartTotalAmountMinor,
   setCartItemQuantity,
@@ -205,6 +206,8 @@ export default function Storefront(scope: StorefrontProps) {
         setRefresh((n) => n + 1);
         return;
       }
+      if (!cartQuoteMatchesSelection(cart, quote))
+        throw Error("Quote does not match requested selection");
       const next = applyCartQuote(cart, quote);
       setCart(next);
       setDeliveryQuote(quote.deliveryQuote);

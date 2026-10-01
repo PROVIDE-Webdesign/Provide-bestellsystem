@@ -45,6 +45,7 @@ export function ItemPicker({
         <label>
           Variante
           <select
+            aria-label="Variante"
             value={variantId}
             onChange={(e) => {
               setVariant(e.target.value);

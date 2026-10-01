@@ -62,6 +62,7 @@ export async function verifyMenuCartIntegration(admin: Client, baseEnv: Env) {
         : { ...configuration, allergens: [], variants: [], optionGroups: [] }
       : null,
   }));
+  const configuredItem = items.find((i) => i.id === "f6000000-0000-0000-0000-000000000001")!;
   const save = {
     action: "save_draft" as const,
     menuId,
@@ -90,7 +91,7 @@ export async function verifyMenuCartIntegration(admin: Client, baseEnv: Env) {
   when.setUTCMinutes(0, 0, 0);
   const lines = [
     {
-      menuItemId: items[0]!.id,
+      menuItemId: configuredItem.id,
       quantity: 1,
       variantId: configuration.variants[1]!.id,
       optionIds: [configuration.optionGroups[0]!.options[1]!.id],
@@ -122,7 +123,7 @@ export async function verifyMenuCartIntegration(admin: Client, baseEnv: Env) {
     action: "stop" as const,
     menuId,
     versionId: draft.id,
-    itemId: items[0]!.id,
+    itemId: configuredItem.id,
     choiceId: configuration.variants[1]!.id,
     blocked: true,
     endsAt: null,
