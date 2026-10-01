@@ -1,3 +1,8 @@
+import {
+  handleLocationOperations,
+  postgresLocationOperations,
+  type LocationOperationsRepository,
+} from "./location-operations.js";
 import { handleMenuAdmin, postgresMenuAdmin, type MenuAdminRepository } from "./menu-admin.js";
 import { dispatchAcceptanceAlerts } from "./order-alerts.js";
 import { handleCartQuote, postgresCartQuoteReader, type CartQuoteReader } from "./cart-quote.js";
@@ -51,6 +56,7 @@ interface HyperdriveBinding {
 
 interface Env extends OnlineEnvironment {
   readonly DASHBOARD_ORDER_ALERTS_ENABLED?: string;
+  readonly DASHBOARD_LOCATION_OPERATIONS_ENABLED?: string;
   readonly DASHBOARD_MENU_ENABLED?: string;
   readonly CART_QUOTE_ENABLED?: string;
   readonly DELIVERY_ORDERING_ENABLED?: string;
@@ -93,6 +99,7 @@ export function createApiWorker(
   emailAdapter: EmailAdapter = unconfiguredEmailAdapter,
   cartQuoteReader: CartQuoteReader = postgresCartQuoteReader,
   menuAdmin: MenuAdminRepository = postgresMenuAdmin,
+  locationOperations: LocationOperationsRepository = postgresLocationOperations,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -118,6 +125,17 @@ export function createApiWorker(
         return jsonError("not_found", "Resource was not found.", context.requestId, 404, cors);
       }
 
+      if (route.name === "dashboardLocationOperations")
+        return handleLocationOperations(
+          request,
+          route,
+          env,
+          dashboardTokenVerifier,
+          locationOperations,
+          context,
+          logger,
+          cors,
+        );
       if (route.name === "dashboardMenu")
         return handleMenuAdmin(
           request,

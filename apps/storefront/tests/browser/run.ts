@@ -1,3 +1,4 @@
+import { verifyLocationOperationsBrowser } from "./location-operations.ts";
 import assert from "node:assert/strict";
 import { verifyOrderLiveBrowser } from "./order-live.ts";
 import { mkdir } from "node:fs/promises";
@@ -450,6 +451,7 @@ try {
       false,
     );
     await verifyOrderLiveBrowser(page, output, viewport.width);
+    await verifyLocationOperationsBrowser(page, output, viewport.width);
     assert.deepEqual(errors, []);
     await context.close();
     console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);

@@ -360,3 +360,29 @@ a:focus-visible {
 .order-detail h3 {
   overflow-wrap: anywhere;
 }
+
+.operations-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 1rem;
+}
+.location-operations fieldset {
+  border: 1px solid #c5cccf;
+  padding: 1rem;
+  margin: 1rem 0;
+  min-width: 0;
+}
+.location-operations label {
+  display: block;
+  margin: 0.65rem 0;
+}
+.location-operations input:not([type="checkbox"]),
+.location-operations select {
+  max-width: 100%;
+}
+.location-operations button {
+  margin: 0.4rem 0.4rem 0.4rem 0;
+}
+.location-operations small {
+  display: block;
+}

@@ -1,4 +1,5 @@
 "use client";
+import { LocationOperations } from "./LocationOperations.js";
 import { MenuEditor } from "./MenuEditor.js";
 
 import { parseDashboardAccessContext, type DashboardAccessContext } from "@provide/contracts";
@@ -19,11 +20,13 @@ const roleLabels = { owner: "Inhaber", manager: "Manager", kitchen: "Küche", dr
 export function DashboardClient({
   enabled,
   menuEnabled = false,
+  operationsEnabled = false,
   liveEnabled = false,
   alertsEnabled = false,
 }: {
   readonly enabled: boolean;
   readonly menuEnabled?: boolean;
+  readonly operationsEnabled?: boolean;
   readonly liveEnabled?: boolean;
   readonly alertsEnabled?: boolean;
 }) {
@@ -107,6 +110,12 @@ export function DashboardClient({
           )}
           {menuEnabled && (membership.role === "owner" || membership.role === "manager") && (
             <MenuEditor restaurantId={membership.restaurantId} locations={membership.locations} />
+          )}
+          {operationsEnabled && (membership.role === "owner" || membership.role === "manager") && (
+            <LocationOperations
+              restaurantId={membership.restaurantId}
+              locations={membership.locations}
+            />
           )}
           <OrderBoard
             liveEnabled={liveEnabled}

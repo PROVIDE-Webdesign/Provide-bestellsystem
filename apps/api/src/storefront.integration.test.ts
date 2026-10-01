@@ -1,3 +1,4 @@
+import { verifyLocationOperationsIntegration } from "./location-operations.integration.js";
 import { verifyMenuCartIntegration } from "./menu-cart.integration.js";
 import { verifyOrderNumberIntegration } from "./order-number.integration.js";
 import { verifyMenuSelectionIntegration } from "./menu-selection.integration.js";
@@ -282,6 +283,7 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       await verifyMenuSelectionIntegration(admin, env);
       await verifyMenuCartIntegration(admin, env);
       await verifyOrderNumberIntegration(admin, env);
+      await verifyLocationOperationsIntegration(admin, env);
       expect(
         sendNotification.mock.calls.some(([command]) =>
           command.body.includes("bereit zur Auslieferung"),
