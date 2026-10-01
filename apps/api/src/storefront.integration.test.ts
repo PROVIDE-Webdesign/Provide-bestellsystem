@@ -279,9 +279,9 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       await verifyDeliveryIntegration(admin, worker, env);
       await verifyOnlineIntegration(admin, env);
       await verifyEmailIntegration(admin, env);
+      await verifyOrderNumberIntegration(admin, env);
       await verifyMenuSelectionIntegration(admin, env);
       await verifyMenuCartIntegration(admin, env);
-      await verifyOrderNumberIntegration(admin, env);
       expect(
         sendNotification.mock.calls.some(([command]) =>
           command.body.includes("bereit zur Auslieferung"),

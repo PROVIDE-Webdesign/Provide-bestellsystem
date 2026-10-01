@@ -392,6 +392,13 @@ try {
     await page.route("**/api/orders**", async (route) => {
       const detailed = new URL(route.request().url()).pathname !== "/api/orders";
       const order = { ...summary, allowedTransitions: ["accepted", "rejected", "cancelled"] };
+      console.log(
+        "Number request:",
+        route.request().url(),
+        "detail:",
+        detailed,
+        JSON.stringify(order),
+      );
       await route.fulfill({
         json: {
           data: detailed
@@ -418,6 +425,10 @@ try {
               },
         },
       });
+    });
+    page.on("response", async (response) => {
+      if (new URL(response.url()).pathname === "/api/orders")
+        console.log("Number response:", response.status(), await response.text());
     });
     await page.goto("http://127.0.0.1:4321/?board");
     await page.getByLabel("Bestellnummer suchen").fill("BS-00000421");

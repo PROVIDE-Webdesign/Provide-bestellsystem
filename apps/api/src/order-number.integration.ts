@@ -36,7 +36,10 @@ export async function verifyOrderNumberIntegration(admin: Client, env: Env) {
     );
   const submit = async (key: string) => {
     const response = await post("orders", { ...request, submissionKey: key });
-    expect(response.status).toBe(201);
+    expect(
+      response.status,
+      response.status === 201 ? undefined : await response.clone().text(),
+    ).toBe(201);
     const envelope: { data?: unknown } = await response.json();
     const confirmation = parseGuestPickupOrderConfirmation(envelope.data)!;
     expect(confirmation.orderNumber).toMatch(/^BS-[0-9]{8,19}$/);
