@@ -58,9 +58,6 @@ try {
     const context = await browser.newContext({ viewport });
     const page = await context.newPage();
     const errors: string[] = [];
-    page.on("console", (event) => {
-      if (event.type() === "error") console.log("Browser console:", event.text());
-    });
     page.on("pageerror", (e) => errors.push(e.message));
     let quoted = 0,
       submitted = 0;
@@ -395,20 +392,13 @@ try {
     await page.route("**/api/orders**", async (route) => {
       const detailed = new URL(route.request().url()).pathname !== "/api/orders";
       const order = { ...summary, allowedTransitions: ["accepted", "rejected", "cancelled"] };
-      console.log(
-        "Number request:",
-        route.request().url(),
-        "detail:",
-        detailed,
-        JSON.stringify(order),
-      );
       await route.fulfill({
         json: {
           data: detailed
             ? {
                 ...order,
-                restaurantId: "f2000000-0000-0000-000000000001",
-                locationId: "f3000000-0000-0000-000000000001",
+                restaurantId: "f2000000-0000-0000-0000-000000000001",
+                locationId: "f3000000-0000-0000-0000-000000000001",
                 contactName: "Synthetic Guest",
                 lines: [
                   {
@@ -422,16 +412,12 @@ try {
               }
             : {
                 restaurantId: "f2000000-0000-0000-0000-000000000001",
-                locationId: "f3000000-0000-0000-000000000001",
+                locationId: "f3000000-0000-0000-0000-000000000001",
                 orders: [order],
                 nextCursor: null,
               },
         },
       });
-    });
-    page.on("response", async (response) => {
-      if (new URL(response.url()).pathname === "/api/orders")
-        console.log("Number response:", response.status(), await response.text());
     });
     await page.goto("http://127.0.0.1:4321/?board");
     await page.getByLabel("Bestellnummer suchen").fill("BS-00000421");

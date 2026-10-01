@@ -19,7 +19,6 @@ import {
   locationTimeToInstant,
   orderReference,
   isOrderNumber,
-  numberParserDiagnostics,
 } from "@provide/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -77,22 +76,14 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
           signal: controller.signal,
         });
         if (!response.ok) throw new Error();
-        const payload = envelopeData(await response.json());
-        const parsed = parseDashboardOrderList(payload);
-        if (!parsed)
-          console.error(
-            "Number list parse failed",
-            JSON.stringify(payload),
-            JSON.stringify(numberParserDiagnostics(payload)),
-          );
+        const parsed = parseDashboardOrderList(envelopeData(await response.json()));
         if (!parsed) throw new Error();
         if (controller.signal.aborted) return;
         setOrders((current) =>
           cursor && current ? { ...parsed, orders: [...current.orders, ...parsed.orders] } : parsed,
         );
         setMessage("");
-      } catch (error) {
-        console.error("Order list load failed", error);
+      } catch {
         if (controller.signal.aborted) return;
         setMessage("Die Bestellungen konnten nicht sicher aktualisiert werden.");
       } finally {

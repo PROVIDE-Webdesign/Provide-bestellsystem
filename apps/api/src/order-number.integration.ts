@@ -2,34 +2,16 @@ import { expect } from "vitest";
 import type { Client } from "pg";
 import { parseGuestPickupOrderConfirmation } from "@provide/contracts";
 import { createApiWorker } from "./index.js";
-import { postgresCheckoutWriter } from "./checkout-database.js";
 
 type Env = Parameters<ReturnType<typeof createApiWorker>["fetch"]>[1];
 
 export async function verifyOrderNumberIntegration(admin: Client, env: Env) {
-  const worker = createApiWorker(
-    undefined,
-    undefined,
-    undefined,
-    {
-      async submit(...args) {
-        try {
-          return await postgresCheckoutWriter.submit(...args);
-        } catch (error) {
-          console.error("Number checkout database failure", error);
-          throw error;
-        }
-      },
-    },
-    undefined,
-    {
-      verify: () =>
-        Promise.resolve({ userId: "f1000000-0000-0000-0000-000000000001", aal: "aal2" }),
-    },
-  );
+  const worker = createApiWorker(undefined, undefined, undefined, undefined, undefined, {
+    verify: () => Promise.resolve({ userId: "f1000000-0000-0000-0000-000000000001", aal: "aal2" }),
+  });
   const base = "https://api.test/v1/storefront/storefront-restaurant-a/storefront-a-mitte";
   const time = await admin.query<{ requested_for: string }>(
-    "select to_char((date_trunc('hour',now())+interval '8 hours') at time zone 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') as requested_for",
+    "select to_char((date_trunc('hour',now())+interval '16 hours') at time zone 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') as requested_for",
   );
   const request = {
     menuId: "f4000000-0000-0000-0000-000000000001",
