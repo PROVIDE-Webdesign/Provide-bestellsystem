@@ -18,7 +18,9 @@
     "next-env.d.ts",
     "next.config.ts",
     "vite.config.ts",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "tests/**/*.ts",
+    "tests/**/*.tsx"
   ],
   "exclude": ["dist", "node_modules"]
 }

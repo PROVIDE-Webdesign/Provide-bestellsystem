@@ -22,7 +22,7 @@ select is(pg_temp.menu(:'save_command')->>'outcome','allowed','structured comple
 select is((select edit_revision from public.menu_versions where id=:'draft_version'),1,'revision incremented');
 select is(pg_temp.menu(:'save_command')->>'outcome','conflict','stale editor revision rejected');
 select is(private.read_storefront_catalog('storefront-restaurant-a','storefront-a-mitte')#>>'{menus,0,sections,0,items,0,name}','Gemüsecurry','draft remains invisible');
-select jsonb_build_object('action','publish','menuId','f4000000-0000-0000-000000000001','versionId',:'draft_version','expectedRevision',1,'effectiveAt',clock_timestamp(),'note','Synthetic publication') as publish_command \gset
+select jsonb_build_object('action','publish','menuId','f4000000-0000-0000-0000-000000000001','versionId',:'draft_version','expectedRevision',1,'effectiveAt',clock_timestamp(),'note','Synthetic publication') as publish_command \gset
 select is(pg_temp.menu(:'publish_command')->>'outcome','allowed','complete draft published');
 select is(pg_temp.menu(jsonb_set(:'save_command','{expectedRevision}','1'))->>'outcome','conflict','published version cannot be edited');
 select is(private.read_storefront_catalog('storefront-restaurant-a','storefront-a-mitte')#>>'{menus,0,sections,0,items,0,name}','Configured curry','published editor changes reach catalog');

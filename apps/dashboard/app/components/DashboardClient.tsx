@@ -16,7 +16,13 @@ type ViewState =
 
 const roleLabels = { owner: "Inhaber", manager: "Manager", kitchen: "Küche", driver: "Fahrer" };
 
-export function DashboardClient({ enabled }: { readonly enabled: boolean }) {
+export function DashboardClient({
+  enabled,
+  menuEnabled = false,
+}: {
+  readonly enabled: boolean;
+  readonly menuEnabled?: boolean;
+}) {
   const [state, setState] = useState<ViewState>({ name: "loading" });
 
   const load = useCallback(async () => {
@@ -95,7 +101,7 @@ export function DashboardClient({ enabled }: { readonly enabled: boolean }) {
               ))}
             </ul>
           )}
-          {(membership.role === "owner" || membership.role === "manager") && (
+          {menuEnabled && (membership.role === "owner" || membership.role === "manager") && (
             <MenuEditor restaurantId={membership.restaurantId} locations={membership.locations} />
           )}
           <OrderBoard

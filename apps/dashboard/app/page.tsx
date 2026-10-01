@@ -9,7 +9,10 @@ export default function DashboardPage() {
         <h1>Sicheres Dashboard</h1>
         <p>Mitgliedschaft, Rolle, Standort und MFA werden vor jedem fachlichen Zugriff geprüft.</p>
       </header>
-      <DashboardClient enabled={process.env.DASHBOARD_AUTH_ENABLED === "true"} />
+      <DashboardClient
+        enabled={process.env.DASHBOARD_AUTH_ENABLED === "true"}
+        menuEnabled={process.env.DASHBOARD_MENU_ENABLED === "true"}
+      />
     </main>
   );
 }

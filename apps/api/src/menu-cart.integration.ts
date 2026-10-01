@@ -2,14 +2,15 @@ import { expect } from "vitest";
 import type { Client } from "pg";
 import { createApiWorker } from "./index.js";
 import {
+  type MenuAdminCommand,
+  parseMenuConfiguration,
   parseMenuAdminState,
   parseCartQuote,
   parseGuestPickupOrderConfirmation,
   parseDashboardOrderDetail,
 } from "@provide/contracts";
-import configuration from "../../../fixtures/menu-configuration.json" with { type: "json" };
-import { fetchDashboardMenu } from "../../dashboard/lib/gateway.js";
-import { submitGuestPickupOrder } from "../../storefront/app/storefront/gateway.js";
+import rawConfiguration from "../../../fixtures/menu-configuration.json" with { type: "json" };
+const configuration = parseMenuConfiguration(rawConfiguration)!;
 type Env = Parameters<ReturnType<typeof createApiWorker>["fetch"]>[1];
 const restaurantId = "f2000000-0000-0000-0000-000000000001",
   locationId = "f3000000-0000-0000-0000-000000000001",
@@ -27,12 +28,24 @@ export async function verifyMenuCartIntegration(admin: Client, baseEnv: Env) {
   const worker = createApiWorker(undefined, undefined, undefined, undefined, undefined, {
     verify: () => Promise.resolve({ userId: owner, aal: "aal2" }),
   });
-  const fetcher: typeof fetch = async (input, init) => worker.fetch(new Request(input, init), env);
-  const scope = { restaurantId, locationId };
+  const menuUrl = `https://api.test/v1/dashboard/restaurants/${restaurantId}/locations/${locationId}/menu`;
   const read = () =>
-    fetchDashboardMenu("header.payload.signature", "https://api.test", scope, null, fetcher);
-  const command = (cmd: Parameters<typeof fetchDashboardMenu>[3]) =>
-    fetchDashboardMenu("header.payload.signature", "https://api.test", scope, cmd, fetcher);
+    worker.fetch(
+      new Request(menuUrl, { headers: { authorization: "Bearer header.payload.signature" } }),
+      env,
+    );
+  const command = (cmd: MenuAdminCommand) =>
+    worker.fetch(
+      new Request(menuUrl, {
+        method: "POST",
+        headers: {
+          authorization: "Bearer header.payload.signature",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(cmd),
+      }),
+      env,
+    );
   const before = parseMenuAdminState(await data(await read()))!;
   expect(before.timezone).toBe("Europe/Berlin");
   const created = parseMenuAdminState(
@@ -72,12 +85,7 @@ export async function verifyMenuCartIntegration(admin: Client, baseEnv: Env) {
       })
     ).status,
   ).toBe(200);
-  const base = "https://store.test/api/storefront/storefront-restaurant-a/storefront-a-mitte/";
-  const params = {
-    restaurantSlug: "storefront-restaurant-a",
-    locationSlug: "storefront-a-mitte",
-    resource: "cart-quote",
-  };
+  const base = "https://api.test/v1/storefront/storefront-restaurant-a/storefront-a-mitte/";
   const when = new Date(Date.now() + 20 * 3600000);
   when.setUTCMinutes(0, 0, 0);
   const lines = [
@@ -96,16 +104,13 @@ export async function verifyMenuCartIntegration(admin: Client, baseEnv: Env) {
     lines,
   };
   const post = (resource: string, body: unknown) =>
-    submitGuestPickupOrder(
+    worker.fetch(
       new Request(base + resource, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       }),
-      { ...params, resource },
-      "https://api.test",
-      "preview-v1",
-      fetcher,
+      env,
     );
   const quote = parseCartQuote(await data(await post("cart-quote", reviewRequest)))!;
   expect(quote).toMatchObject({

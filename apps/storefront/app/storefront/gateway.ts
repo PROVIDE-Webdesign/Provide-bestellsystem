@@ -136,7 +136,9 @@ export async function fetchPublicStorefront(
       bytes.set(chunk, offset);
       offset += chunk.byteLength;
     }
-    const body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as {
+    const body = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes),
+    ) as {
       data?: unknown;
     };
     stage = "contract-validation";
@@ -200,7 +202,9 @@ export async function submitGuestPickupOrder(
   try {
     const bytes = await request.arrayBuffer();
     if (bytes.byteLength > 64 * 1024) return failure(413);
-    const source = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as unknown;
+    const source = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes),
+    ) as unknown;
     const body =
       params.resource === "cart-quote"
         ? parseCartQuoteRequest(source)
@@ -296,7 +300,9 @@ export async function fetchPublicOrderStatus(
   try {
     const bytes = await request.arrayBuffer();
     if (bytes.byteLength > 4 * 1024) return failure(413);
-    const source = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as unknown;
+    const source = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes),
+    ) as unknown;
     const body = parsePublicOrderStatusRequest(source);
     if (!body) return failure(400);
     const upstream = new URL(

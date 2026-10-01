@@ -396,6 +396,7 @@ export function MenuEditor({
                         ) : (
                           <>
                             <ConfigurationEditor
+                              key={draft.id + ":" + item.id + ":" + draft.revision}
                               value={item.configuration}
                               onChange={(v) => configChange(item, v)}
                             />
@@ -701,6 +702,8 @@ function ConfigurationEditor({
   value: MenuConfiguration;
   onChange: (v: MenuConfiguration) => void;
 }) {
+  const [allergenText, setAllergenText] = useState(value.allergens.join(", "));
+  const [additiveText, setAdditiveText] = useState(value.additives.join(", "));
   const updateChoice = (list: readonly MenuChoice[], id: string, part: Partial<MenuChoice>) =>
     list.map((c) => (c.id === id ? { ...c, ...part } : c));
   const controls = (c: MenuChoice, update: (p: Partial<MenuChoice>) => void) => (
@@ -750,31 +753,33 @@ function ConfigurationEditor({
       <label>
         Allergene, durch Komma getrennt
         <input
-          value={value.allergens.join(", ")}
-          onChange={(e) =>
+          value={allergenText}
+          onChange={(e) => {
+            setAllergenText(e.target.value);
             onChange({
               ...value,
               allergens: e.target.value
                 .split(",")
                 .map((s) => s.trim())
                 .filter(Boolean),
-            })
-          }
+            });
+          }}
         />
       </label>
       <label>
         Zusatzstoffe, durch Komma getrennt
         <input
-          value={value.additives.join(", ")}
-          onChange={(e) =>
+          value={additiveText}
+          onChange={(e) => {
+            setAdditiveText(e.target.value);
             onChange({
               ...value,
               additives: e.target.value
                 .split(",")
                 .map((s) => s.trim())
                 .filter(Boolean),
-            })
-          }
+            });
+          }}
         />
       </label>
       <p>

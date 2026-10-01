@@ -93,7 +93,9 @@ export async function fetchDashboardAccess(
       bytes.set(chunk, offset);
       offset += chunk.byteLength;
     }
-    const envelope = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as {
+    const envelope = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes),
+    ) as {
       data?: unknown;
     };
     const data = parseDashboardAccessContext(envelope.data);
@@ -144,7 +146,7 @@ async function boundedJson(response: Response, maximum = 128 * 1024): Promise<un
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  return JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes));
 }
 
 async function operationalRequest(
