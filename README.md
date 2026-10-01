@@ -31,8 +31,8 @@ Staging-Pilot.
 - Arbeitsblock 3.9 – Onlinezahlungen im Testbetrieb – ist formal freigegeben und umgesetzt;
   automatisierte Prüfungen sind erfolgreich, der echte Stripe-Sandbox-Nachweis steht noch aus.
 - Umsetzung und Nachweise: [Arbeitsblock 3.9](docs/work-blocks/3.9-sandbox-online-payments.md).
-- Gesamtfortschritt des freigegebenen MVP-Umfangs: **84 %** (gewichtete Schätzung, etwa ±2
-  Prozentpunkte).
+- Gesamtfortschritt: **61 %** (positionsweiser A2-Abgleich über zwölf Hauptblöcke; 60,540675 %,
+  technische Umsetzung, keine Produktionsreife). Die frühere 84-%-Schätzung ist ersetzt.
 - Das Deployment der kundenbezogenen Arbeitsblöcke steht aus.
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 
@@ -84,6 +84,14 @@ Die Menüpflege und der angeschlossene Warenkorb sind in
 [Arbeitsprotokoll 3.12](docs/work-blocks/3.12-menu-cart-completion.md) dokumentiert. Der
 [Fortschrittsabgleich](docs/planning/2026-10-01-menu-cart-progress-update.md) benennt offene
 Grenzen.
+
+Steueraufteilung, Liefersteuer und geschützter Pilotimport stehen in
+[Entscheidung 0030](docs/decisions/0030-order-tax-and-pilot-import.md), dem
+[Runbook](docs/runbooks/order-tax-and-pilot-import.md) und dem
+[Arbeitsprotokoll 3.13](docs/work-blocks/3.13-tax-pilot-acceptance.md). Der
+[aktuelle Fortschrittsabgleich](docs/planning/2026-10-01-tax-pilot-progress-update.md) und die
+[Gerätematrix](docs/testing/device-acceptance-tax-pilot.md) trennen technische Nachweise von offenen
+Pilotdeklarationen und praktischen Abnahmen. Keine Live-Schaltung.
 
 ## Verbindliche Abschlussregel
 

@@ -62,9 +62,10 @@ select is(:'initial_status'::jsonb ->> 'paymentCollectionMode', 'on_fulfillment'
 select is(:'initial_status'::jsonb ->> 'totalAmountMinor', '2500', 'status exposes server total');
 select is(
   (select count(*)::integer from jsonb_object_keys(:'initial_status'::jsonb)),
-  11,
-  'status exposes the ten established fields and the approved communication projection'
+  12,
+  'status exposes the established fields, communication and approved tax projection'
 );
+select is(:'initial_status'::jsonb#>>'{taxSummary,status}','partial','legacy guest status never infers undeclared tax');
 select ok(
   :'initial_status' not like '%Synthetic Status Guest%'
     and :'initial_status' not like '%999100000001%'

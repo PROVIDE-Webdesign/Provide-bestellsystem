@@ -14,9 +14,10 @@ geben.
 1. `pnpm check`: Format, Typen, Lint, Unit-Tests und Builds.
 2. CI-Datenbankjob: vollständige pgTAP-Suite, Security Advisors und API-Integration gegen isolierte
    Datenbank.
-3. CI-Browserjob: reale Storefront-/Editor-Komponenten mit synthetischen Antworten, Chromium bei
-   1440 und 390 Pixeln; Auswahlgrenzen, Wiederherstellung, Quote/Bestätigung, Konflikt, Ablauf,
-   Entwurfskopie und Deklarationsbestätigung. Screenshots liegen im Workflow-Artefakt.
+3. CI-Browserjob: reale Storefront-/Editor-Komponenten mit synthetischen Antworten, Chromium,
+   Firefox und WebKit bei 1440 und 390 Pixeln; Auswahlgrenzen, Wiederherstellung, Quote/Bestätigung,
+   Konflikt, Ablauf, Entwurfskopie und Deklarationsbestätigung. Screenshots liegen im
+   Workflow-Artefakt.
 
 API-/SQL-Integration prüft echten Entwurf, Konfliktrevision, Veröffentlichung, Preisänderung,
 Variantenstopp, blockierte Bestellabgabe, Freigabe, Bestellung, historischen Snapshot und Rollback.
@@ -34,3 +35,10 @@ Reale Mobilgeräte, Safari, Tastatur und Screenreader sowie tatsächliche Sitzun
 Abnahmen. Synthetische Browserantworten belegen diese externen Bedingungen nicht. Pilotimport,
 Steueraufteilung und Providerfälle bleiben gesondert offen. Aktivierung, Merge und Deployment
 benötigen die spätere Endfreigabe und wurden in diesem Arbeitsblock nicht durchgeführt.
+
+## Fortsetzung 3.13
+
+Die vollständige technische Steueraufteilung und der geschützte Importweg sind in
+[Arbeitsblock 3.13](../work-blocks/3.13-tax-pilot-acceptance.md) umgesetzt. Bestätigte Pilotdaten,
+der tatsächliche Staging-Import und echte Geräteabnahmen bleiben offen; die frühere technische
+Steuerlücke ist damit weiterbearbeitet.

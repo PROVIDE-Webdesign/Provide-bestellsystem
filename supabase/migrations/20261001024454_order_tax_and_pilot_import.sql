@@ -589,6 +589,38 @@ end;
 $$;
 
 alter function private.quote_public_cart(text,text,uuid,uuid,text,timestamptz,jsonb,text) rename to quote_public_cart_without_tax;
+-- Preserve the legacy function-qualified parameter after renaming its outer block.
+create or replace function private.quote_public_cart_without_tax(restaurant_slug text,location_slug text,menu_id uuid,source_version_id uuid,fulfillment text,requested_for timestamptz,lines jsonb,postal_code text) returns jsonb
+language plpgsql security definer set search_path='' as $$
+declare restaurant uuid; location uuid; current_version uuid; currency text; priced jsonb; l jsonb; issues jsonb:='[]'; n integer:=0; delivery_quote jsonb; result jsonb;
+begin
+ if fulfillment is null or fulfillment not in ('pickup','delivery') or requested_for is null or not isfinite(requested_for) or source_version_id is null then raise exception 'invalid cart quote'; end if;
+ if private.read_storefront_catalog(restaurant_slug,location_slug) is null then return null; end if;
+ select r.id,l.id into restaurant,location from public.restaurants r join public.locations l on l.restaurant_id=r.id where r.slug=restaurant_slug and l.slug=location_slug;
+ current_version:=private.resolve_public_menu_version(restaurant,location,menu_id,statement_timestamp());
+ if current_version is null then return null; end if;
+ lines:=private.canonical_menu_lines(lines);
+ for l in select value from jsonb_array_elements(lines) loop
+  begin
+   perform private.price_menu_lines(restaurant,location,menu_id,current_version,jsonb_build_array(l));
+  exception when raise_exception then
+   issues:=issues||jsonb_build_array(jsonb_build_object('menuItemId',l->>'menu_item_id','variantId',l->'variant_id','optionIds',coalesce(l->'option_ids','[]'::jsonb),'code','selection_unavailable'));
+  end;
+ end loop;
+ if jsonb_array_length(issues)>0 then return jsonb_build_object('status','unavailable','currentMenuVersionId',current_version,'issues',issues); end if;
+ priced:=private.price_menu_lines(restaurant,location,menu_id,current_version,lines);
+ if private.read_storefront_availability(restaurant_slug,location_slug,fulfillment,requested_for,(priced->>'item_count')::integer)->>'status' is distinct from 'available' then
+  return jsonb_build_object('status','unavailable','currentMenuVersionId',current_version,'issues',jsonb_build_array(jsonb_build_object('code','time_unavailable')));
+ end if;
+ if fulfillment='delivery' then
+  begin delivery_quote:=private.quote_public_delivery_order(restaurant_slug,location_slug,menu_id,current_version,requested_for,lines,postal_code);
+  exception when raise_exception then return jsonb_build_object('status','unavailable','currentMenuVersionId',current_version,'issues',jsonb_build_array(jsonb_build_object('code','delivery_unavailable'))); end;
+ end if;
+ select v.currency_code into currency from public.menu_versions v where v.id=current_version and v.restaurant_id=restaurant and v.menu_id=quote_public_cart_without_tax.menu_id;
+ select coalesce(jsonb_agg(jsonb_build_object('menuItemId',value->>'menu_item_id','quantity',value->'quantity','name',value->>'display_name','variantId',value->'variant_id','optionIds',coalesce(value->'option_ids','[]'::jsonb),'unitPriceAmountMinor',value->'unit_price_amount_minor','lineAmountMinor',value->'line_amount_minor','selectionSnapshot',value->'selection_snapshot')),'[]'::jsonb) into result from jsonb_array_elements(priced->'lines');
+ return jsonb_build_object('status',case when current_version=source_version_id then 'current' else 'changed' end,'currentMenuVersionId',current_version,'currency',currency,'itemCount',(priced->>'item_count')::integer,'subtotalAmountMinor',(priced->>'subtotal')::bigint,'lines',result,'deliveryQuote',delivery_quote);
+end; $$;
+
 create function private.quote_public_cart(rs text,ls text,m uuid,v uuid,f text,t timestamptz,lines jsonb,postal text) returns jsonb language plpgsql security definer set search_path='' as $$
 declare result jsonb;priced jsonb;declaration jsonb;fee bigint;
 begin
