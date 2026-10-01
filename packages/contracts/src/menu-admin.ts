@@ -1,3 +1,4 @@
+import { parseMenuImportSource, type MenuImportSource } from "./menu-import.js";
 import { menuIdPattern, parseMenuConfiguration, type MenuConfiguration } from "./menu-selection.js";
 import { isExplicitInstant } from "./storefront.js";
 export interface MenuDraftItem {
@@ -22,6 +23,11 @@ export interface MenuAdminVersion {
   readonly items: readonly MenuDraftItem[];
 }
 export interface MenuAdminState {
+  readonly deliveryTax?: {
+    readonly policyId: string;
+    readonly mode: "fixed" | "proportional" | "undeclared";
+    readonly taxRateBasisPoints: number | null;
+  } | null;
   readonly timezone: string;
   readonly stops: readonly {
     readonly menuId: string;
@@ -39,6 +45,21 @@ export interface MenuAdminState {
   }[];
 }
 export type MenuAdminCommand =
+  | {
+      action: "set_delivery_tax";
+      expectedPolicyId: string;
+      mode: "fixed" | "proportional";
+      taxRateBasisPoints: number | null;
+      informationConfirmed: true;
+      note: string;
+    }
+  | {
+      action: "import_draft";
+      menuId: string;
+      source: MenuImportSource;
+      sections: readonly MenuDraftSection[];
+      items: readonly MenuDraftItem[];
+    }
   | { action: "create_menu"; name: string; slug: string }
   | { action: "create_draft"; menuId: string; sourceVersionId: string | null }
   | {
@@ -142,6 +163,15 @@ export function parseMenuAdminCommand(v: unknown): MenuAdminCommand | undefined 
   const s = obj(v);
   if (!s || typeof s.action !== "string") return;
   const keys: Record<string, readonly string[]> = {
+    set_delivery_tax: [
+      "action",
+      "expectedPolicyId",
+      "mode",
+      "taxRateBasisPoints",
+      "informationConfirmed",
+      "note",
+    ],
+    import_draft: ["action", "menuId", "source", "sections", "items"],
     create_menu: ["action", "name", "slug"],
     create_draft: ["action", "menuId", "sourceVersionId"],
     save_draft: ["action", "menuId", "versionId", "expectedRevision", "sections", "items"],
@@ -156,6 +186,22 @@ export function parseMenuAdminCommand(v: unknown): MenuAdminCommand | undefined 
     Object.keys(s).some((k) => !allowed.includes(k))
   )
     return;
+  if (s.action === "set_delivery_tax")
+    return id(s.expectedPolicyId) &&
+      (s.mode === "fixed"
+        ? num(s.taxRateBasisPoints, 10000)
+        : s.mode === "proportional" && s.taxRateBasisPoints === null) &&
+      s.informationConfirmed === true &&
+      str(s.note, 200)
+      ? {
+          action: s.action,
+          expectedPolicyId: s.expectedPolicyId,
+          mode: s.mode as "fixed" | "proportional",
+          taxRateBasisPoints: s.taxRateBasisPoints as number | null,
+          informationConfirmed: true,
+          note: s.note,
+        }
+      : undefined;
   if (s.action === "create_menu")
     return str(s.name, 100) &&
       str(s.slug, 63) &&
@@ -164,6 +210,13 @@ export function parseMenuAdminCommand(v: unknown): MenuAdminCommand | undefined 
       ? { action: s.action, name: s.name, slug: s.slug }
       : undefined;
   if (!id(s.menuId)) return;
+  if (s.action === "import_draft") {
+    const source = parseMenuImportSource(s.source),
+      draft = parseMenuDraft(s);
+    return source && draft && draft.items.every((i) => !i.isActive || i.configuration !== null)
+      ? { action: s.action, menuId: s.menuId, source, ...draft }
+      : undefined;
+  }
   if (s.action === "create_draft")
     return s.sourceVersionId === null || id(s.sourceVersionId)
       ? { action: s.action, menuId: s.menuId, sourceVersionId: s.sourceVersionId }
@@ -306,5 +359,28 @@ export function parseMenuAdminState(v: unknown): MenuAdminState | undefined {
     }
     menus.push({ id: m.id, name: m.name, versions, publications });
   }
-  return { timezone: s.timezone, stops, menus };
+  const delivery = s.deliveryTax;
+  let deliveryTax: MenuAdminState["deliveryTax"];
+  if (delivery === null) deliveryTax = null;
+  else if (delivery !== undefined) {
+    const d = obj(delivery);
+    if (
+      !d ||
+      !id(d.policyId) ||
+      !["fixed", "proportional", "undeclared"].includes(String(d.mode)) ||
+      (d.mode === "fixed" ? !num(d.taxRateBasisPoints, 10000) : d.taxRateBasisPoints !== null)
+    )
+      return;
+    deliveryTax = {
+      policyId: d.policyId,
+      mode: d.mode as "fixed" | "proportional" | "undeclared",
+      taxRateBasisPoints: d.taxRateBasisPoints as number | null,
+    };
+  }
+  return {
+    timezone: s.timezone,
+    stops,
+    menus,
+    ...(deliveryTax !== undefined ? { deliveryTax } : {}),
+  };
 }

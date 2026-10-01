@@ -1,4 +1,5 @@
 export interface MenuChoice {
+  readonly taxRateBasisPoints?: number;
   readonly id: string;
   readonly name: string;
   readonly priceDeltaAmountMinor: number;
@@ -84,7 +85,14 @@ export function parseMenuConfiguration(value: unknown): MenuConfiguration | unde
     const x = record(v);
     if (
       !x ||
-      !exact(x, ["id", "name", "priceDeltaAmountMinor", "isActive"]) ||
+      !exact(x, [
+        "id",
+        "name",
+        "priceDeltaAmountMinor",
+        "isActive",
+        ...("taxRateBasisPoints" in x ? ["taxRateBasisPoints"] : []),
+      ]) ||
+      ("taxRateBasisPoints" in x && !integer(x.taxRateBasisPoints, 10000)) ||
       typeof x.id !== "string" ||
       !menuIdPattern.test(x.id) ||
       ids.has(x.id.toLowerCase()) ||
@@ -95,6 +103,7 @@ export function parseMenuConfiguration(value: unknown): MenuConfiguration | unde
       return;
     ids.add(x.id.toLowerCase());
     return {
+      ...("taxRateBasisPoints" in x ? { taxRateBasisPoints: x.taxRateBasisPoints as number } : {}),
       id: x.id.toLowerCase(),
       name: x.name,
       priceDeltaAmountMinor: x.priceDeltaAmountMinor,

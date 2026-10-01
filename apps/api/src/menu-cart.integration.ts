@@ -9,9 +9,17 @@ import {
   parseCartQuote,
   parseGuestPickupOrderConfirmation,
   parseDashboardOrderDetail,
+  parseMenuImportBundle,
 } from "@provide/contracts";
 import rawConfiguration from "../../../fixtures/menu-configuration.json" with { type: "json" };
-const configuration = parseMenuConfiguration(rawConfiguration)!;
+import syntheticPilot from "../../../docs/pilot/asian-kitchen-staging-synthetic.json" with { type: "json" };
+const configuration = parseMenuConfiguration({
+  ...rawConfiguration,
+  optionGroups: rawConfiguration.optionGroups.map((g) => ({
+    ...g,
+    options: g.options.map((o, i) => (i === 1 ? { ...o, taxRateBasisPoints: 1900 } : o)),
+  })),
+})!;
 type Env = Parameters<ReturnType<typeof createApiWorker>["fetch"]>[1];
 const restaurantId = "f2000000-0000-0000-0000-000000000001",
   locationId = "f3000000-0000-0000-0000-000000000001",
@@ -166,6 +174,10 @@ export async function verifyMenuCartIntegration(admin: Client, baseEnv: Env) {
     await data(await post("orders", pickupRequest)),
   )!;
   expect(confirmation.totalAmountMinor).toBe(1500);
+  if (quote.status !== "unavailable") {
+    expect(quote.taxSummary?.status).toBe("complete");
+    expect(quote.taxSummary?.taxAmountMinor).toBe(103);
+  }
   const detail = await worker.fetch(
     new Request(
       `https://api.test/v1/dashboard/restaurants/${restaurantId}/locations/${locationId}/orders/${confirmation.orderId}`,
@@ -173,7 +185,10 @@ export async function verifyMenuCartIntegration(admin: Client, baseEnv: Env) {
     ),
     env,
   );
-  const snapshot = parseDashboardOrderDetail(await data(detail))?.lines[0]?.selectionSnapshot;
+  const parsedDetail = parseDashboardOrderDetail(await data(detail));
+  expect(parsedDetail?.taxSummary?.taxAmountMinor).toBe(103);
+  expect(parsedDetail?.taxSummary?.knownNetAmountMinor).toBe(1397);
+  const snapshot = parsedDetail?.lines[0]?.selectionSnapshot;
   expect(snapshot?.variant?.name).toBe("Large");
   expect(snapshot?.options[0]?.name).toBe("Extra B");
   expect(
@@ -195,4 +210,53 @@ export async function verifyMenuCartIntegration(admin: Client, baseEnv: Env) {
   expect(history.rows[0]!.selection_snapshot).toEqual(snapshot);
   const retry = parseGuestPickupOrderConfirmation(await data(await post("orders", pickupRequest)))!;
   expect(retry.orderId).toBe(confirmation.orderId);
+  const pilot = parseMenuImportBundle(syntheticPilot)!;
+  const imported = parseMenuAdminState(
+    await data(
+      await command({
+        action: "import_draft",
+        menuId,
+        source: pilot.source,
+        sections: pilot.sections,
+        items: pilot.items,
+      }),
+    ),
+  )!;
+  const importedVersion = imported.menus.find((m) => m.id === menuId)!.versions[0]!;
+  expect(importedVersion.status).toBe("draft");
+  expect(importedVersion.sections).toEqual(pilot.sections);
+  expect(importedVersion.items).toEqual(pilot.items);
+  expect(importedVersion.items).toHaveLength(12);
+  expect(importedVersion.items.every((i) => i.name.startsWith("TEST "))).toBe(true);
+  expect(imported.deliveryTax?.mode).toBe("undeclared");
+  const priorPolicy = imported.deliveryTax!.policyId;
+  const taxCommand = {
+    action: "set_delivery_tax" as const,
+    expectedPolicyId: priorPolicy,
+    mode: "fixed" as const,
+    taxRateBasisPoints: 1900,
+    informationConfirmed: true as const,
+    note: "Synthetic fee declaration",
+  };
+  const declared = parseMenuAdminState(await data(await command(taxCommand)))!;
+  expect(declared.deliveryTax?.mode).toBe("fixed");
+  expect(declared.deliveryTax?.taxRateBasisPoints).toBe(1900);
+  expect(declared.deliveryTax?.policyId).not.toBe(priorPolicy);
+  expect((await command(taxCommand)).status).toBe(409);
+  const proportional = parseMenuAdminState(
+    await data(
+      await command({
+        ...taxCommand,
+        expectedPolicyId: declared.deliveryTax!.policyId,
+        mode: "proportional",
+        taxRateBasisPoints: null,
+      }),
+    ),
+  )!;
+  expect(proportional.deliveryTax?.mode).toBe("proportional");
+  const immutable = await admin.query<{ tax_summary: unknown }>(
+    "select tax_summary from public.orders where id=$1",
+    [confirmation.orderId],
+  );
+  expect(immutable.rows[0]!.tax_summary).toEqual(parsedDetail?.taxSummary);
 }

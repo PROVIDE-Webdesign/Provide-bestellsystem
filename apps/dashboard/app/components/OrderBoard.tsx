@@ -1,5 +1,7 @@
 "use client";
 
+import { OrderTax } from "./OrderTax";
+
 import {
   paymentStateLabels,
   parseDashboardOrderDetail,
@@ -465,6 +467,7 @@ export function OrderBoard({ restaurantId, role, locations }: OrderBoardProps) {
               </li>
             ))}
           </ul>
+          <OrderTax summary={detail.taxSummary} currency={detail.currency} />
           <p className="order-total">
             Gesamt: {formatMoney(detail.totalAmountMinor, detail.currency)}
           </p>

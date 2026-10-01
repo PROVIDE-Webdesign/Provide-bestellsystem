@@ -1,4 +1,5 @@
 "use client";
+import { TaxBreakdown } from "./TaxBreakdown";
 import { ItemPicker } from "./ItemPicker";
 import { cartStorageKey, serializeCart, restoreCart } from "./cart-storage";
 
@@ -692,6 +693,9 @@ export default function Storefront(scope: StorefrontProps) {
                     ? statusLabels[confirmation.status]
                     : "Bestellstatus"}
           </h2>
+          {orderStatus?.taxSummary && (
+            <TaxBreakdown summary={orderStatus.taxSummary} currency={orderStatus.currency} />
+          )}
           {(orderStatus || confirmation) && (
             <p>
               {(orderStatus ?? confirmation)!.itemCount} Gerichte ·{" "}
@@ -1009,6 +1013,10 @@ export default function Storefront(scope: StorefrontProps) {
                             </>
                           )}
                         </p>
+                        <TaxBreakdown
+                          summary={review.quote.taxSummary}
+                          currency={review.quote.currency}
+                        />
                         <label>
                           <input
                             type="checkbox"
