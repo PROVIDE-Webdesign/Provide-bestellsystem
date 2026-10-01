@@ -428,3 +428,46 @@ footer {
     padding-inline: 16px;
   }
 }
+
+.dish-action {
+  min-width: 0;
+}
+.dish-action label {
+  display: block;
+  margin: 0.5rem 0;
+}
+.dish-action select {
+  max-width: 100%;
+  min-height: 44px;
+  font: inherit;
+}
+.dish-action fieldset {
+  min-width: 0;
+  margin: 0.75rem 0;
+  padding: 0.5rem;
+}
+.dish-action input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.product-information {
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+.cart-lines small {
+  display: block;
+}
+
+@media (max-width: 600px) {
+  .dish {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .dish-action {
+    align-items: stretch;
+  }
+  .dish-action .price,
+  .dish-action .add-button {
+    align-self: flex-end;
+  }
+}

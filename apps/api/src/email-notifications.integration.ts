@@ -176,7 +176,7 @@ export async function verifyEmailIntegration(
     [scope.restaurantId],
   );
   await admin.query(
-    "update private.email_deliveries set status='uncertain',available_at=statement_timestamp(),last_error_code='provider_timeout' where order_id=$1",
+    "update private.email_deliveries set status='uncertain',available_at=statement_timestamp()-interval '1 second',last_error_code='provider_timeout' where order_id=$1",
     [validOrder],
   );
   await admin.query(

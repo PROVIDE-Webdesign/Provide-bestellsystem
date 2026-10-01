@@ -1,4 +1,6 @@
 import {
+  parseCartQuoteRequest,
+  parseCartQuote,
   parseOnlineOrderRequest,
   parseOnlineOrderConfirmation,
   parsePaymentAction,
@@ -134,7 +136,9 @@ export async function fetchPublicStorefront(
       bytes.set(chunk, offset);
       offset += chunk.byteLength;
     }
-    const body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as {
+    const body = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes),
+    ) as {
       data?: unknown;
     };
     stage = "contract-validation";
@@ -180,9 +184,14 @@ export async function submitGuestPickupOrder(
     );
   if (
     !isStorefrontScope(params) ||
-    !["orders", "delivery-quote", "delivery-orders", "online-orders", "payment-session"].includes(
-      params.resource,
-    ) ||
+    ![
+      "orders",
+      "cart-quote",
+      "delivery-quote",
+      "delivery-orders",
+      "online-orders",
+      "payment-session",
+    ].includes(params.resource) ||
     request.url.length > 2048
   )
     return failure(400);
@@ -193,17 +202,21 @@ export async function submitGuestPickupOrder(
   try {
     const bytes = await request.arrayBuffer();
     if (bytes.byteLength > 64 * 1024) return failure(413);
-    const source = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as unknown;
+    const source = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes),
+    ) as unknown;
     const body =
-      params.resource === "online-orders"
-        ? parseOnlineOrderRequest(source)
-        : params.resource === "payment-session"
-          ? parsePaymentAction(source)
-          : params.resource === "delivery-quote"
-            ? parseDeliveryQuoteRequest(source)
-            : params.resource === "delivery-orders"
-              ? parseGuestDeliveryOrderRequest(source)
-              : parseGuestPickupOrderRequest(source);
+      params.resource === "cart-quote"
+        ? parseCartQuoteRequest(source)
+        : params.resource === "online-orders"
+          ? parseOnlineOrderRequest(source)
+          : params.resource === "payment-session"
+            ? parsePaymentAction(source)
+            : params.resource === "delivery-quote"
+              ? parseDeliveryQuoteRequest(source)
+              : params.resource === "delivery-orders"
+                ? parseGuestDeliveryOrderRequest(source)
+                : parseGuestPickupOrderRequest(source);
     if (!body) return failure(400);
     const upstream = new URL(
       `/v1/storefront/${params.restaurantSlug}/${params.locationSlug}/${params.resource}`,
@@ -223,20 +236,24 @@ export async function submitGuestPickupOrder(
     if (new TextEncoder().encode(text).byteLength > 16 * 1024) return failure(503);
     const payload = JSON.parse(text) as { data?: unknown };
     const confirmation =
-      params.resource === "online-orders"
-        ? parseOnlineOrderConfirmation(payload.data)
-        : params.resource === "payment-session"
-          ? parsePaymentSession(payload.data)
-          : params.resource === "delivery-quote"
-            ? parseDeliveryQuote(payload.data)
-            : params.resource === "delivery-orders"
-              ? parseGuestDeliveryOrderConfirmation(payload.data)
-              : parseGuestPickupOrderConfirmation(payload.data);
+      params.resource === "cart-quote"
+        ? parseCartQuote(payload.data)
+        : params.resource === "online-orders"
+          ? parseOnlineOrderConfirmation(payload.data)
+          : params.resource === "payment-session"
+            ? parsePaymentSession(payload.data)
+            : params.resource === "delivery-quote"
+              ? parseDeliveryQuote(payload.data)
+              : params.resource === "delivery-orders"
+                ? parseGuestDeliveryOrderConfirmation(payload.data)
+                : parseGuestPickupOrderConfirmation(payload.data);
     if (!confirmation) return failure(503);
     return Response.json(
       { data: confirmation },
       {
-        status: ["delivery-quote", "payment-session"].includes(params.resource) ? 200 : 201,
+        status: ["cart-quote", "delivery-quote", "payment-session"].includes(params.resource)
+          ? 200
+          : 201,
         headers,
       },
     );
@@ -283,7 +300,9 @@ export async function fetchPublicOrderStatus(
   try {
     const bytes = await request.arrayBuffer();
     if (bytes.byteLength > 4 * 1024) return failure(413);
-    const source = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as unknown;
+    const source = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes),
+    ) as unknown;
     const body = parsePublicOrderStatusRequest(source);
     if (!body) return failure(400);
     const upstream = new URL(

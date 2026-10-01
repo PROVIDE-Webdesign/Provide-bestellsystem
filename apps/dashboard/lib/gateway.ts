@@ -1,4 +1,9 @@
 import {
+  parseMenuAdminCommand,
+  parseMenuAdminState,
+  type MenuAdminCommand,
+} from "@provide/contracts";
+import {
   parseDashboardAccessContext,
   parseDashboardOrderCursor,
   parseDashboardOrderDetail,
@@ -88,7 +93,9 @@ export async function fetchDashboardAccess(
       bytes.set(chunk, offset);
       offset += chunk.byteLength;
     }
-    const envelope = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as {
+    const envelope = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes),
+    ) as {
       data?: unknown;
     };
     const data = parseDashboardAccessContext(envelope.data);
@@ -113,7 +120,7 @@ function operationalFailure(status: OperationalFailureStatus) {
   return Response.json({ error: { code: codes[status] } }, { headers, status });
 }
 
-async function boundedJson(response: Response): Promise<unknown> {
+async function boundedJson(response: Response, maximum = 128 * 1024): Promise<unknown> {
   if (!response.headers.get("content-type")?.startsWith("application/json")) throw new Error();
   const reader = response.body?.getReader();
   if (!reader) throw new Error();
@@ -124,7 +131,7 @@ async function boundedJson(response: Response): Promise<unknown> {
       const next = await reader.read();
       if (next.done) break;
       size += next.value.byteLength;
-      if (size > 128 * 1024) {
+      if (size > maximum) {
         await reader.cancel();
         throw new Error();
       }
@@ -139,7 +146,7 @@ async function boundedJson(response: Response): Promise<unknown> {
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  return JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes));
 }
 
 async function operationalRequest(
@@ -306,4 +313,57 @@ export function updateDashboardCommunication(
     parseOrderCommunication,
     fetcher,
   );
+}
+
+export async function readDashboardMenuBody(request: Request): Promise<MenuAdminCommand> {
+  const body = await boundedJson(
+    new Response(request.body, {
+      headers: { "content-type": request.headers.get("content-type") ?? "" },
+    }),
+    512 * 1024,
+  );
+  const command = parseMenuAdminCommand(body);
+  if (!command) throw Error("Invalid menu command");
+  return command;
+}
+export async function fetchDashboardMenu(
+  accessToken: string,
+  apiBaseUrl: string | undefined,
+  scope: { restaurantId: string; locationId: string },
+  command: MenuAdminCommand | null,
+  fetcher: typeof fetch = fetch,
+): Promise<Response> {
+  const base = safeApiBase(apiBaseUrl);
+  if (
+    !base ||
+    !uuidPattern.test(scope.restaurantId) ||
+    !uuidPattern.test(scope.locationId) ||
+    !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(accessToken)
+  )
+    return operationalFailure(400);
+  try {
+    const r = await fetcher(
+      new URL(
+        `/v1/dashboard/restaurants/${scope.restaurantId}/locations/${scope.locationId}/menu`,
+        base,
+      ),
+      {
+        method: command ? "POST" : "GET",
+        headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+        ...(command ? { body: JSON.stringify(command) } : {}),
+        cache: "no-store",
+        redirect: "manual",
+        signal: AbortSignal.timeout(10000),
+      },
+    );
+    if (!r.ok)
+      return operationalFailure(
+        [400, 401, 403, 404, 409].includes(r.status) ? (r.status as OperationalFailureStatus) : 503,
+      );
+    const envelope = (await boundedJson(r, 1024 * 1024)) as { data?: unknown };
+    const data = parseMenuAdminState(envelope.data);
+    return data ? Response.json({ data }, { headers }) : operationalFailure(503);
+  } catch {
+    return operationalFailure(503);
+  }
 }

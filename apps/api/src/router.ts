@@ -20,6 +20,7 @@ export type DashboardOrderRoute =
 
 export type MatchedRoute =
   | { readonly name: "databaseHealth" | "health" | "dashboardAccess" | "stripeWebhook" }
+  | { readonly name: "dashboardMenu"; readonly restaurantId: string; readonly locationId: string }
   | DashboardOrderRoute
   | StorefrontRoute;
 
@@ -29,6 +30,9 @@ function matchPath(request: Request): MatchedRoute | undefined {
   if (path === "/health") return { name: "health" };
   if (path === "/health/database") return { name: "databaseHealth" };
   if (path === "/v1/dashboard/access-context") return { name: "dashboardAccess" };
+  const menu = /^\/v1\/dashboard\/restaurants\/([^/]+)\/locations\/([^/]+)\/menu$/.exec(path);
+  if (menu?.[1] && menu[2])
+    return { name: "dashboardMenu", restaurantId: menu[1], locationId: menu[2] };
   const dashboardOrder =
     /^\/v1\/dashboard\/restaurants\/([^/]+)\/locations\/([^/]+)\/orders(?:\/([^/]+)(\/status|\/refund-retry|\/communication)?)?$/.exec(
       path,
@@ -82,6 +86,8 @@ function matchPath(request: Request): MatchedRoute | undefined {
 export function routeRequest(request: Request): MatchedRoute | undefined {
   const match = matchPath(request);
   if (!match) return undefined;
+  if (match.name === "dashboardMenu")
+    return request.method === "GET" || request.method === "POST" ? match : undefined;
   if (
     match.name === "stripeWebhook" ||
     match.name === "online-orders" ||

@@ -11,15 +11,16 @@
     "lint": "eslint .",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "test": "vitest run --config vitest.config.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "test:browser": "node --experimental-strip-types tests/browser/run.ts"
   },
   "dependencies": {
+    "@provide/contracts": "workspace:*",
     "@vinext/cloudflare": "1.0.0-beta.6",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-server-dom-webpack": "19.2.8",
-    "vinext": "1.0.0-beta.8",
-    "@provide/contracts": "workspace:*"
+    "vinext": "1.0.0-beta.8"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.54.3",
@@ -29,6 +30,7 @@
     "@vitejs/plugin-react": "6.1.1",
     "@vitejs/plugin-rsc": "0.5.34",
     "eslint": "10.9.1",
+    "playwright": "catalog:",
     "typescript": "6.0.3",
     "vite": "8.2.2",
     "vitest": "4.1.11",

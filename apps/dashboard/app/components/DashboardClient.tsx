@@ -1,4 +1,5 @@
 "use client";
+import { MenuEditor } from "./MenuEditor.js";
 
 import { parseDashboardAccessContext, type DashboardAccessContext } from "@provide/contracts";
 import { useCallback, useEffect, useState } from "react";
@@ -15,7 +16,13 @@ type ViewState =
 
 const roleLabels = { owner: "Inhaber", manager: "Manager", kitchen: "Küche", driver: "Fahrer" };
 
-export function DashboardClient({ enabled }: { readonly enabled: boolean }) {
+export function DashboardClient({
+  enabled,
+  menuEnabled = false,
+}: {
+  readonly enabled: boolean;
+  readonly menuEnabled?: boolean;
+}) {
   const [state, setState] = useState<ViewState>({ name: "loading" });
 
   const load = useCallback(async () => {
@@ -93,6 +100,9 @@ export function DashboardClient({ enabled }: { readonly enabled: boolean }) {
                 <li key={location.id}>{location.displayName}</li>
               ))}
             </ul>
+          )}
+          {menuEnabled && (membership.role === "owner" || membership.role === "manager") && (
+            <MenuEditor restaurantId={membership.restaurantId} locations={membership.locations} />
           )}
           <OrderBoard
             restaurantId={membership.restaurantId}
