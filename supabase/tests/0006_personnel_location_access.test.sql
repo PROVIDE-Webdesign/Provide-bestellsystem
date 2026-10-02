@@ -166,12 +166,12 @@ select ok(
   'authenticated personnel cannot write location assignments directly'
 );
 select ok(
-  has_table_privilege(
+  not has_table_privilege(
     'service_role',
     'public.restaurant_membership_locations',
-    'select,insert,update,delete'
+    'insert,update,delete'
   ),
-  'the server role can manage personnel location assignments'
+  'direct server role writes require the audited personnel command'
 );
 select ok(
   has_function_privilege(

@@ -1,5 +1,7 @@
 import { LocationOperations } from "../../../dashboard/app/components/LocationOperations";
 import { ProvideAdmin } from "../../../dashboard/app/components/ProvideAdmin";
+import { Personnel } from "../../../dashboard/app/components/Personnel";
+import { InvitationInbox } from "../../../dashboard/app/components/InvitationInbox";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import Storefront from "../../app/storefront/Storefront";
@@ -12,6 +14,8 @@ import {
 import "../../app/styles.css";
 const operations = new URLSearchParams(location.search).has("operations");
 const provide = new URLSearchParams(location.search).has("provide");
+const personnel = new URLSearchParams(location.search).has("personnel");
+const invitations = new URLSearchParams(location.search).has("invitations");
 const history = new URLSearchParams(location.search).has("history");
 const dashboard = new URLSearchParams(location.search).has("dashboard");
 const board = new URLSearchParams(location.search).has("board");
@@ -37,11 +41,19 @@ const syntheticLive: OrderLiveSubscriber = (_restaurant, _location, onChange, on
     window.removeEventListener("synthetic-order-state", state);
   };
 };
-if (dashboard || board || operations || history || provide)
+if (dashboard || board || operations || history || provide || personnel || invitations)
   void import("../../../dashboard/app/styles.css");
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {provide ? (
+    {personnel ? (
+      <main>
+        <Personnel restaurantId="f2000000-0000-0000-0000-000000000001" />
+      </main>
+    ) : invitations ? (
+      <main>
+        <InvitationInbox />
+      </main>
+    ) : provide ? (
       <main>
         <ProvideAdmin />
       </main>

@@ -21,7 +21,12 @@ export type DashboardOrderRoute =
 export type MatchedRoute =
   | {
       readonly name:
-        "databaseHealth" | "health" | "dashboardAccess" | "stripeWebhook" | "provideAdmin";
+        | "databaseHealth"
+        | "health"
+        | "dashboardAccess"
+        | "stripeWebhook"
+        | "provideAdmin"
+        | "personnel";
     }
   | {
       readonly name: "dashboardMenu" | "dashboardLocationOperations" | "dashboardHistory";
@@ -33,6 +38,7 @@ export type MatchedRoute =
 
 function matchPath(request: Request): MatchedRoute | undefined {
   const path = new URL(request.url).pathname;
+  if (path === "/v1/dashboard/personnel") return { name: "personnel" };
   if (path === "/v1/provide/administration") return { name: "provideAdmin" };
   if (path === "/v1/payments/stripe/webhook") return { name: "stripeWebhook" };
   if (path === "/health") return { name: "health" };
@@ -111,7 +117,11 @@ function matchPath(request: Request): MatchedRoute | undefined {
 export function routeRequest(request: Request): MatchedRoute | undefined {
   const match = matchPath(request);
   if (!match) return undefined;
-  if (match.name === "dashboardHistory" || match.name === "provideAdmin")
+  if (
+    match.name === "dashboardHistory" ||
+    match.name === "provideAdmin" ||
+    match.name === "personnel"
+  )
     return request.method === "POST" ? match : undefined;
   if (match.name === "dashboardMenu" || match.name === "dashboardLocationOperations")
     return request.method === "GET" || request.method === "POST" ? match : undefined;

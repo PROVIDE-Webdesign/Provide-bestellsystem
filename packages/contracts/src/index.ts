@@ -62,3 +62,4 @@ export * from "./order-alerts.js";
 export * from "./location-operations.js";
 export * from "./order-history.js";
 export * from "./provide-admin.js";
+export * from "./personnel.js";

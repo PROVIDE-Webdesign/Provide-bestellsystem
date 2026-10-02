@@ -474,3 +474,36 @@ a:focus-visible {
 .history-card p {
   overflow-wrap: anywhere;
 }
+.personnel {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.personnel form,
+.personnel label,
+.personnel fieldset {
+  min-width: 0;
+}
+.personnel label {
+  display: block;
+  margin: 0.65rem 0;
+}
+.personnel input:not([type="checkbox"]),
+.personnel select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.personnel input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  min-height: 1.25rem;
+  margin-right: 0.5rem;
+}
+.personnel button {
+  margin: 0.5rem 0.5rem 0.5rem 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.personnel-list {
+  padding-left: 1.25rem;
+}

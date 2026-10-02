@@ -161,12 +161,12 @@ select ok(
   'authenticated browser users have no invitation table privileges'
 );
 select ok(
-  has_table_privilege(
+  not has_table_privilege(
     'service_role',
     'public.restaurant_invitations',
-    'select,insert,update,delete'
+    'insert,update,delete'
   ),
-  'the server role can manage invitations'
+  'the server role cannot directly write invitations'
 );
 select ok(
   not has_table_privilege(
@@ -185,20 +185,20 @@ select ok(
   'authenticated browser users have no invitation location privileges'
 );
 select ok(
-  has_table_privilege(
+  not has_table_privilege(
     'service_role',
     'public.restaurant_invitation_locations',
-    'select,insert,update,delete'
+    'insert,update,delete'
   ),
-  'the server role can manage invitation locations'
+  'the server role cannot directly write invitation locations'
 );
 select ok(
-  has_function_privilege(
+  not has_function_privilege(
     'service_role',
     'private.accept_restaurant_invitation(uuid,uuid,text)',
     'execute'
   ),
-  'the server role may accept a validated invitation atomically'
+  'native acceptance is internal to the audited command'
 );
 select ok(
   not has_function_privilege(
@@ -724,7 +724,8 @@ select throws_ok(
 );
 
 reset role;
-set local role service_role;
+-- Native helper invariants run as fixture owner; its server ACL is tested above.
+reset role;
 
 select throws_ok(
   $$
@@ -875,7 +876,7 @@ select is(
   'an authorized owner can revoke a pending invitation'
 );
 
-set local role service_role;
+reset role;
 
 select throws_ok(
   $$
