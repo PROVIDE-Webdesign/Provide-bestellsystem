@@ -1,6 +1,7 @@
 import { verifyLocationOperationsBrowser } from "./location-operations.ts";
 import assert from "node:assert/strict";
 import { verifyOrderLiveBrowser } from "./order-live.ts";
+import { verifyViewerBrowser } from "./viewer.ts";
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
@@ -455,6 +456,7 @@ try {
     await verifyHistoryBrowser(page, output, viewport.width);
     await verifyProvideBrowser(page, output, viewport.width);
     await verifyPersonnelBrowser(page, output, viewport.width);
+    await verifyViewerBrowser(page, output, viewport.width);
     assert.deepEqual(errors, []);
     await context.close();
     console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);

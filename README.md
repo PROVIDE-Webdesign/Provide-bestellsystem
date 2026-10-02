@@ -37,10 +37,19 @@ Staging-Pilot.
   [Arbeitsblock 3.15](docs/work-blocks/3.15-realtime-order-alerts.md), Entwurfs-PR #15.
 - Externe Pilot-/Gerätefälle sind bis zur Laptopverfügbarkeit
   [eingefroren](docs/planning/2026-10-01-frozen-pilot-acceptance.md).
-- Gesamtfortschritt nach fünf grünen B1/B2-Pflichtjobs am finalen PR-Head: **63 %** (62,698413 %, 19
-  technische Lücken). Bis dahin gilt der bestätigte B7-Ausgangsstand von 61,135913 %.
-  Positionsweiser A2-Abgleich über zwölf Hauptblöcke; technische Umsetzung, keine Produktionsreife.
-  Die frühere 84-%-Schätzung ist ersetzt.
+- Aktueller bestätigter Ausgangsstand E11: **68,419312 % (68 %)**, zwölf technische Lücken. PR #19
+  (A1 einschließlich Befundkorrektur 3.20) ist am 02.10.2026 vom Nutzer technisch endfreigegeben;
+  Draft, Ready, Merge, Deployment und Livebetrieb bleiben getrennt.
+- A3 Viewer wird als getrennter
+  [Arbeitsblock 3.21](docs/work-blocks/3.21-viewer-read-only-permissions.md) auf PR19 umgesetzt.
+  [Vertrag](docs/decisions/0037-viewer-read-only-permissions.md) und
+  [Prüf-Runbook](docs/runbooks/viewer-read-only-permissions.md) beschreiben ausschließlich
+  standortgebundene Leseprojektionen ohne Kundendaten oder Schreibrechte.
+- Nach fünf grünen A3-Pflichtjobs am finalen Head und visueller QA: **69,014550 % (69 %)**, elf
+  technische Lücken; ausschließlich A2-2-2 erhält die
+  [Gutschrift](docs/planning/2026-10-02-viewer-progress-update.md). Positionsweiser A2-Abgleich über
+  zwölf Hauptblöcke und 82 Unterpositionen; technische Umsetzung, keine Produktionsreife. Die
+  frühere 84-%-Schätzung ist ersetzt.
 - Das Deployment der kundenbezogenen Arbeitsblöcke steht aus.
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 

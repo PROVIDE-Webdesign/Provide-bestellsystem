@@ -23,6 +23,14 @@ const data = {
 };
 
 describe("dashboard API gateway", () => {
+  it("forwards a banned user's empty context with no cached profiles", async () => {
+    const empty = { aal: "aal1", memberships: [] };
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: empty }));
+    const response = await fetchDashboardAccess(token, "https://api.example.test", fetcher);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ data: empty });
+  });
   it("forwards only the verified session access token to the fixed upstream", async () => {
     const fetcher = vi
       .fn<typeof fetch>()

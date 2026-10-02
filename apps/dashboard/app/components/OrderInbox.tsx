@@ -14,6 +14,7 @@ interface Props {
   readonly locationId: string;
   readonly liveEnabled: boolean;
   readonly alertsEnabled: boolean;
+  readonly readOnly?: boolean;
   readonly onInvalidate: () => Promise<void>;
   readonly onDenied: () => void;
   readonly onOpen: (orderId: string) => void;
@@ -24,6 +25,7 @@ export function OrderInbox({
   locationId,
   liveEnabled,
   alertsEnabled,
+  readOnly = false,
   onInvalidate,
   onDenied,
   onOpen,
@@ -255,8 +257,10 @@ export function OrderInbox({
           )}
           <p>
             Bei Fristüberschreitung: wiederholter Alarm alle 30 Sekunden, sofern Ton aktiviert und
-            Eingang aktuell. Manuell prüfen und annehmen oder begründet ablehnen; keine automatische
-            Stornierung oder Erstattung.
+            Eingang aktuell.{" "}
+            {readOnly
+              ? "Verantwortliche informieren. Viewer können Bestellungen nicht annehmen oder ablehnen."
+              : "Manuell prüfen und annehmen oder begründet ablehnen; keine automatische Stornierung oder Erstattung."}
           </p>
         </>
       )}

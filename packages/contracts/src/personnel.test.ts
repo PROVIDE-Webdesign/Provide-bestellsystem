@@ -13,6 +13,24 @@ const q = {
   locationIds: [raw.locations[0]!.id],
 };
 describe("strict personnel contract", () => {
+  it("accepts a scoped Viewer assignment and invitation, but never an empty Viewer scope", () => {
+    expect(parsePersonnelCommand({ ...q, role: "viewer" })).toBeDefined();
+    expect(parsePersonnelCommand({ ...q, role: "viewer", locationIds: [] })).toBeUndefined();
+    expect(
+      parsePersonnelState({ ...raw, members: [{ ...raw.members[1], role: "viewer" }] }),
+    ).toBeDefined();
+    const invitation = {
+      id: q.requestId,
+      restaurantId: raw.restaurantId,
+      restaurantName: "Synthetic",
+      role: "viewer",
+      locationIds: q.locationIds,
+      locations: [raw.locations[0]],
+      expiresAt: "2026-10-09T00:00:00.000Z",
+      expired: false,
+    };
+    expect(parsePersonnelState({ mode: "inbox", invitations: [invitation] })).toBeDefined();
+  });
   it("preserves actual PostgreSQL microseconds and nullable contact", () => {
     expect(parsePersonnelState(raw)).toEqual(raw);
     expect(
@@ -26,7 +44,7 @@ describe("strict personnel contract", () => {
   });
   it.each([
     { actorUserId: q.userId },
-    { role: "viewer" },
+    { role: "superadmin" },
     { locationIds: [] },
     { locationIds: [raw.locations[0]!.id, raw.locations[0]!.id] },
     { expectedRevision: -1 },
@@ -55,7 +73,7 @@ describe("strict personnel contract", () => {
     expect(parsePersonnelState({ ...raw, inviteDeliveryEnabled: "false" })).toBeUndefined();
     expect(parsePersonnelState({ ...raw, serverNow: "2026-02-30T00:00:00Z" })).toBeUndefined();
     expect(
-      parsePersonnelState({ ...raw, members: [{ ...raw.members[0], role: "viewer" }] }),
+      parsePersonnelState({ ...raw, members: [{ ...raw.members[0], role: "superadmin" }] }),
     ).toBeUndefined();
     expect(
       parsePersonnelState({ ...raw, members: Array.from({ length: 51 }, () => raw.members[0]) }),

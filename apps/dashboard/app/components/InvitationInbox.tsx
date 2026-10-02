@@ -71,8 +71,16 @@ export function InvitationInbox() {
           <h3>{i.restaurantName}</h3>
           <p>
             Rolle:{" "}
-            {{ owner: "Inhaber", manager: "Manager", kitchen: "Küche", driver: "Fahrer" }[i.role]} ·
-            Gültig bis {new Date(i.expiresAt).toLocaleString("de-DE")}
+            {
+              {
+                owner: "Inhaber",
+                manager: "Manager",
+                kitchen: "Küche",
+                driver: "Fahrer",
+                viewer: "Viewer · nur lesen",
+              }[i.role]
+            }{" "}
+            · Gültig bis {new Date(i.expiresAt).toLocaleString("de-DE")}
           </p>
           <p>
             Standorte:{" "}
