@@ -17,3 +17,7 @@ Block 2: 6/7 -> 6,5/7. Delta `0,5/7/12*100 = 0,595238095238` Prozentpunkte. Nach
 A1 schließt technisch; B6, A3, A4, P1–P5, O1, O3, O4, O6 bleiben offen. Paket 4 insgesamt,
 Produktionsprovider und praktische Abnahme bleiben offen. F01–F03 eingefroren bis „Laptop wieder
 verfügbar“. NEXT A3 Viewer-Berechtigung; Work / GPT-6.1 Sol / hoch.
+
+Review-Ergänzung R19: Der dokumentierte E09-Umsetzungswert bleibt unverändert. Die gezielte
+Befundkorrektur erzeugt keine neue Gutschrift. Endfreigabe braucht zusätzlich den Nachweis aus
+Arbeitsblock 3.20; vorher bleibt sie offen. A3 Viewer wurde nicht gestartet.

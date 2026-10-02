@@ -80,4 +80,45 @@ describe("strict personnel contract", () => {
       }),
     ).toBeUndefined();
   });
+  it("distinguishes automatic dispatch audit from human actions and preserves legacy rows", () => {
+    const human = {
+      id: q.requestId,
+      at: raw.serverNow,
+      actorUserId: raw.members[0]!.userId,
+      action: "cancelDispatch",
+      reason: "Actual owner cancellation reason",
+      before: { status: "pending" },
+      after: { status: "cancelled" },
+    };
+    const automatic = {
+      ...human,
+      actorUserId: null,
+      action: "dispatch.state",
+      reason: "Auth dispatch claimed by server",
+      after: {
+        status: "sending",
+        changeKind: "system",
+        initiatorUserId: raw.members[0]!.userId,
+      },
+    };
+    expect(parsePersonnelState({ ...raw, audit: [human, automatic] })).toBeDefined();
+    expect(
+      parsePersonnelState({ ...raw, audit: [{ ...human, actorUserId: null }] }),
+    ).toBeUndefined();
+    expect(
+      parsePersonnelState({
+        ...raw,
+        audit: [{ ...automatic, actorUserId: raw.members[0]!.userId }],
+      }),
+    ).toBeUndefined();
+    expect(
+      parsePersonnelState({ ...raw, audit: [{ ...automatic, action: "member" }] }),
+    ).toBeUndefined();
+    expect(
+      parsePersonnelState({
+        ...raw,
+        audit: [{ ...automatic, after: { status: "sending", changeKind: "system" } }],
+      }),
+    ).toBeUndefined();
+  });
 });

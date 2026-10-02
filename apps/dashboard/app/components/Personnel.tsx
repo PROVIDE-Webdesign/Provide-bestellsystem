@@ -218,7 +218,14 @@ export function Personnel({ restaurantId }: { readonly restaurantId: string }) {
             {!target && (
               <label>
                 E-Mail der eingeladenen Person
-                <input name="email" type="email" required maxLength={254} autoComplete="off" />
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  maxLength={254}
+                  autoComplete="off"
+                  onChange={() => setConfirmed(false)}
+                />
               </label>
             )}
             <label>
@@ -352,7 +359,7 @@ export function Personnel({ restaurantId }: { readonly restaurantId: string }) {
                   {new Date(a.at).toLocaleString("de-DE")} · {a.action}
                 </summary>
                 <p>Grund: {a.reason}</p>
-                <p>Akteur: {a.actorUserId}</p>
+                <p>Akteur: {a.actorUserId ?? "System"}</p>
                 <h5>Vorher</h5>
                 <pre>{JSON.stringify(a.before, null, 2)}</pre>
                 <h5>Nachher</h5>

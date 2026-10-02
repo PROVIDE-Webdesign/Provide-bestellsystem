@@ -49,6 +49,16 @@ Identischer Replay ist idempotent; geänderte Nutzlast oder veraltete Revision e
 Unveränderliche Belege und Vorher-/Nachher-Audit werden mit der Änderung geschrieben. Versand-
 Statuswechsel besitzen zusätzlich ein minimales Audit und Outbox-Signal.
 
+R19-01 trennt ursprüngliche Dispatcher-Identität/-Begründung von der letzten Statusänderung. Ein
+bewusster Versandabbruch verwendet den verifizierten tatsächlichen Akteur und dessen Abbruchgrund
+auch im Statusaudit. Das Status-Outbox-Ereignis verweist auf genau diesen Beleg. Automatische
+Claim-/Provider-/Timeout-/Rechteentzugszustände tragen `changeKind=system`, keinen menschlichen
+Akteur und einen passenden Systemgrund; `initiatorUserId` hält den ursprünglichen Kontext getrennt.
+Alte unveränderliche Auditzeilen werden nicht umgeschrieben. Manager sehen weiterhin ausschließlich
+ihre eigenen menschlichen Auditaktionen. Die UI bezeichnet automatische Akteure als „System“.
+
+Die Bestätigung der eingeladenen Person wird bei jeder E-Mail-Änderung zurückgesetzt (R19-02).
+
 Direkte service-role-Schreibrechte auf Memberships, Einladungen und deren Standorttabellen sowie die
 alte nicht auditierte Annahme sind entzogen. Neue private Tabellen erzwingen RLS; ausschließlich eng
 begrenzte Serverfunktionen sind ausführbar, mit leerem search_path und expliziten ACLs. Der Dienst

@@ -90,6 +90,19 @@ export async function verifyPersonnelBrowser(page: Page, output: string, width: 
                     before: {},
                     after: { role: "kitchen", locationIds: invitation.locationIds },
                   },
+                  {
+                    id: "fa000000-0000-0000-0000-000000000020",
+                    at: raw.serverNow,
+                    actorUserId: null,
+                    action: "dispatch.state",
+                    reason: "Auth dispatch claimed by server",
+                    before: { status: "pending" },
+                    after: {
+                      status: "sending",
+                      changeKind: "system",
+                      initiatorUserId: raw.members[0]!.userId,
+                    },
+                  },
                 ]
               : [],
         },
@@ -106,6 +119,20 @@ export async function verifyPersonnelBrowser(page: Page, output: string, width: 
   };
   await page.goto("http://127.0.0.1:4321/?personnel");
   await form();
+  const confirmation = page.getByLabel("Ich habe Person, Rolle und Standorte geprüft.", {
+    exact: true,
+  });
+  const inviteButton = page.getByRole("button", { name: "Person einladen", exact: true });
+  await page
+    .getByLabel("E-Mail der eingeladenen Person", { exact: true })
+    .fill("changed-recipient@example.invalid");
+  assert.equal(await confirmation.isChecked(), false);
+  assert.equal(await inviteButton.isDisabled(), true);
+  await page
+    .getByLabel("E-Mail der eingeladenen Person", { exact: true })
+    .evaluate((element) => (element as HTMLInputElement).form?.requestSubmit());
+  assert.equal(mutations, 0);
+  await form();
   await page.getByRole("button", { name: "Person einladen", exact: true }).click();
   assert.equal(await page.getByLabel("E-Mail der eingeladenen Person", { exact: true }).count(), 0);
   await page
@@ -117,6 +144,8 @@ export async function verifyPersonnelBrowser(page: Page, output: string, width: 
   assert.equal(mutations, 2);
   await page.getByText("personnel.invite", { exact: false }).click();
   await page.getByText('"role": "kitchen"', { exact: false }).waitFor();
+  await page.getByText("dispatch.state", { exact: false }).click();
+  await page.getByText("Akteur: System", { exact: true }).waitFor();
   await page.screenshot({ path: `${output}/personnel-${width}.png`, fullPage: true });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
   manager = true;
@@ -175,4 +204,5 @@ export async function verifyPersonnelBrowser(page: Page, output: string, width: 
     0,
   );
   await page.unroute("**/api/personnel");
+  console.log(`Personnel correction regression ${width}px PASS`);
 }

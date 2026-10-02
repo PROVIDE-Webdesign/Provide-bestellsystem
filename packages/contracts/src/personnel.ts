@@ -61,7 +61,7 @@ export type PersonnelState =
       audit: {
         id: string;
         at: string;
-        actorUserId: string;
+        actorUserId: string | null;
         action: string;
         reason: string;
         before: unknown;
@@ -232,10 +232,17 @@ export function parsePersonnelState(x: unknown): PersonnelState | undefined {
     v.audit.length > 30 ||
     !v.audit.every((x) => {
       const a = obj(x);
+      const after = obj(a?.after);
+      const system = after?.changeKind === "system";
       return (
         !!a &&
         uuid(a.id) &&
-        uuid(a.actorUserId) &&
+        (system
+          ? a.actorUserId === null &&
+            typeof a.action === "string" &&
+            a.action.startsWith("dispatch.") &&
+            uuid(after?.initiatorUserId)
+          : uuid(a.actorUserId)) &&
         instant(a.at) &&
         text(a.action, 1, 80) &&
         text(a.reason, 8, 300) &&

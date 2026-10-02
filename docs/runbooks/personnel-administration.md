@@ -35,3 +35,11 @@ Integrationsdateien ohne explizite Loopback-Zugangsdaten übersprungen. CI start
 lokale Auth-Schlüssel und prüft einen echten Empfänger-JWT sowie sofortigen Zugriffsentzug.
 SQL-Datei 0033 ergänzt die bestehenden Rollen-/Einladungs-/MFA-Invarianten; keine Tests entfernt.
 Keine echte physische MFA-Abnahme, Produktions-SMTP- oder Restaurantfreigabe daraus ableiten.
+
+R19-01/R19-02: Ein Abbruch durch eine andere verantwortliche Person muss deren aktuelle Akteur-ID
+und Abbruchgrund im Befehls- und Statusaudit zeigen. Ursprünglicher Einlader und Einladungsgrund
+bleiben getrennt am Versandvorgang. Automatische Statuswechsel zeigen „System“, passenden Grund und
+ursprünglichen Initiator als Kontext; der Statusereignis-Verweis führt zum passenden Audit. Eine
+geänderte Einladungsemail erfordert eine neue Personenbestätigung. SQL0034 prüft fremden Abbruch,
+Abbruch während Versand, späte Providerantwort, Stale-Claim, unklaren/fehlgeschlagenen Versand,
+aktuellen Rechteentzug und die neue Auditgrenze; alle bisherigen Prüfungen bleiben bestehen.
