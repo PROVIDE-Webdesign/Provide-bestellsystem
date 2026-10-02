@@ -166,6 +166,12 @@ select ok(pg_temp.review_state_audit(7,'cancelled')->'actor_user_id'='null'::jso
  'rights revocation cancellation is explicit system action, not false human cancellation');
 
 -- Missing status context and unattributed human actions fail closed.
+-- Diagnostic stays inside the rolled-back synthetic transaction.
+do $$ begin
+ execute replace(pg_get_functiondef('private.command_personnel(uuid,text,jsonb)'::regprocedure),
+ 'when check_violation or foreign_key_violation or invalid_text_representation then return',
+ 'when check_violation or foreign_key_violation or invalid_text_representation then raise notice ''R19 fixture diagnostic %: %'', SQLSTATE, SQLERRM; return');
+end $$;
 select is(pg_temp.review_command('invite',jsonb_build_object('requestId',pg_temp.review_dispatch(8),
  'email','r19-context@example.invalid','role','kitchen','locationIds','["e9300000-0000-0000-000000000001"]'::jsonb),1)->>'outcome','allowed','owner reserves missing-context fixture');
 select throws_ok($$update private.personnel_dispatches set status='sending' where id='e9400000-0000-0000-0000-000000000008'$$,
