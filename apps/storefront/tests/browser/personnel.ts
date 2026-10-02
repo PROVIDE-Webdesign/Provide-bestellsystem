@@ -17,6 +17,7 @@ export async function verifyPersonnelBrowser(page: Page, output: string, width: 
     email: "invited@example.invalid",
     role: "kitchen",
     locationIds: [raw.locations[0]!.id],
+    locations: [raw.locations[0]!],
     expiresAt: "2026-10-09T00:00:00.000Z",
     expired: false,
   };
@@ -120,7 +121,12 @@ export async function verifyPersonnelBrowser(page: Page, output: string, width: 
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
   manager = true;
   await page.getByRole("button", { name: "Personal neu laden", exact: true }).click();
-  await page.getByText(/Verwaltungsstand .*Manager/).waitFor();
+  await page.getByText(/^Verwaltungsstand \d+ · Manager$/, { exact: true }).waitFor();
+  await page
+    .getByRole("combobox", { name: "Neue Personalrolle", exact: true })
+    .locator("option")
+    .first()
+    .waitFor({ state: "attached" });
   assert.deepEqual(
     await page
       .getByLabel("Neue Personalrolle", { exact: true })

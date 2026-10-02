@@ -70,10 +70,15 @@ export function InvitationInbox() {
         <article className="history-card" key={i.id}>
           <h3>{i.restaurantName}</h3>
           <p>
-            Rolle: {i.role} · Gültig bis {new Date(i.expiresAt).toLocaleString("de-DE")}
+            Rolle:{" "}
+            {{ owner: "Inhaber", manager: "Manager", kitchen: "Küche", driver: "Fahrer" }[i.role]} ·
+            Gültig bis {new Date(i.expiresAt).toLocaleString("de-DE")}
           </p>
           <p>
-            Standorte: {i.role === "owner" ? "Alle Restaurantstandorte" : i.locationIds.join(", ")}
+            Standorte:{" "}
+            {i.role === "owner"
+              ? "Alle Restaurantstandorte"
+              : i.locations.map((l) => l.displayName).join(", ")}
           </p>
           <button
             type="button"

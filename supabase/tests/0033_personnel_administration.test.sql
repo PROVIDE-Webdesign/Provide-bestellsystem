@@ -65,7 +65,7 @@ select is(private.accept_personnel(pg_temp.uid(7),'aal2',(select id from public.
 select ok(not has_table_privilege('service_role','public.restaurant_memberships','insert,update,delete'),'direct server membership writes revoked');
 select ok(not has_function_privilege('service_role','private.accept_restaurant_invitation(uuid,uuid,text)','execute'),'legacy acceptance cannot bypass audit');
 select ok(has_function_privilege('service_role','private.accept_personnel(uuid,text,uuid)','execute'),'server can call bounded acceptance');
-select throws_ok('update private.personnel_audit set reason=''Tampered audit reason''','55000',null,'audit is append-only');
+select throws_ok('update private.personnel_audit set reason=''Tampered audit reason''','23514',null,'audit is append-only');
 select is(pg_temp.pc('invite','{"email":"personnel8@example.invalid","role":"kitchen","locationIds":["c3000000-0000-0000-0000-000000000002"]}',2)->>'outcome','forbidden','manager cannot dispatch outside assigned scope');
 update auth.users set banned_until=now()+interval '1 hour' where id=pg_temp.uid(1);
 select is(pg_temp.read_staff()->>'outcome','forbidden','Auth ban takes effect for management');

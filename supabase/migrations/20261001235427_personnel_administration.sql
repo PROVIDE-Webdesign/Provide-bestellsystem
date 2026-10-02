@@ -72,6 +72,7 @@ $$;
 create function private.personnel_invitation_json(i public.restaurant_invitations) returns jsonb language sql stable security definer set search_path='' as $$
  select jsonb_build_object('id',i.id,'restaurantId',i.restaurant_id,'restaurantName',left(btrim(r.display_name),160),'role',i.role,
  'locationIds',coalesce((select jsonb_agg(a.location_id order by a.location_id) from public.restaurant_invitation_locations a where a.invitation_id=i.id),'[]'::jsonb),
+ 'locations',coalesce((select jsonb_agg(jsonb_build_object('id',l.id,'displayName',left(btrim(l.display_name),160)) order by l.id) from public.restaurant_invitation_locations a join public.locations l on l.id=a.location_id and l.restaurant_id=a.restaurant_id where a.invitation_id=i.id),'[]'::jsonb),
  'expiresAt',i.expires_at,'expired',i.expires_at<=now()) from public.restaurants r where r.id=i.restaurant_id
 $$;
 create function private.read_personnel(actor uuid,aal text,q jsonb) returns jsonb language plpgsql stable security definer set search_path='' as $$

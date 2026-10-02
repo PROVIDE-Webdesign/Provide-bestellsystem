@@ -28,6 +28,7 @@ export type PersonnelInvitation = {
   restaurantName: string;
   role: RestaurantRole;
   locationIds: string[];
+  locations: { id: string; displayName: string }[];
   expiresAt: string;
   expired: boolean;
 };
@@ -132,12 +133,26 @@ export function parsePersonnelCommand(x: unknown): PersonnelCommand | undefined 
 }
 function invitation(x: unknown): x is PersonnelInvitation {
   const v = obj(x);
+  const locationIds = v?.locationIds;
   return (
     !!v &&
     uuid(v.id) &&
     uuid(v.restaurantId) &&
     text(v.restaurantName, 1, 160) &&
-    scope(v.role, v.locationIds) &&
+    ids(locationIds) &&
+    scope(v.role, locationIds) &&
+    Array.isArray(v.locations) &&
+    v.locations.length === locationIds.length &&
+    v.locations.every((entry) => {
+      const location = obj(entry);
+      return (
+        !!location &&
+        uuid(location.id) &&
+        locationIds.includes(location.id) &&
+        text(location.displayName, 1, 160)
+      );
+    }) &&
+    new Set(v.locations.map((entry) => obj(entry)?.id)).size === v.locations.length &&
     instant(v.expiresAt) &&
     typeof v.expired === "boolean"
   );
@@ -161,6 +176,7 @@ export function parsePersonnelState(x: unknown): PersonnelState | undefined {
     !instant(v.serverNow)
   )
     return;
+  if (v.inviteDeliveryEnabled !== undefined && typeof v.inviteDeliveryEnabled !== "boolean") return;
   if (
     !Array.isArray(v.locations) ||
     v.locations.length > 100 ||

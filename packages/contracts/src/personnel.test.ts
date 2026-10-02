@@ -52,12 +52,32 @@ describe("strict personnel contract", () => {
     expect(parsePersonnelCommand({ ...invite, token: "secret" })).toBeUndefined();
   });
   it("rejects invalid dates, response role and oversized page", () => {
+    expect(parsePersonnelState({ ...raw, inviteDeliveryEnabled: "false" })).toBeUndefined();
     expect(parsePersonnelState({ ...raw, serverNow: "2026-02-30T00:00:00Z" })).toBeUndefined();
     expect(
       parsePersonnelState({ ...raw, members: [{ ...raw.members[0], role: "viewer" }] }),
     ).toBeUndefined();
     expect(
       parsePersonnelState({ ...raw, members: Array.from({ length: 51 }, () => raw.members[0]) }),
+    ).toBeUndefined();
+  });
+  it("requires invitation names to match exactly the granted location scope", () => {
+    const invitation = {
+      id: q.requestId,
+      restaurantId: raw.restaurantId,
+      restaurantName: "Synthetic Restaurant",
+      role: "kitchen",
+      locationIds: q.locationIds,
+      locations: [raw.locations[0]],
+      expiresAt: "2026-10-09T00:00:00.000Z",
+      expired: false,
+    };
+    expect(parsePersonnelState({ mode: "inbox", invitations: [invitation] })).toBeDefined();
+    expect(
+      parsePersonnelState({
+        mode: "inbox",
+        invitations: [{ ...invitation, locations: [raw.locations[1]] }],
+      }),
     ).toBeUndefined();
   });
 });
