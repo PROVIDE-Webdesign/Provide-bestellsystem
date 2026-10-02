@@ -219,7 +219,7 @@ export function OrderBoard({
   }
 
   async function transition(targetStatus: DashboardOrderStatus) {
-    if (!detail || updating) return;
+    if (role === "viewer" || !detail || updating) return;
     setUpdating(true);
     setMessage("");
     try {
@@ -255,7 +255,7 @@ export function OrderBoard({
   }
 
   async function retryRefund() {
-    if (!detail || updating) return;
+    if (role === "viewer" || !detail || updating) return;
     setUpdating(true);
     setMessage("");
     try {
@@ -283,7 +283,7 @@ export function OrderBoard({
   }
 
   async function communicate(action: "confirm_time" | "dispatch") {
-    if (!detail || updating || !detail.communication) return;
+    if (role === "viewer" || !detail || updating || !detail.communication) return;
     const instant = locationTimeToInstant(confirmedTime, detail.communication.timezone);
     const command =
       action === "dispatch"
@@ -337,6 +337,9 @@ export function OrderBoard({
 
   return (
     <div className="order-board">
+      {role === "viewer" && (
+        <p className="warning">Nur Lesezugriff: keine Änderungen und keine Kundendaten.</p>
+      )}
       {!accessDenied && (
         <OrderInbox
           key={`${restaurantId}:${locationId}`}
@@ -484,7 +487,9 @@ export function OrderBoard({
               >
                 <span className="order-number">#{orderReference(order)}</span>
                 <strong>{fulfillmentStatusLabel(order.status, order.fulfillmentType)}</strong>
-                {order.paymentState && <span>{paymentStateLabels[order.paymentState]}</span>}
+                {role !== "viewer" && order.paymentState && (
+                  <span>{paymentStateLabels[order.paymentState]}</span>
+                )}
                 <span>
                   {order.fulfillmentType === "delivery" ? "Lieferung" : "Abholung"}{" "}
                   {formatOrderTime(order.requestedFor)}
@@ -524,24 +529,25 @@ export function OrderBoard({
             {detail.fulfillmentType === "delivery" ? "Lieferung" : "Abholung"}{" "}
             {formatOrderTime(detail.requestedFor, detail.communication?.timezone)}
           </p>
-          {detail.contactName && (
+          {role !== "viewer" && detail.contactName && (
             <p>
               Name: <strong>{detail.contactName}</strong>
             </p>
           )}
-          {detail.communication?.confirmedFor && (
+          {role !== "viewer" && detail.communication?.confirmedFor && (
             <p>
               Bestätigte Zeit:{" "}
               {formatOrderTime(detail.communication.confirmedFor, detail.communication.timezone)}
             </p>
           )}
-          {detail.communication?.dispatchedAt && (
+          {role !== "viewer" && detail.communication?.dispatchedAt && (
             <p>
               Lieferung unterwegs seit{" "}
               {formatOrderTime(detail.communication.dispatchedAt, detail.communication.timezone)}
             </p>
           )}
-          {detail.communication &&
+          {role !== "viewer" &&
+            detail.communication &&
             ["accepted", "preparing", "ready"].includes(detail.status) &&
             (detail.paymentCollectionMode !== "online" || detail.paymentState === "paid") &&
             !detail.communication.dispatchedAt && (
@@ -577,17 +583,17 @@ export function OrderBoard({
                   )}
               </div>
             )}
-          {detail.paymentState && (
+          {role !== "viewer" && detail.paymentState && (
             <p>
               Zahlung: <strong>{paymentStateLabels[detail.paymentState]}</strong>
             </p>
           )}
-          {detail.paymentState === "refund_failed" && (
+          {role !== "viewer" && detail.paymentState === "refund_failed" && (
             <button type="button" disabled={updating} onClick={() => void retryRefund()}>
               Vollerstattung nach Prüfung erneut anfordern
             </button>
           )}
-          {detail.delivery && (
+          {role !== "viewer" && detail.delivery && (
             <address>
               {detail.delivery.recipientName}
               <br />
@@ -633,7 +639,7 @@ export function OrderBoard({
           <p className="order-total">
             Gesamt: {formatMoney(detail.totalAmountMinor, detail.currency)}
           </p>
-          {detail.allowedTransitions.length > 0 && (
+          {role !== "viewer" && detail.allowedTransitions.length > 0 && (
             <div className="status-actions" aria-label="Status ändern">
               {detail.allowedTransitions.some((s) => s === "cancelled" || s === "rejected") && (
                 <label>

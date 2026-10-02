@@ -7,7 +7,7 @@ import { MenuEditor } from "./MenuEditor.js";
 import { parseDashboardAccessContext, type DashboardAccessContext } from "@provide/contracts";
 import { useCallback, useEffect, useState } from "react";
 
-import { createDashboardBrowserClient } from "@/lib/supabase-browser.js";
+import { createDashboardBrowserClient } from "../../lib/supabase-browser.js";
 import { MfaPanel } from "./MfaPanel.js";
 import { OrderBoard } from "./OrderBoard.js";
 
@@ -17,7 +17,13 @@ type ViewState =
   | { readonly name: "unavailable" }
   | { readonly name: "ready"; readonly context: DashboardAccessContext };
 
-const roleLabels = { owner: "Inhaber", manager: "Manager", kitchen: "Küche", driver: "Fahrer" };
+const roleLabels = {
+  owner: "Inhaber",
+  manager: "Manager",
+  kitchen: "Küche",
+  driver: "Fahrer",
+  viewer: "Viewer · nur lesen",
+};
 
 export function DashboardClient({
   enabled,

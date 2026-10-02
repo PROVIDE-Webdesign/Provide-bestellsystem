@@ -2,6 +2,7 @@ import { LocationOperations } from "../../../dashboard/app/components/LocationOp
 import { ProvideAdmin } from "../../../dashboard/app/components/ProvideAdmin";
 import { Personnel } from "../../../dashboard/app/components/Personnel";
 import { InvitationInbox } from "../../../dashboard/app/components/InvitationInbox";
+import { DashboardClient } from "../../../dashboard/app/components/DashboardClient";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import Storefront from "../../app/storefront/Storefront";
@@ -20,6 +21,7 @@ const history = new URLSearchParams(location.search).has("history");
 const dashboard = new URLSearchParams(location.search).has("dashboard");
 const board = new URLSearchParams(location.search).has("board");
 const live = new URLSearchParams(location.search).has("live");
+const viewer = new URLSearchParams(location.search).has("viewer");
 // Synthetic transport only for the native browser harness. Production uses the real SDK.
 const syntheticLive: OrderLiveSubscriber = (_restaurant, _location, onChange, onState) => {
   const receive = createInvalidationReceiver(onChange);
@@ -41,11 +43,22 @@ const syntheticLive: OrderLiveSubscriber = (_restaurant, _location, onChange, on
     window.removeEventListener("synthetic-order-state", state);
   };
 };
-if (dashboard || board || operations || history || provide || personnel || invitations)
+if (dashboard || board || operations || history || provide || personnel || invitations || viewer)
   void import("../../../dashboard/app/styles.css");
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {personnel ? (
+    {viewer && !board ? (
+      <main>
+        <DashboardClient
+          enabled
+          menuEnabled
+          operationsEnabled
+          historyEnabled
+          personnelEnabled
+          alertsEnabled
+        />
+      </main>
+    ) : personnel ? (
       <main>
         <Personnel restaurantId="f2000000-0000-0000-0000-000000000001" />
       </main>
@@ -73,7 +86,7 @@ createRoot(document.getElementById("root")!).render(
         alertsEnabled={live}
         {...(live ? { subscribeLive: syntheticLive } : {})}
         restaurantId="f2000000-0000-0000-0000-000000000001"
-        role="owner"
+        role={viewer ? "viewer" : "owner"}
         locations={[
           {
             id: "f3000000-0000-0000-0000-000000000001",

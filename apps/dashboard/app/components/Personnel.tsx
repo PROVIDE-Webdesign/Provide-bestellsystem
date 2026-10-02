@@ -13,6 +13,7 @@ const roleLabel: Record<RestaurantRole, string> = {
   manager: "Manager",
   kitchen: "Küche",
   driver: "Fahrer",
+  viewer: "Viewer · nur lesen",
 };
 const dispatchLabel = {
   pending: "Versand vorbereitet",

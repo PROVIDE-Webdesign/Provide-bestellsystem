@@ -23,6 +23,16 @@ const allowed = {
 };
 
 describe("dashboard access contract", () => {
+  it.each(["aal1", "aal2"])(
+    "accepts explicit Viewer access at %s without broadening unknown roles",
+    (aal) => {
+      const membership = { ...allowed.memberships[0], role: "viewer" };
+      expect(parseDashboardAccessContext({ aal, memberships: [membership] })).toBeDefined();
+      expect(
+        parseDashboardAccessContext({ aal, memberships: [{ ...membership, role: "superadmin" }] }),
+      ).toBeUndefined();
+    },
+  );
   it("accepts an allowlisted active membership", () => {
     expect(parseDashboardAccessContext({ ...allowed, ignored: true })).toBeUndefined();
     expect(parseDashboardAccessContext(allowed)).toEqual(allowed);

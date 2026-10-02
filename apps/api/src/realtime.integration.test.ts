@@ -87,6 +87,19 @@ describe.skipIf(!url || !db)("isolated real private Realtime transport", () => {
       return result;
     };
     try {
+      const viewerId = "f1000000-0000-0000-0000-000000000021";
+      await admin.query(
+        "insert into auth.users(id,email,email_confirmed_at) values($1,'a3-realtime-viewer@example.invalid',now())",
+        [viewerId],
+      );
+      await admin.query(
+        "insert into public.restaurant_memberships(restaurant_id,user_id,role) values($1,$2,'viewer')",
+        [restaurantId, viewerId],
+      );
+      await admin.query(
+        "insert into public.restaurant_membership_locations(restaurant_id,user_id,location_id) values($1,$2,$3)",
+        [restaurantId, viewerId, locationId],
+      );
       const owner = await clientFor("1"),
         kitchen = await clientFor("3", "aal1"),
         ownerEvents: unknown[] = [],
@@ -95,6 +108,20 @@ describe.skipIf(!url || !db)("isolated real private Realtime transport", () => {
         second = join(kitchen, orderLiveTopic(restaurantId, locationId), kitchenEvents);
       expect(await first.ready).toBe("joined");
       expect(await second.ready).toBe("joined");
+      const viewer = await clientFor("21", "aal1"),
+        viewerEvents: unknown[] = [];
+      const viewerJoin = join(viewer, orderLiveTopic(restaurantId, locationId), viewerEvents);
+      expect(await viewerJoin.ready).toBe("joined");
+      const foreignViewer = join(
+        viewer,
+        orderLiveTopic(
+          "f2000000-0000-0000-0000-000000000002",
+          "f3000000-0000-0000-0000-000000000002",
+        ),
+        [],
+      );
+      expect(await foreignViewer.ready).toBe("denied");
+      await foreignViewer.channel.unsubscribe();
       for (const [suffix, aal] of [
         ["5", "aal2"],
         ["1", "aal1"],
@@ -166,9 +193,18 @@ describe.skipIf(!url || !db)("isolated real private Realtime transport", () => {
       const orderId = confirmation.data.orderId;
       await expect.poll(() => ownerEvents.length, { timeout: 10000 }).toBeGreaterThan(0);
       await expect.poll(() => kitchenEvents.length, { timeout: 10000 }).toBeGreaterThan(0);
-      for (const event of [...ownerEvents, ...kitchenEvents])
+      await expect.poll(() => viewerEvents.length, { timeout: 10000 }).toBeGreaterThan(0);
+      for (const event of [...ownerEvents, ...kitchenEvents, ...viewerEvents])
         expect(parseOrderInvalidation(event)).toBeDefined();
       expect(JSON.stringify(ownerEvents)).not.toMatch(/Synthetic|phone|email|orderId|payment/);
+      expect(JSON.stringify(viewerEvents)).not.toMatch(/Synthetic|phone|email|orderId|payment/);
+      expect(
+        await viewerJoin.channel.send({
+          type: "broadcast",
+          event: "orders.invalidated.v1",
+          payload: { schemaVersion: 1, id: orderId },
+        }),
+      ).not.toBe("ok");
       expect((await read()).orders.some((o) => o.orderId === orderId)).toBe(true);
       await admin.query(
         "update private.order_acceptance_alerts set started_at=now()-interval '10 minutes',deadline=now()-interval '5 minutes' where order_id=$1",
@@ -205,6 +241,20 @@ describe.skipIf(!url || !db)("isolated real private Realtime transport", () => {
       const reconnect = join(kitchen, orderLiveTopic(restaurantId, locationId), []);
       expect(await reconnect.ready).toBe("joined");
       expect((await read()).orders.some((o) => o.orderId === orderId)).toBe(false);
+      await admin.query(
+        "delete from public.restaurant_membership_locations where restaurant_id=$1 and user_id=$2",
+        [restaurantId, viewerId],
+      );
+      expect(
+        await postgresDashboardOrdersReader.alerts!(
+          db,
+          { userId: viewerId, aal: "aal1" },
+          { restaurantId, locationId },
+        ),
+      ).toEqual({ outcome: "forbidden" });
+      await viewer.removeChannel(viewerJoin.channel);
+      const revokedViewer = join(viewer, orderLiveTopic(restaurantId, locationId), []);
+      expect(await revokedViewer.ready).toBe("denied");
       await admin.query(
         "update public.restaurant_memberships set status='suspended' where user_id=$1",
         [identity.userId],

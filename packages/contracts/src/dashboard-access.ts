@@ -1,4 +1,4 @@
-export const restaurantRoles = ["owner", "manager", "kitchen", "driver"] as const;
+export const restaurantRoles = ["owner", "manager", "kitchen", "driver", "viewer"] as const;
 export type RestaurantRole = (typeof restaurantRoles)[number];
 
 export const dashboardAccessStates = ["allowed", "mfa_required", "suspended"] as const;
