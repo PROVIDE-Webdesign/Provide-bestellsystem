@@ -7,6 +7,7 @@ export async function verifyViewerBrowser(page: Page, output: string, width: num
   const locationId = "f3000000-0000-0000-0000-000000000001";
   const orderId = "fa000000-0000-0000-0000-000000000021";
   let denied = false,
+    banned = false,
     status = "accepted",
     reads = 0,
     writes = 0;
@@ -16,19 +17,21 @@ export async function verifyViewerBrowser(page: Page, output: string, width: num
       json: {
         data: {
           aal: "aal1",
-          memberships: [
-            {
-              restaurantId,
-              role: "viewer",
-              status: "active",
-              access: "allowed",
-              restaurant: {
-                slug: "synthetic-restaurant",
-                displayName: "Synthetic Viewer Restaurant",
-              },
-              locations: [location],
-            },
-          ],
+          memberships: banned
+            ? []
+            : [
+                {
+                  restaurantId,
+                  role: "viewer",
+                  status: "active",
+                  access: "allowed",
+                  restaurant: {
+                    slug: "synthetic-restaurant",
+                    displayName: "Synthetic Viewer Restaurant",
+                  },
+                  locations: [location],
+                },
+              ],
         },
       },
     }),
@@ -185,6 +188,21 @@ export async function verifyViewerBrowser(page: Page, output: string, width: num
   assert.equal(await page.getByText("Synthetic Viewer Dish").count(), 0);
   await page.screenshot({ path: `${output}/viewer-revoked-${width}.png`, fullPage: true });
   assert.equal(writes, 0);
+  banned = true;
+  await page.goto("http://127.0.0.1:4321/?viewer");
+  await page.getByText("Für dieses Konto ist keine Restaurantmitgliedschaft hinterlegt.").waitFor();
+  assert.equal(await page.getByText("Synthetic Viewer Restaurant", { exact: true }).count(), 0);
+  assert.equal(await page.getByText("Synthetic Mitte", { exact: true }).count(), 0);
+  assert.equal(await page.getByText("Synthetic Viewer Dish").count(), 0);
+  assert.equal(await page.getByRole("button", { name: /BS-00000421/ }).count(), 0);
+  assert.equal(await page.getByText("Viewer · nur lesen", { exact: true }).count(), 0);
+  await page.screenshot({ path: `${output}/viewer-banned-context-${width}.png`, fullPage: true });
+  banned = false;
+  denied = false;
+  await page.reload();
+  await page.getByText("Viewer · nur lesen", { exact: true }).waitFor();
+  await page.getByRole("button", { name: /BS-00000421/ }).waitFor();
+  await noActions();
   await page.unroute("**/api/access-context");
   await page.unroute("**/api/order-alerts?*");
   await page.unroute("**/api/orders**");

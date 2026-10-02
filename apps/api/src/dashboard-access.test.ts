@@ -32,6 +32,29 @@ function request(value = token) {
 }
 
 describe("dashboard access API", () => {
+  it("preserves the empty banned-user context without manufacturing allowed profiles", async () => {
+    const empty = { aal: "aal1", memberships: [] };
+    const verifier = {
+      verify: vi
+        .fn()
+        .mockResolvedValue({ userId: "f1000000-0000-0000-0000-000000000021", aal: "aal1" }),
+    };
+    const reader = { read: vi.fn().mockResolvedValue(empty) };
+    const worker = createApiWorker(
+      vi.fn(),
+      { error: vi.fn() },
+      undefined,
+      undefined,
+      undefined,
+      verifier,
+      reader,
+    );
+    const response = await worker.fetch(request(), env);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const envelope: { data: unknown } = await response.json();
+    expect(envelope.data).toEqual(empty);
+  });
   it("verifies identity before reading a minimal access context", async () => {
     const verifier = {
       verify: vi

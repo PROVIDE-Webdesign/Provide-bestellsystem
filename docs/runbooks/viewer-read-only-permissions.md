@@ -47,6 +47,14 @@ nicht still in eine andere Rolle umgedeutet werden. Bei einem Befund Dashboard- 
 lassen oder Viewer über Owner suspendieren; produktive Eingriffe brauchen gesonderte Freigabe.
 Code-/Schemaänderungen als weitere geprüfte Migration.
 
+R20-01: Nach isoliertem Auth-Bann mit demselben noch gültigen Empfänger-Token den Zugangskontext
+erneut abrufen. Erwartet: HTTP 200, `no-store`, `memberships: []`, keine Profile oder erlaubte
+Mitgliedschaft; Bestellabruf HTTP 403. Nach Aufhebung/Ablauf des Banns wieder ausschließlich die
+vorherige explizite Zuordnung. SQL0035 prüft beide AAL-Werte und Owner-/Manager-MFA-Gegenproben; die
+tatsächliche Personal-/Auth-Integration prüft Kitchen und Viewer ohne Tokenwechsel. Browserbilder
+`viewer-banned-context-390/1440.png` belegen den vorhandenen sicheren Leerzustand (synthetischer
+Transport, keine Live-Auth-Abnahme).
+
 Fünf grüne Pflichtjobs müssen zum finalen PR-Head passen. Browserbilder visuell prüfen;
 synthetischer Browsertransport ersetzt die tatsächlichen Integrationsketten nicht. Draft,
 Nutzer-Endfreigabe, Ready, Merge, Deployment und Livebetrieb bleiben getrennt. F01–F03 sind

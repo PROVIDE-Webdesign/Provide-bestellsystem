@@ -62,6 +62,15 @@ bereits verbundene Kanäle sind nicht als sofortiger serverseitiger Disconnect-N
 Nachrichten enthalten ausschließlich zufällige Invalidierungs-IDs, keine fachlichen Daten.
 Client-Senden/Presence bleibt gesperrt.
 
+R20-01 ergänzt den Zugangskontext um denselben aktuellen Auth-Bann-Abgleich. Bei aktivem Bann
+liefert der bestehende HTTP-200-Vertrag `{ aal, memberships: [] }`: keine erlaubte Mitgliedschaft,
+Restaurant- oder Standortprofile. Die Oberfläche zeigt ihren bestehenden Zustand ohne
+Mitgliedschaften und keine Bestellansicht. Mitgliedschaften/Zuordnungen werden nicht geändert; nach
+Aufhebung oder Ablauf des Banns gelten wieder die bisherigen Rollen-/MFA-Gates. Die additive
+Migration schreibt keinen früheren Migrationsstand um. Ein gültiges JWT allein umgeht den aktuellen
+Datenbankabgleich nicht. Der Kontext ist kein erfolgreicher fachlicher Bestellzugriff; Bestellabrufe
+bleiben während des Banns HTTP 403.
+
 Das Dashboard kennzeichnet Viewer als „nur lesen“ und sperrt Änderungsaktionen zusätzlich zur
 Serverprüfung, auch bei einer synthetisch überprivilegierten Antwort. Alle bestehenden
 Feature-Defaults und Betriebsfreigaben bleiben unverändert.

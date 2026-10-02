@@ -1,7 +1,11 @@
 import { Client } from "pg";
 import { SignJWT, jwtVerify } from "jose";
 import { describe, it, expect } from "vitest";
-import { parsePersonnelState, type PersonnelCommand } from "@provide/contracts";
+import {
+  parseDashboardAccessContext,
+  parsePersonnelState,
+  type PersonnelCommand,
+} from "@provide/contracts";
 import { createApiWorker } from "./index.js";
 import { InvalidDashboardTokenError, supabaseDashboardTokenVerifier } from "./dashboard-auth.js";
 const db = process.env.TEST_DATABASE_URL,
@@ -216,6 +220,41 @@ describe.skipIf(!db || !url || !key || !secret)(
               ),
               env,
             );
+          expect((await orderAccess()).status).toBe(200);
+          const accessContext = async () => {
+            const response = await worker.fetch(
+              new Request("https://api.test/v1/dashboard/access-context", {
+                headers: { authorization: `Bearer ${token}` },
+              }),
+              env,
+            );
+            expect(response.status).toBe(200);
+            expect(response.headers.get("cache-control")).toBe("no-store");
+            const envelope: { data?: unknown } = await response.json();
+            const context = parseDashboardAccessContext(envelope.data);
+            if (!context) throw Error("Missing verified access context");
+            return context;
+          };
+          const beforeBan = await accessContext();
+          expect(beforeBan.memberships.some((m) => m.access === "allowed" && m.role === role)).toBe(
+            true,
+          );
+          // Disposable loopback fixture only. Do not refresh/replace the real recipient token.
+          await admin.query(
+            "update auth.users set banned_until=now()+interval '1 day' where id=$1",
+            [recipient],
+          );
+          try {
+            expect((await accessContext()).memberships).toEqual([]);
+            expect((await orderAccess()).status).toBe(403);
+            expect(await supabaseDashboardTokenVerifier.verify(token, env)).toEqual({
+              userId: recipient,
+              aal: "aal1",
+            });
+          } finally {
+            await admin.query("update auth.users set banned_until=null where id=$1", [recipient]);
+          }
+          expect(await accessContext()).toEqual(beforeBan);
           expect((await orderAccess()).status).toBe(200);
           if (role === "viewer") {
             const list: {
