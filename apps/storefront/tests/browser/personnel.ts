@@ -160,6 +160,7 @@ export async function verifyPersonnelBrowser(page: Page, output: string, width: 
     0,
   );
   denied = false;
+  conflict = false;
   inbox = true;
   await page.goto("http://127.0.0.1:4321/?invitations");
   await page.getByRole("button", { name: "Einladung bewusst annehmen", exact: true }).waitFor();
