@@ -238,7 +238,9 @@ do $$ declare original text;revised text;begin
  original:=pg_get_functiondef('private.validate_restaurant_invitation()'::regprocedure);
  revised:=replace(original,'membership.user_id = new.invited_by_user_id','membership.user_id = case when new.status = ''revoked'' then new.revoked_by_user_id else new.invited_by_user_id end');
  if revised=original then raise exception 'Unknown invitation validator';end if;execute revised;end $$;
-revoke insert,update,delete on public.restaurant_memberships,public.restaurant_membership_locations,public.restaurant_invitations,public.restaurant_invitation_locations from service_role;
+-- Replace inherited/default ACLs too, including TRUNCATE, REFERENCES and TRIGGER.
+revoke all on public.restaurant_memberships,public.restaurant_membership_locations,public.restaurant_invitations,public.restaurant_invitation_locations from service_role;
+grant select on public.restaurant_memberships,public.restaurant_membership_locations,public.restaurant_invitations,public.restaurant_invitation_locations to service_role;
 revoke execute on function private.accept_restaurant_invitation(uuid,uuid,text) from service_role;
 do $$ declare p record;begin
  for p in select f.oid from pg_proc f join pg_namespace n on n.oid=f.pronamespace where n.nspname='private' and f.proname in (

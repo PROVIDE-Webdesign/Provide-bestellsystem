@@ -62,7 +62,7 @@ select is(private.finish_personnel_dispatch(pg_temp.uid(1),'aal2','c2000000-0000
 select is(private.accept_personnel(pg_temp.uid(7),'aal1',(select id from public.restaurant_invitations where invited_user_id=pg_temp.uid(7)))->>'outcome','forbidden','responsible recipient must verify MFA');
 select is(pg_temp.pc('revoke',jsonb_build_object('invitationId',(select id from public.restaurant_invitations where invited_user_id=pg_temp.uid(7))))->>'outcome','allowed','owner revokes pending invitation');
 select is(private.accept_personnel(pg_temp.uid(7),'aal2',(select id from public.restaurant_invitations where invited_user_id=pg_temp.uid(7)))->>'outcome','conflict','revoked invite cannot authorize after MFA');
-select ok(not has_table_privilege('service_role','public.restaurant_memberships','insert,update,delete'),'direct server membership writes revoked');
+select ok(not exists(select 1 from unnest(array['public.restaurant_memberships','public.restaurant_membership_locations','public.restaurant_invitations','public.restaurant_invitation_locations']) t where has_table_privilege('service_role',t,'insert,update,delete,truncate,references,trigger')),'all direct server personnel write and DDL privileges revoked');
 select ok(not has_function_privilege('service_role','private.accept_restaurant_invitation(uuid,uuid,text)','execute'),'legacy acceptance cannot bypass audit');
 select ok(has_function_privilege('service_role','private.accept_personnel(uuid,text,uuid)','execute'),'server can call bounded acceptance');
 select throws_ok('update private.personnel_audit set reason=''Tampered audit reason''','23514',null,'audit is append-only');
