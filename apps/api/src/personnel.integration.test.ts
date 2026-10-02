@@ -208,9 +208,12 @@ describe.skipIf(!db || !url || !key || !secret)(
           ).toBe("0");
           const orderAccess = () =>
             worker.fetch(
-              new Request(`https://api.test/v1/dashboard/restaurants/${r}/locations/${l}/orders`, {
-                headers: { authorization: `Bearer ${token}` },
-              }),
+              new Request(
+                `https://api.test/v1/dashboard/restaurants/${r}/locations/${l}/orders${role === "viewer" ? "?status=accepted" : ""}`,
+                {
+                  headers: { authorization: `Bearer ${token}` },
+                },
+              ),
               env,
             );
           expect((await orderAccess()).status).toBe(200);
@@ -245,6 +248,7 @@ describe.skipIf(!db || !url || !key || !secret)(
             expect(detail.data.delivery).toBeNull();
             expect(detail.data.communication).toBeUndefined();
             expect(detail.data.allowedTransitions).toEqual([]);
+            expect(detail.data.status).toBe("accepted");
             const mutation = await worker.fetch(
               new Request(`${orderUrl}/status`, {
                 method: "POST",

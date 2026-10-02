@@ -8,7 +8,7 @@ fünf grünen Pflichtjobs am finalen A3-Head und visueller Artefakt-QA.
 | -------- | -----: | ------------: | -------------------------------------------------------------------------------- |
 | A2-2-2   |    0,5 |             1 | Viewer ergänzt bestehende Rollen mit standortgebundenem, streng lesendem Vertrag |
 | A2-2-3   |      1 |             1 | Vorhandene A1-Personalverwaltung wird wiederverwendet, keine doppelte Gutschrift |
-| A2-9-3   |    0,5 |           0,5 | Zentraler Support-/Gesamtaudit bleibt A4 offen                                   |
+| A2-9-3   |    0,5 |           0,5 | Zentraler Support-/Gesamtaudit bleibt offen, keine Viewer-Gutschrift             |
 
 Block 2 steigt von 6,5/7 auf 7/7. Delta `0,5/7/12*100 = 0,595238095238` Prozentpunkte. Nach Nachweis
 **69,014550264550 % (69 %)**, elf technische Lücken: B6, A4, P1–P5, O1, O3, O4, O6. 53 vollständige,

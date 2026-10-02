@@ -129,6 +129,13 @@ export async function verifyViewerBrowser(page: Page, output: string, width: num
   await page.goto("http://127.0.0.1:4321/?viewer");
   await page.getByText("Viewer · nur lesen", { exact: true }).waitFor();
   await page.getByText("Nur Lesezugriff: keine Änderungen und keine Kundendaten.").waitFor();
+  await page
+    .getByText(
+      "Verantwortliche informieren. Viewer können Bestellungen nicht annehmen oder ablehnen.",
+      { exact: false },
+    )
+    .waitFor();
+  assert.equal(await page.getByText("Manuell prüfen und annehmen", { exact: false }).count(), 0);
   assert.equal(await page.getByText("Personalverwaltung", { exact: true }).count(), 0);
   assert.equal(
     await page

@@ -347,6 +347,7 @@ export function OrderBoard({
           locationId={locationId}
           liveEnabled={liveEnabled}
           alertsEnabled={alertsEnabled}
+          readOnly={role === "viewer"}
           {...(subscribeLive ? { subscribeLive } : {})}
           onDenied={clearDenied}
           onOpen={(orderId) => void loadDetail(orderId)}

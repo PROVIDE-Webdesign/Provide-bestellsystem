@@ -68,7 +68,8 @@ Feature-Defaults und Betriebsfreigaben bleiben unverändert.
 
 ## Nachweis und Grenzen
 
-SQL0035 prüft Tenant/Standort/AAL/Bann, minimierte Antworten, direkte Schreibverbote, Rohdaten-RLS,
+SQL0035 prüft Tenant/Standort/AAL/Bann, minimierte Antworten, direkte Schreibverbote, tatsächliche
+Lieferadresse und Onlinezahlungszustand mit positiven Owner-Gegenproben, Rohdaten-RLS,
 Broadcast-Grenzen sowie Owner-Einladung/Annahme und Entzug. Die tatsächliche isolierte
 Auth-/HTTP-/PostgreSQL-Kette prüft Kitchen und Viewer getrennt; private Realtime prüft Viewer-Join,
 echte Zustellung, Fremdkanal-/Sendeverbot und Neuauthorisierung nach Entzug. Browserregressionen

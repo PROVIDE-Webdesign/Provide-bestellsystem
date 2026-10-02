@@ -62,6 +62,40 @@ select is(private.read_dashboard_access_context(pg_temp.v_uid(),'aal1')->'member
 select is(jsonb_array_length(private.read_dashboard_access_context(pg_temp.v_uid(),'aal1')->'memberships'->0->'locations'),1,'context exposes only granted site');
 select is(private.read_dashboard_acceptance(pg_temp.v_uid(),'aal1',pg_temp.v_r(),pg_temp.v_l())->>'outcome','allowed','PII-free acceptance snapshot is readable');
 
+-- Positive fixtures prove actual private delivery/payment data exists but Viewer never sees it.
+\ir fixtures/delivery.fixture.inc
+create temporary table v_policy as select private.create_delivery_policy(pg_temp.v_uid(1),'aal2',pg_temp.v_r(),pg_temp.v_l(),
+ '[{"postalCodes":["52062"],"minimumAmountMinor":2500,"feeAmountMinor":350}]') id;
+select private.publish_delivery_policy(pg_temp.v_uid(1),'aal2',pg_temp.v_r(),pg_temp.v_l(),(select id from v_policy));
+create temporary table v_quote as select private.quote_public_delivery_order('storefront-restaurant-a','storefront-a-mitte',
+ 'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001',date_trunc('hour',now())+interval '3 hours',
+ '[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":2}]','52062') data;
+create temporary table v_delivery as select (private.submit_public_guest_delivery_order('storefront-restaurant-a','storefront-a-mitte',
+ 'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001',date_trunc('hour',now())+interval '3 hours',
+ '[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":2}]','a3-viewer-delivery-001',
+ '{"contact_name":"A3 Private Recipient","phone_e164":"+999100000022","email":"delivery-private@example.invalid"}',
+ '{"address_line_1":"A3 Private Delivery Address","address_line_2":null,"postal_code":"52062","city":"Aachen","country_code":"DE"}',
+ (select data from v_quote),'preview-v1',30)->>'orderId')::uuid id;
+create temporary table v_delivery_detail as select private.read_dashboard_order(pg_temp.v_uid(),'aal1',pg_temp.v_r(),pg_temp.v_l(),(select id from v_delivery)) data;
+select is(private.read_dashboard_order(pg_temp.v_uid(1),'aal2',pg_temp.v_r(),pg_temp.v_l(),(select id from v_delivery))->'data'->'delivery'->>'addressLine1','A3 Private Delivery Address','owner still receives the actual private delivery address');
+select is((select data->'data'->>'fulfillmentType' from v_delivery_detail),'delivery','Viewer sees delivery type');
+select is((select data->'data'->'delivery' from v_delivery_detail),'null'::jsonb,'actual delivery details hidden from Viewer');
+select is((select data->'data'->'contactName' from v_delivery_detail),'null'::jsonb,'actual delivery recipient hidden');
+select ok((select data::text !~ 'Private Recipient|Private Delivery Address|delivery-private|999100000022|postalCode|phone' from v_delivery_detail),'actual address/email/phone never returned to Viewer');
+select is((select (data->'data'->>'deliveryFeeAmountMinor')::integer from v_delivery_detail),350,'immutable delivery fee is readable');
+insert into public.restaurant_feature_flags(restaurant_id,feature_key,enabled) values(pg_temp.v_r(),'payment.online',true);
+create temporary table v_online as select (private.submit_public_guest_online_order('storefront-restaurant-a','storefront-a-mitte',
+ 'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001',date_trunc('hour',now())+interval '6 hours',
+ '[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":2}]','a3-viewer-online-001',
+ '{"contact_name":"A3 Private Online Guest","phone_e164":"+999100000023","email":"online-private@example.invalid"}',
+ 'pickup',null,null,'preview-v1',30,'acct_a3_synthetic')->>'orderId')::uuid id;
+select is(private.read_dashboard_order(pg_temp.v_uid(1),'aal2',pg_temp.v_r(),pg_temp.v_l(),(select id from v_online))->'data'->>'paymentState','open','owner still receives actual payment state');
+select is(private.read_dashboard_order(pg_temp.v_uid(),'aal1',pg_temp.v_r(),pg_temp.v_l(),(select id from v_online))->'data'->'paymentState','null'::jsonb,'Viewer never receives actual online payment state');
+select is(private.read_dashboard_order(pg_temp.v_uid(),'aal1',pg_temp.v_r(),pg_temp.v_l(),(select id from v_online))->'data'->'allowedTransitions','[]'::jsonb,'unpaid online order grants Viewer no cancellation');
+select ok(not exists(select 1 from jsonb_array_elements(pg_temp.v_list()->'data'->'orders') x where x->'allowedTransitions'<>'[]'::jsonb or x->'paymentState'<>'null'::jsonb),'all pickup/delivery/online summaries remain read-only and payment-minimised');
+select ok(private.read_dashboard_order(pg_temp.v_uid(),'aal1',pg_temp.v_r(),pg_temp.v_l(),(select id from v_online))::text !~ 'Private Online|online-private|acct_a3|provider|phone|999100000023','actual online customer/provider values excluded');
+
+
 -- Every state, including unknown role/null, must fail closed for Viewer.
 select is(private.dashboard_order_allowed_transitions(status,'viewer'),'[]'::jsonb,'Viewer has no transition from '||status)
  from unnest(array['submitted','accepted','preparing','ready','completed','rejected','cancelled']) status;
