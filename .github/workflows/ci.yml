@@ -47,7 +47,7 @@ jobs:
       - name: Start isolated database, Auth and private Realtime
         run:
           supabase start -x
-          studio,mailpit,storage-api,imgproxy,postgres-meta,edge-runtime,logflare,vector,supavisor
+          studio,storage-api,imgproxy,postgres-meta,edge-runtime,logflare,vector,supavisor
 
       - name: Run database tests
         run: supabase test db
@@ -80,6 +80,11 @@ jobs:
 
       - name: Test two authenticated dashboards on real private Realtime
         run: pnpm --filter @provide/api exec vitest run src/realtime.integration.test.ts
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+      - name: Test actual local Auth invitations and personnel access revocation
+        run: pnpm --filter @provide/api exec vitest run src/personnel.integration.test.ts
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
 

@@ -60,6 +60,10 @@ interface HyperdriveBinding {
 }
 
 interface Env extends OnlineEnvironment {
+  readonly DASHBOARD_PERSONNEL_ENABLED?: string;
+  readonly PERSONNEL_INVITATIONS_ENABLED?: string;
+  readonly SUPABASE_SERVICE_ROLE_KEY?: string;
+  readonly PERSONNEL_DASHBOARD_ORIGIN?: string;
   readonly PROVIDE_ADMIN_ENABLED?: string;
   readonly PROVIDE_ADMIN_LIVE_ENABLED?: string;
   readonly DASHBOARD_HISTORY_ENABLED?: string;
@@ -112,6 +116,8 @@ export function createApiWorker(
   historyRepository: HistoryRepository = postgresHistory,
   guestPurge: typeof postgresGuestPurge = postgresGuestPurge,
   provideAdmin: ProvideAdminRepository = postgresProvideAdmin,
+  personnel: PersonnelRepository = postgresPersonnel,
+  inviteProvider: PersonnelInviteProvider = supabasePersonnelInvite,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -137,6 +143,17 @@ export function createApiWorker(
         return jsonError("not_found", "Resource was not found.", context.requestId, 404, cors);
       }
 
+      if (route.name === "personnel")
+        return handlePersonnel(
+          request,
+          env,
+          dashboardTokenVerifier,
+          personnel,
+          inviteProvider,
+          context,
+          logger,
+          cors,
+        );
       if (route.name === "provideAdmin")
         return handleProvideAdmin(
           request,
@@ -318,3 +335,10 @@ import {
   postgresGuestPurge,
   type HistoryRepository,
 } from "./order-history.js";
+import {
+  handlePersonnel,
+  postgresPersonnel,
+  supabasePersonnelInvite,
+  type PersonnelRepository,
+  type PersonnelInviteProvider,
+} from "./personnel.js";

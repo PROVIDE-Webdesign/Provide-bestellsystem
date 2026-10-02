@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 
-import { createDashboardBrowserClient } from "@/lib/supabase-browser.js";
+import { createDashboardBrowserClient } from "../../lib/supabase-browser.js";
 
 export function MfaPanel({ onVerified }: { readonly onVerified: () => void }) {
   const [factorId, setFactorId] = useState("");

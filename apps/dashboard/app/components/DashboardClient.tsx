@@ -1,5 +1,6 @@
 "use client";
 import { OrderHistory } from "./OrderHistory.js";
+import { Personnel } from "./Personnel.js";
 import { LocationOperations } from "./LocationOperations.js";
 import { MenuEditor } from "./MenuEditor.js";
 
@@ -25,6 +26,7 @@ export function DashboardClient({
   liveEnabled = false,
   alertsEnabled = false,
   historyEnabled = false,
+  personnelEnabled = false,
 }: {
   readonly enabled: boolean;
   readonly menuEnabled?: boolean;
@@ -32,6 +34,7 @@ export function DashboardClient({
   readonly liveEnabled?: boolean;
   readonly alertsEnabled?: boolean;
   readonly historyEnabled?: boolean;
+  readonly personnelEnabled?: boolean;
 }) {
   const [state, setState] = useState<ViewState>({ name: "loading" });
 
@@ -84,6 +87,7 @@ export function DashboardClient({
   return (
     <>
       <div className="toolbar">
+        {personnelEnabled && <a href="/invitations">Meine Einladungen</a>}
         <span>Sicherheitsniveau: {state.context.aal.toUpperCase()}</span>
         <button type="button" className="secondary" onClick={() => void signOut()}>
           Abmelden
@@ -102,6 +106,9 @@ export function DashboardClient({
         <section className="panel" key={membership.restaurantId}>
           <p className="eyebrow">{roleLabels[membership.role]}</p>
           <h2>{membership.restaurant?.displayName}</h2>
+          {personnelEnabled && (membership.role === "owner" || membership.role === "manager") && (
+            <Personnel restaurantId={membership.restaurantId} />
+          )}
           {membership.locations.length === 0 ? (
             <p>Dieser Rolle ist derzeit kein Standort zugewiesen.</p>
           ) : (

@@ -454,6 +454,7 @@ try {
     await verifyLocationOperationsBrowser(page, output, viewport.width);
     await verifyHistoryBrowser(page, output, viewport.width);
     await verifyProvideBrowser(page, output, viewport.width);
+    await verifyPersonnelBrowser(page, output, viewport.width);
     assert.deepEqual(errors, []);
     await context.close();
     console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);
@@ -464,3 +465,4 @@ try {
 }
 import { verifyHistoryBrowser } from "./order-history.ts";
 import { verifyProvideBrowser } from "./provide-admin.ts";
+import { verifyPersonnelBrowser } from "./personnel.ts";

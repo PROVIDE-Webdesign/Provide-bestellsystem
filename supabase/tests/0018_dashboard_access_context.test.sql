@@ -133,10 +133,13 @@ select ok(
   'dashboard context cannot cross the tenant boundary'
 );
 
+-- Privileged fixture maintenance; runtime service-role DML is deliberately revoked by A1.
+reset role;
 update public.restaurant_memberships
 set status = 'suspended', suspended_at = now()
 where restaurant_id = 'f2000000-0000-0000-0000-000000000001'
   and user_id = 'f1000000-0000-0000-0000-000000000003';
+set local role service_role;
 select is(
   private.read_dashboard_access_context(
     'f1000000-0000-0000-0000-000000000003','aal2'

@@ -17,11 +17,13 @@ const inspected = JSON.parse(
 const entry = inspected[0]?.Config?.Env?.find((v) => v.startsWith("API_JWT_SECRET="));
 const secret = entry?.slice("API_JWT_SECRET=".length);
 const publishable = status.ANON_KEY ?? status.anon_key ?? status.PUBLISHABLE_KEY;
-if (!secret || !publishable || /[\r\n]/.test(secret + publishable + api))
+const authAdmin = status.SERVICE_ROLE_KEY ?? status.service_role_key ?? status.SECRET_KEY;
+if (!secret || !publishable || !authAdmin || /[\r\n]/.test(secret + publishable + authAdmin + api))
   throw Error("Missing isolated realtime credentials");
-for (const value of [secret, publishable]) process.stdout.write(`::add-mask::${value}\n`);
+for (const value of [secret, publishable, authAdmin])
+  process.stdout.write(`::add-mask::${value}\n`);
 appendFileSync(
   process.env.GITHUB_ENV,
-  `TEST_REALTIME_URL=${api}\nTEST_REALTIME_KEY=${publishable}\nTEST_REALTIME_JWT_SECRET=${secret}\n`,
+  `TEST_REALTIME_URL=${api}\nTEST_REALTIME_KEY=${publishable}\nTEST_REALTIME_JWT_SECRET=${secret}\nTEST_AUTH_ADMIN_KEY=${authAdmin}\n`,
 );
 process.stdout.write("Isolated realtime fixture configured; credentials masked.\n");

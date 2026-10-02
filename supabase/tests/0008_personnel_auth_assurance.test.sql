@@ -46,12 +46,12 @@ select ok(
   'the former acceptance function without assurance evidence is removed'
 );
 select ok(
-  has_function_privilege(
+  not has_function_privilege(
     'service_role',
     'private.accept_restaurant_invitation(uuid,uuid,text)',
     'execute'
   ),
-  'the server role may execute assurance-aware invitation acceptance'
+  'native assurance-aware acceptance is internal to the audited command'
 );
 select ok(
   not has_function_privilege(
@@ -256,7 +256,8 @@ select throws_ok(
   'pending invitations cannot claim an acceptance assurance level'
 );
 
-set local role service_role;
+-- Native invariant checks use the fixture owner, not the removed server capability.
+reset role;
 
 select throws_ok(
   $$
@@ -302,7 +303,7 @@ select throws_ok(
 );
 
 reset role;
-set local role service_role;
+reset role;
 
 select lives_ok(
   $$

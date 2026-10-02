@@ -48,6 +48,48 @@ function safeApiBase(value: string | undefined): URL | undefined {
   }
 }
 
+export async function readPersonnelBody(request: Request): Promise<PersonnelCommand> {
+  const q = parsePersonnelCommand(await boundedJson(request, 4096));
+  if (!q) throw Error("Invalid personnel request");
+  return q;
+}
+export async function fetchPersonnel(
+  token: string,
+  apiBase: string | undefined,
+  q: PersonnelCommand,
+  fetcher: typeof fetch = fetch,
+): Promise<Response> {
+  const base = safeApiBase(apiBase),
+    command = parsePersonnelCommand(q);
+  if (!base || !command || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token))
+    return operationalFailure(400);
+  try {
+    const r = await fetcher(new URL("/v1/dashboard/personnel", base), {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify(command),
+      cache: "no-store",
+      redirect: "manual",
+      signal: AbortSignal.timeout(20000),
+    });
+    if ([400, 401, 403, 404, 409].includes(r.status))
+      return operationalFailure(r.status as 400 | 401 | 403 | 404 | 409);
+    if (!r.ok) return operationalFailure(503);
+    const envelope = (await boundedJson(r, 256 * 1024)) as { data?: unknown };
+    const data = parsePersonnelState(envelope.data);
+    if (
+      !data ||
+      (command.action === "inbox" || command.action === "accept"
+        ? data.mode !== "inbox"
+        : data.mode !== "management" || data.restaurantId !== command.restaurantId)
+    )
+      return operationalFailure(503);
+    return Response.json({ data }, { headers });
+  } catch {
+    return operationalFailure(503);
+  }
+}
+
 export async function readProvideAdminBody(request: Request): Promise<ProvideAdminCommand> {
   const command = parseProvideAdminCommand(await boundedJson(request, 4096));
   if (!command) throw Error("Invalid administration request");
@@ -543,3 +585,8 @@ export async function fetchDashboardLocationOperations(
   }
 }
 import { parseHistoryQuery, parseOrderHistory, type HistoryQuery } from "@provide/contracts";
+import {
+  parsePersonnelCommand,
+  parsePersonnelState,
+  type PersonnelCommand,
+} from "@provide/contracts";

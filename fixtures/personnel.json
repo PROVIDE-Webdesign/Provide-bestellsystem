@@ -1,0 +1,38 @@
+{
+  "mode": "management",
+  "restaurantId": "f2000000-0000-0000-0000-000000000001",
+  "actorRole": "owner",
+  "revision": 10,
+  "serverNow": "2026-10-02T00:00:00.123456+00:00",
+  "inviteDeliveryEnabled": true,
+  "locations": [
+    {
+      "id": "f3000000-0000-0000-0000-000000000001",
+      "displayName": "Teststandort Mitte"
+    },
+    {
+      "id": "f3000000-0000-0000-0000-000000000002",
+      "displayName": "Teststandort West"
+    }
+  ],
+  "members": [
+    {
+      "userId": "f1000000-0000-0000-0000-000000000001",
+      "email": "owner@example.invalid",
+      "role": "owner",
+      "status": "active",
+      "locationIds": []
+    },
+    {
+      "userId": "f1000000-0000-0000-0000-000000000003",
+      "email": "kitchen@example.invalid",
+      "role": "kitchen",
+      "status": "active",
+      "locationIds": ["f3000000-0000-0000-0000-000000000001"]
+    }
+  ],
+  "nextCursor": null,
+  "invitations": [],
+  "dispatches": [],
+  "audit": []
+}

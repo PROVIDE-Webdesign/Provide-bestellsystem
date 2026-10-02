@@ -15,3 +15,7 @@ sql_paths = []
 [auth.mfa.totp]
 enroll_enabled = true
 verify_enabled = true
+
+[auth]
+site_url = "http://127.0.0.1:4321"
+additional_redirect_urls = ["http://127.0.0.1:4321/invitations"]
