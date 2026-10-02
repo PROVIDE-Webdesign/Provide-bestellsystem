@@ -129,7 +129,7 @@ export async function verifyPersonnelBrowser(page: Page, output: string, width: 
     .waitFor({ state: "attached" });
   assert.deepEqual(
     await page
-      .getByLabel("Neue Personalrolle", { exact: true })
+      .getByRole("combobox", { name: "Neue Personalrolle", exact: true })
       .locator("option")
       .allTextContents(),
     ["Küche", "Fahrer"],
@@ -155,7 +155,10 @@ export async function verifyPersonnelBrowser(page: Page, output: string, width: 
   await page
     .getByText("Personalrechte entzogen. Geladene Daten wurden verworfen.", { exact: true })
     .waitFor();
-  assert.equal(await page.getByLabel("Neue Personalrolle", { exact: true }).count(), 0);
+  assert.equal(
+    await page.getByRole("combobox", { name: "Neue Personalrolle", exact: true }).count(),
+    0,
+  );
   denied = false;
   inbox = true;
   await page.goto("http://127.0.0.1:4321/?invitations");

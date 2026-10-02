@@ -3,7 +3,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { describe, it, expect } from "vitest";
 import { parsePersonnelState, type PersonnelCommand } from "@provide/contracts";
 import { createApiWorker } from "./index.js";
-import { InvalidDashboardTokenError } from "./dashboard-auth.js";
+import { InvalidDashboardTokenError, supabaseDashboardTokenVerifier } from "./dashboard-auth.js";
 const db = process.env.TEST_DATABASE_URL,
   url = process.env.TEST_REALTIME_URL,
   key = process.env.TEST_AUTH_ADMIN_KEY,
@@ -42,7 +42,11 @@ describe.skipIf(!db || !url || !key || !secret)(
         undefined,
         undefined,
         {
-          verify: async (token) => {
+          verify: async (token, environment) => {
+            // Only this exact administrative test token uses the isolated legacy signing secret.
+            // Every real recipient session goes through the production asymmetric JWKS verifier.
+            if (token !== ownerToken)
+              return supabaseDashboardTokenVerifier.verify(token, environment);
             try {
               const { payload } = await jwtVerify(token, signingKey, {
                 algorithms: ["HS256"],
@@ -152,6 +156,10 @@ describe.skipIf(!db || !url || !key || !secret)(
           throw Error("Missing isolated recipient session");
         const recipient = session.user.id,
           token = session.access_token;
+        expect(await supabaseDashboardTokenVerifier.verify(token, env)).toEqual({
+          userId: recipient,
+          aal: "aal1",
+        });
         const inbox = await send({ action: "inbox" }, token);
         expect(inbox?.invitations.some((i) => i.id === invitation!.id)).toBe(true);
         await send({ action: "accept", invitationId: invitation!.id }, ownerToken, 403);
