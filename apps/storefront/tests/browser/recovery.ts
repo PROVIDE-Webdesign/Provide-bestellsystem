@@ -6,6 +6,8 @@ export async function verifyRecoveryBrowser(page: Page, output: string, width: n
     revision = 1,
     denied = false,
     effects = 0;
+  let caseId = id,
+    approvals = 0;
   const calls: string[] = [];
   await page.route("**/api/recovery", async (route) => {
     const body = route.request().postDataJSON() as {
@@ -17,6 +19,12 @@ export async function verifyRecoveryBrowser(page: Page, output: string, width: n
       };
     };
     const q = body.command;
+    if (q.action === "request") {
+      caseId = q.caseId;
+      state = "requested";
+      revision = 1;
+      approvals = 0;
+    } else assert.equal(q.caseId, caseId);
     calls.push(q.action);
     assert.equal("password" in q, false);
     assert.equal("token" in q, false);
@@ -31,7 +39,8 @@ export async function verifyRecoveryBrowser(page: Page, output: string, width: n
       revision++;
     }
     if (q.action === "approve") {
-      state = "approved";
+      approvals++;
+      state = approvals === 2 ? "approved" : "verified";
       revision++;
     }
     if (q.action === "execute") {
@@ -41,6 +50,10 @@ export async function verifyRecoveryBrowser(page: Page, output: string, width: n
     }
     if (q.action === "complete") {
       state = "completed";
+      revision++;
+    }
+    if (q.action === "cancel") {
+      state = "cancelled";
       revision++;
     }
     await route.fulfill({
@@ -72,14 +85,32 @@ export async function verifyRecoveryBrowser(page: Page, output: string, width: n
   );
   assert.equal(await page.getByRole("button", { name: "Bestellung annehmen" }).count(), 0);
   await page.screenshot({ path: `${output}/recovery-requested-${width}.png`, fullPage: true });
+  await page.reload();
+  await page.getByText("Status: Angefordert", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Fall abbrechen", exact: true }).click();
+  await page.getByText("Status: Abgebrochen", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Verlorenen MFA-Faktor melden" }).click();
+  await page.getByText("Status: Angefordert", { exact: true }).waitFor();
+  await page.evaluate(() => sessionStorage.clear());
+  await page.reload();
+  await page.getByLabel("Eigene Fallkennung", { exact: true }).fill(caseId);
+  await page.getByRole("button", { name: "Bestehenden Fall öffnen", exact: true }).click();
+  await page.getByText("Status: Angefordert", { exact: true }).waitFor();
   await page.goto("http://127.0.0.1:4321/?recovery&operator");
-  await page.getByLabel("Fallkennung", { exact: true }).fill(id);
+  await page.getByLabel("Fallkennung", { exact: true }).fill(caseId);
   await page.getByRole("button", { name: "Fall öffnen", exact: true }).click();
   await page.getByLabel("Registrierte Kontaktkennung").fill(id);
   await page.getByLabel("Nachweisreferenz").fill("synthetic-proof");
   await page.getByRole("button", { name: "Nachweise bestätigen" }).focus();
   await page.keyboard.press("Enter");
   await page.getByText("Status: Nachweise geprüft", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Unabhängige Freigabe erteilen" }).click();
+  await page.getByText("Status: Nachweise geprüft", { exact: true }).waitFor();
+  assert.equal(
+    await page.getByRole("button", { name: "Freigegebenen Faktorverlust ausführen" }).count(),
+    0,
+  );
+  // UI transport only: actual distinct human identities are proved in the Auth integration test.
   await page.getByRole("button", { name: "Unabhängige Freigabe erteilen" }).click();
   await page.getByText("Status: Freigegeben", { exact: true }).waitFor();
   await page.getByRole("button", { name: "Freigegebenen Faktorverlust ausführen" }).click();

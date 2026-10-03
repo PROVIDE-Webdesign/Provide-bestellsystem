@@ -9,7 +9,7 @@ export function LoginForm({
   returnTo = "/",
 }: {
   readonly enabled: boolean;
-  readonly returnTo?: "/" | "/provide" | "/invitations" | "/recovery";
+  readonly returnTo?: "/" | "/provide" | "/invitations" | "/recovery" | "/recovery/operate";
 }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);

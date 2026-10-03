@@ -56,10 +56,42 @@ describe.skipIf(!db || !url || !key || !publicKey)("isolated actual A4 Auth prov
     expect(created.error?.message).toBeUndefined();
     const id = created.data.user!.id;
     try {
+      const unknownEmail = `a4-unknown-${crypto.randomUUID()}@example.invalid`;
+      expect(
+        (
+          await wrongContext.auth.resetPasswordForEmail(unknownEmail, {
+            redirectTo: "http://127.0.0.1:4321/auth/recovery",
+          })
+        ).error,
+      ).toBeNull();
+      expect(
+        (await sql.query("select id from auth.users where email=$1", [unknownEmail])).rowCount,
+      ).toBe(0);
       const sent = await recovery.auth.resetPasswordForEmail(email, {
         redirectTo: "http://127.0.0.1:4321",
       });
       expect(sent.error?.message).toBeUndefined();
+      const repeated = await fetch(`${url}/auth/v1/recover`, {
+        method: "POST",
+        headers: { apikey: publicKey, "content-type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      expect(repeated.status).toBe(429);
+      await repeated.body?.cancel();
+      const invalid = await fetch(`${url}/auth/v1/recover`, {
+        method: "POST",
+        headers: { apikey: publicKey, "content-type": "application/json" },
+        body: JSON.stringify({ email: "not-an-email" }),
+      });
+      expect([400, 422]).toContain(invalid.status);
+      await invalid.body?.cancel();
+      expect(
+        (
+          await sql.query("select blocked from private.account_security_state where user_id=$1", [
+            id,
+          ])
+        ).rows[0],
+      ).toEqual({ blocked: false });
       // Read only the provider-issued hash in this disposable DB. No generated or synthetic
       // substitute session: Auth verifies its own recovery token and emits the actual PKCE code.
       const row = (

@@ -9,6 +9,7 @@ import {
 import { createDashboardBrowserClient } from "../../lib/supabase-browser.js";
 import { LoginForm } from "./LoginForm.js";
 import { MfaPanel } from "./MfaPanel.js";
+import { requestRecoveryEmail } from "../../lib/recovery-email.js";
 export type RecoverySender = (q: RecoveryCommand, password?: string) => Promise<RecoveryCase>;
 const key = "provide-recovery-case-v1";
 export const sendRecovery: RecoverySender = async (command, password) => {
@@ -190,23 +191,22 @@ export function RecoveryPanel({
     setBusy(true);
     form.reset();
     try {
-      const supabase = createDashboardBrowserClient(false);
-      if (supabase)
-        await supabase.auth.resetPasswordForEmail(value, {
-          redirectTo: new URL("/auth/recovery", window.location.origin).href,
-        });
-    } catch {
-      /* Neutral existing-account response, no account creation or locking. */
+      setMessage(await requestRecoveryEmail(value, window.location.origin));
     } finally {
       setBusy(false);
-      setMessage(
-        "Wenn ein bestehendes Konto für diese Adresse wiederhergestellt werden kann, erhältst du eine E-Mail. Bitte auch den Spamordner prüfen.",
-      );
     }
   }
   return (
     <section className="panel" aria-labelledby="recovery-title">
       <h2 id="recovery-title">{operator ? "Recovery-Fall prüfen" : "Konto wiederherstellen"}</h2>
+      {operator && (
+        <>
+          <LoginForm enabled returnTo="/recovery/operate" />
+          <MfaPanel
+            onVerified={() => setMessage("MFA bestätigt. Den freigegebenen Fall jetzt öffnen.")}
+          />
+        </>
+      )}
       {operator ? (
         <form
           className="auth-form"
@@ -243,7 +243,23 @@ export function RecoveryPanel({
               setMessage("MFA bestätigt. Den gewünschten Recovery-Schritt jetzt starten.")
             }
           />
-          {!current && (
+          <form
+            className="auth-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const id = new FormData(e.currentTarget).get("caseId");
+              if (typeof id === "string")
+                void run({ action: "read", caseId: id, commandId: crypto.randomUUID() });
+            }}
+          >
+            <label>
+              Eigene Fallkennung
+              <input name="caseId" required maxLength={36} pattern="[a-fA-F0-9-]{36}" />
+            </label>
+            <button disabled={busy}>Bestehenden Fall öffnen</button>
+          </form>
+          {(!current ||
+            ["completed", "cancelled", "rejected", "expired"].includes(current.state)) && (
             <div className="actions">
               <button disabled={busy} onClick={() => void request("password")}>
                 Passwort-Recovery öffnen
@@ -264,10 +280,7 @@ export function RecoveryPanel({
             Fallkennung: <code style={{ overflowWrap: "anywhere" }}>{current.caseId}</code>
           </p>
           <p>Status: {labels[current.state]}</p>
-          <p>
-            Revision {current.revision}. Anforderung gültig bis{" "}
-            {new Date(current.expiresAt).toLocaleString("de-DE")}.
-          </p>
+          <p>Anforderung gültig bis {new Date(current.expiresAt).toLocaleString("de-DE")}.</p>
           {current.approvalExpiresAt && (
             <p>
               Freigabe gültig bis {new Date(current.approvalExpiresAt).toLocaleString("de-DE")}.
