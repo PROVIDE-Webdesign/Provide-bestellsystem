@@ -139,17 +139,17 @@ select is(
   (
     select count(*)::integer
     from pg_catalog.pg_policies
-    where schemaname = 'public' and tablename = 'restaurant_membership_locations'
+    where permissive = 'PERMISSIVE' and schemaname = 'public' and tablename = 'restaurant_membership_locations'
   ),
   1,
-  'personnel location assignments define exactly one browser policy'
+  'personnel location assignments define exactly one permissive browser policy'
 );
 
 select is(
   (
     select count(*)::integer
     from pg_catalog.pg_policies
-    where schemaname = 'public'
+    where permissive = 'PERMISSIVE' and schemaname = 'public'
       and tablename = 'locations'
       and policyname = 'locations_select_for_authorized_personnel'
   ),
@@ -161,7 +161,7 @@ select is(
   (
     select count(*)::integer
     from pg_catalog.pg_policies
-    where schemaname = 'public'
+    where permissive = 'PERMISSIVE' and schemaname = 'public'
       and tablename = 'locations'
       and policyname = 'locations_select_for_restaurant_members'
   ),

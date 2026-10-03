@@ -158,19 +158,19 @@ select is(
   (
     select count(*)::integer
     from pg_catalog.pg_policies
-    where schemaname = 'public' and tablename = 'restaurant_invitations'
+    where permissive = 'PERMISSIVE' and schemaname = 'public' and tablename = 'restaurant_invitations'
   ),
   0,
-  'restaurant invitations expose no browser policy'
+  'restaurant invitations expose no permissive browser policy'
 );
 select is(
   (
     select count(*)::integer
     from pg_catalog.pg_policies
-    where schemaname = 'public' and tablename = 'restaurant_invitation_locations'
+    where permissive = 'PERMISSIVE' and schemaname = 'public' and tablename = 'restaurant_invitation_locations'
   ),
   0,
-  'restaurant invitation locations expose no browser policy'
+  'restaurant invitation locations expose no permissive browser policy'
 );
 select ok(
   not has_table_privilege('anon', 'public.restaurant_invitations', 'select,insert,update,delete'),

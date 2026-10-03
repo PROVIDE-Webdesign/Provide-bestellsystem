@@ -55,10 +55,10 @@ select is(
   (
     select count(*)::integer
     from pg_catalog.pg_policies
-    where schemaname = 'public' and tablename = 'outbox_events'
+    where permissive = 'PERMISSIVE' and schemaname = 'public' and tablename = 'outbox_events'
   ),
   0,
-  'outbox events deliberately define no browser policies'
+  'outbox events deliberately define no permissive browser policies'
 );
 
 select ok(

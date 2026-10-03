@@ -108,10 +108,10 @@ select is(
   (
     select count(*)::integer
     from pg_catalog.pg_policies
-    where schemaname = 'public' and tablename = 'locations'
+    where permissive = 'PERMISSIVE' and schemaname = 'public' and tablename = 'locations'
   ),
   1,
-  'locations define exactly one authenticated policy'
+  'locations define exactly one permissive authenticated policy'
 );
 
 select ok(

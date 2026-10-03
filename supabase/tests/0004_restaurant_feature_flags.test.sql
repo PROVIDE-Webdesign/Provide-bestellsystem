@@ -81,19 +81,19 @@ select is(
   (
     select count(*)::integer
     from pg_catalog.pg_policies
-    where schemaname = 'public' and tablename = 'feature_definitions'
+    where permissive = 'PERMISSIVE' and schemaname = 'public' and tablename = 'feature_definitions'
   ),
   0,
-  'feature definitions deliberately define no browser policies'
+  'feature definitions deliberately define no permissive browser policies'
 );
 select is(
   (
     select count(*)::integer
     from pg_catalog.pg_policies
-    where schemaname = 'public' and tablename = 'restaurant_feature_flags'
+    where permissive = 'PERMISSIVE' and schemaname = 'public' and tablename = 'restaurant_feature_flags'
   ),
   0,
-  'restaurant feature flags deliberately define no browser policies'
+  'restaurant feature flags deliberately define no permissive browser policies'
 );
 
 select ok(

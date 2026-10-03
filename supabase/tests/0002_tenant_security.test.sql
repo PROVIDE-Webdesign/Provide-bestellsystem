@@ -85,20 +85,20 @@ select is(
   (
     select count(*)::integer
     from pg_catalog.pg_policies
-    where schemaname = 'public' and tablename = 'restaurants'
+    where permissive = 'PERMISSIVE' and schemaname = 'public' and tablename = 'restaurants'
   ),
   1,
-  'restaurants define exactly one authenticated policy'
+  'restaurants define exactly one permissive authenticated policy'
 );
 
 select is(
   (
     select count(*)::integer
     from pg_catalog.pg_policies
-    where schemaname = 'public' and tablename = 'restaurant_memberships'
+    where permissive = 'PERMISSIVE' and schemaname = 'public' and tablename = 'restaurant_memberships'
   ),
   1,
-  'memberships define exactly one authenticated policy'
+  'memberships define exactly one permissive authenticated policy'
 );
 
 select ok(
