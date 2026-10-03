@@ -18,4 +18,4 @@ verify_enabled = true
 
 [auth]
 site_url = "http://127.0.0.1:4321"
-additional_redirect_urls = ["http://127.0.0.1:4321/invitations"]
+additional_redirect_urls = ["http://127.0.0.1:4321/invitations", "http://127.0.0.1:4321/auth/recovery"]

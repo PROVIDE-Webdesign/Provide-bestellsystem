@@ -2,14 +2,14 @@
 
 import { useState, type FormEvent } from "react";
 
-import { createDashboardBrowserClient } from "@/lib/supabase-browser.js";
+import { createDashboardBrowserClient } from "../../lib/supabase-browser.js";
 
 export function LoginForm({
   enabled,
   returnTo = "/",
 }: {
   readonly enabled: boolean;
-  readonly returnTo?: "/" | "/provide" | "/invitations";
+  readonly returnTo?: "/" | "/provide" | "/invitations" | "/recovery" | "/recovery/operate";
 }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);

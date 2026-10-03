@@ -1,3 +1,4 @@
+import { RecoveryPanel } from "../../../dashboard/app/components/RecoveryPanel";
 import { LocationOperations } from "../../../dashboard/app/components/LocationOperations";
 import { ProvideAdmin } from "../../../dashboard/app/components/ProvideAdmin";
 import { Personnel } from "../../../dashboard/app/components/Personnel";
@@ -13,6 +14,8 @@ import {
   type OrderLiveSubscriber,
 } from "../../../dashboard/lib/order-live";
 import "../../app/styles.css";
+const recovery = new URLSearchParams(location.search).has("recovery");
+const recoveryOperator = new URLSearchParams(location.search).has("operator");
 const operations = new URLSearchParams(location.search).has("operations");
 const provide = new URLSearchParams(location.search).has("provide");
 const personnel = new URLSearchParams(location.search).has("personnel");
@@ -43,11 +46,25 @@ const syntheticLive: OrderLiveSubscriber = (_restaurant, _location, onChange, on
     window.removeEventListener("synthetic-order-state", state);
   };
 };
-if (dashboard || board || operations || history || provide || personnel || invitations || viewer)
+if (
+  recovery ||
+  dashboard ||
+  board ||
+  operations ||
+  history ||
+  provide ||
+  personnel ||
+  invitations ||
+  viewer
+)
   void import("../../../dashboard/app/styles.css");
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {viewer && !board ? (
+    {recovery ? (
+      <main>
+        <RecoveryPanel operator={recoveryOperator} />
+      </main>
+    ) : viewer && !board ? (
       <main>
         <DashboardClient
           enabled

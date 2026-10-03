@@ -1,3 +1,4 @@
+import { handleAccountRecovery } from "./account-recovery.js";
 import {
   handleProvideAdmin,
   postgresProvideAdmin,
@@ -60,6 +61,8 @@ interface HyperdriveBinding {
 }
 
 interface Env extends OnlineEnvironment {
+  readonly ACCOUNT_RECOVERY_ENABLED?: string;
+  readonly ACCOUNT_RECOVERY_ORIGIN?: string;
   readonly DASHBOARD_PERSONNEL_ENABLED?: string;
   readonly PERSONNEL_INVITATIONS_ENABLED?: string;
   readonly SUPABASE_SERVICE_ROLE_KEY?: string;
@@ -143,6 +146,8 @@ export function createApiWorker(
         return jsonError("not_found", "Resource was not found.", context.requestId, 404, cors);
       }
 
+      if (route.name === "accountRecovery")
+        return handleAccountRecovery(request, env, dashboardTokenVerifier, context, logger, cors);
       if (route.name === "personnel")
         return handlePersonnel(
           request,

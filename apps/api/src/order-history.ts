@@ -1,3 +1,4 @@
+import { lockAccountSession } from "./account-session.js";
 import { Client } from "pg";
 import {
   menuIdPattern,
@@ -34,7 +35,8 @@ async function transaction(
   connectionString: string,
   sql: string,
   values: unknown[],
-  readOnly: boolean,
+  _readOnly: boolean,
+  identity?: DashboardIdentity,
 ) {
   const client = new Client({
     connectionString,
@@ -43,8 +45,12 @@ async function transaction(
   });
   try {
     await client.connect();
-    await client.query(readOnly ? "BEGIN READ ONLY" : "BEGIN");
+    await client.query("BEGIN");
     await client.query("SET LOCAL ROLE service_role");
+    if (identity && !(await lockAccountSession(client, identity))) {
+      await client.query("ROLLBACK");
+      return { outcome: "forbidden" };
+    }
     await client.query("SET LOCAL statement_timeout='5s'");
     const result = await client.query<{ data: unknown }>(sql, values);
     await client.query("COMMIT");
@@ -62,6 +68,7 @@ export const postgresHistory: HistoryRepository = (connection, identity, restaur
     "select private.read_order_history($1::uuid,$2::text,$3::uuid,$4::uuid,$5::jsonb) as data",
     [identity.userId, identity.aal, restaurant, location, JSON.stringify(q)],
     true,
+    identity,
   );
 export const postgresGuestPurge = async (connection: string) => {
   const count = await transaction(

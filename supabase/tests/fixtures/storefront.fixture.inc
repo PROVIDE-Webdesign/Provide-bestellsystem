@@ -95,4 +95,13 @@ where id = 'f8000000-0000-0000-0000-000000000001'; insert into public.availabili
 id, restaurant_id, location_id, schedule_version_id, effective_at, actor_user_id,
 authentication_assurance ) values ( 'f9000000-0000-0000-0000-000000000001',
 'f2000000-0000-0000-0000-000000000001', 'f3000000-0000-0000-0000-000000000001',
-'f8000000-0000-0000-0000-000000000001', now(), 'f1000000-0000-0000-0000-000000000001', 'aal2' );
+'f8000000-0000-0000-0000-000000000001', now(), 'f1000000-0000-0000-0000-000000000001', 'aal2' ); /*
+Synthetic sessions and factors for the disposable HTTP/Realtime regression fixture only. */ insert
+into auth.mfa_factors(id,user_id,friendly_name,factor_type,status,secret,created_at,updated_at)
+select id,id,'Synthetic test only','totp','verified','SYNTHETICTEST',now(),now() from auth.users
+where id::text like 'f1000000-%'; insert into
+auth.sessions(id,user_id,created_at,updated_at,aal,factor_id) select
+id,id,clock_timestamp(),clock_timestamp(),'aal2',id from auth.users where id::text like
+'f1000000-%'; insert into auth.sessions(id,user_id,created_at,updated_at,aal) select
+md5(id::text||'aal1')::uuid,id,clock_timestamp(),clock_timestamp(),'aal1' from auth.users where
+id::text like 'f1000000-%';

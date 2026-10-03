@@ -12,7 +12,12 @@ export async function verifyLocationOperationsIntegration(admin: Client, sourceE
   const r = "f2000000-0000-0000-0000-000000000001",
     l = "f3000000-0000-0000-0000-000000000001";
   const worker = createApiWorker(undefined, undefined, undefined, undefined, undefined, {
-    verify: () => Promise.resolve({ userId: "f1000000-0000-0000-0000-000000000001", aal: "aal2" }),
+    verify: () =>
+      Promise.resolve({
+        userId: "f1000000-0000-0000-0000-000000000001",
+        sessionId: "f1000000-0000-0000-0000-000000000001",
+        aal: "aal2",
+      }),
   });
   const endpoint = `https://api.test/v1/dashboard/restaurants/${r}/locations/${l}/operations`;
   const read = async (command: unknown = null, expected = 200) => {

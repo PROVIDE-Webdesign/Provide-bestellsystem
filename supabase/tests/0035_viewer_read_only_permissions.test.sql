@@ -1,5 +1,29 @@
 -- A3: disposable fixtures only; no remote project or provider. All changes roll back.
 begin;
+
+-- Disposable pgTAP fixture only: materialize a provider-shaped session for old role/scope tests.
+-- New A4 tests deliberately omit/revoke these rows to exercise the strict product gate.
+create function pg_temp.fixture_claims(value text, local_only boolean) returns text
+language plpgsql security definer set search_path='' as $$
+declare c jsonb := value::jsonb; u uuid; a text; sid uuid;
+begin
+  u := coalesce(c->>'sub',nullif(current_setting('request.jwt.claim.sub',true),''))::uuid;
+  a := coalesce(c->>'aal','aal1');
+  if u is not null and exists(select 1 from auth.users where id=u) and a in ('aal1','aal2') then
+    sid := case when a='aal2' then u else md5(u::text||'aal1')::uuid end;
+    if a='aal2' then
+      insert into auth.mfa_factors(id,user_id,friendly_name,factor_type,status,secret,created_at,updated_at)
+      values(u,u,'Synthetic test only','totp','verified','SYNTHETICTEST',now(),now()) on conflict(id) do nothing;
+    end if;
+    insert into auth.sessions(id,user_id,created_at,updated_at,aal,factor_id)
+    values(sid,u,clock_timestamp(),clock_timestamp(),a::auth.aal_level,case when a='aal2' then u else null end)
+    on conflict(id) do nothing;
+    c := c || jsonb_build_object('session_id',sid);
+  end if;
+  return set_config('request.jwt.claims',c::text,local_only);
+end $$;
+
+
 select no_plan();
 \ir fixtures/storefront.fixture.inc
 
@@ -152,7 +176,7 @@ update auth.users set banned_until=now()-interval '1 second' where id=pg_temp.v_
 select is(private.read_dashboard_access_context(pg_temp.v_uid(),'aal1')->'memberships'->0->>'access','allowed','expired Auth ban does not block Viewer context');
 update auth.users set banned_until=null where id=pg_temp.v_uid();
 
-select set_config('request.jwt.claims',jsonb_build_object('sub',pg_temp.v_uid(),'aal','aal1','role','authenticated')::text,true);
+select pg_temp.fixture_claims(jsonb_build_object('sub',pg_temp.v_uid(),'aal','aal1','role','authenticated')::text,true);
 select is(private.read_dashboard_access_context('f1000000-0000-0000-0000-000000000099','aal1')->'memberships','[]'::jsonb,'missing Auth identity yields no context profiles');
 select ok(has_function_privilege('service_role','private.read_dashboard_access_context(uuid,text)','execute'),'access context retains existing server execute permission');
 select ok(not has_function_privilege('authenticated','private.read_dashboard_access_context(uuid,text)','execute'),'access context does not grant browser execute permission');

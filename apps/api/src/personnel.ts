@@ -1,3 +1,4 @@
+import { lockAccountSession } from "./account-session.js";
 import { Client } from "pg";
 import {
   parsePersonnelCommand,
@@ -47,8 +48,12 @@ export const postgresPersonnel: PersonnelRepository = async (
   });
   try {
     await client.connect();
-    await client.query(stage === "read" ? "BEGIN READ ONLY" : "BEGIN");
+    await client.query("BEGIN");
     await client.query("SET LOCAL ROLE service_role");
+    if (!(await lockAccountSession(client, identity))) {
+      await client.query("ROLLBACK");
+      return { outcome: "forbidden" };
+    }
     await client.query("SET LOCAL statement_timeout='5s'");
     let sql: string, values: unknown[];
     if (stage === "accept" && q.action === "accept") {

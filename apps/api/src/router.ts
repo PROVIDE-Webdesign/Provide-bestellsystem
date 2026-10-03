@@ -26,7 +26,8 @@ export type MatchedRoute =
         | "dashboardAccess"
         | "stripeWebhook"
         | "provideAdmin"
-        | "personnel";
+        | "personnel"
+        | "accountRecovery";
     }
   | {
       readonly name: "dashboardMenu" | "dashboardLocationOperations" | "dashboardHistory";
@@ -38,6 +39,7 @@ export type MatchedRoute =
 
 function matchPath(request: Request): MatchedRoute | undefined {
   const path = new URL(request.url).pathname;
+  if (path === "/v1/account/recovery") return { name: "accountRecovery" };
   if (path === "/v1/dashboard/personnel") return { name: "personnel" };
   if (path === "/v1/provide/administration") return { name: "provideAdmin" };
   if (path === "/v1/payments/stripe/webhook") return { name: "stripeWebhook" };
@@ -120,7 +122,8 @@ export function routeRequest(request: Request): MatchedRoute | undefined {
   if (
     match.name === "dashboardHistory" ||
     match.name === "provideAdmin" ||
-    match.name === "personnel"
+    match.name === "personnel" ||
+    match.name === "accountRecovery"
   )
     return request.method === "POST" ? match : undefined;
   if (match.name === "dashboardMenu" || match.name === "dashboardLocationOperations")

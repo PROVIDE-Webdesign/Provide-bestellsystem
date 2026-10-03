@@ -33,7 +33,7 @@ describe.skipIf(!db || !url || !key || !secret)(
           owner = "f1000000-0000-0000-0000-000000000001";
         const signingKey = new TextEncoder().encode(secret),
           issuer = `${url}/auth/v1`;
-        const ownerToken = await new SignJWT({ aal: "aal2" })
+        const ownerToken = await new SignJWT({ aal: "aal2", session_id: owner })
           .setProtectedHeader({ alg: "HS256" })
           .setSubject(owner)
           .setIssuer(issuer)
@@ -61,7 +61,7 @@ describe.skipIf(!db || !url || !key || !secret)(
                 });
                 if (!payload.sub || (payload.aal !== "aal1" && payload.aal !== "aal2"))
                   throw Error();
-                return { userId: payload.sub, aal: payload.aal };
+                return { userId: payload.sub, aal: payload.aal, sessionId: owner };
               } catch {
                 throw new InvalidDashboardTokenError();
               }
@@ -163,7 +163,7 @@ describe.skipIf(!db || !url || !key || !secret)(
             throw Error("Missing isolated recipient session");
           const recipient = session.user.id,
             token = session.access_token;
-          expect(await supabaseDashboardTokenVerifier.verify(token, env)).toEqual({
+          expect(await supabaseDashboardTokenVerifier.verify(token, env)).toMatchObject({
             userId: recipient,
             aal: "aal1",
           });
@@ -247,7 +247,7 @@ describe.skipIf(!db || !url || !key || !secret)(
           try {
             expect((await accessContext()).memberships).toEqual([]);
             expect((await orderAccess()).status).toBe(403);
-            expect(await supabaseDashboardTokenVerifier.verify(token, env)).toEqual({
+            expect(await supabaseDashboardTokenVerifier.verify(token, env)).toMatchObject({
               userId: recipient,
               aal: "aal1",
             });

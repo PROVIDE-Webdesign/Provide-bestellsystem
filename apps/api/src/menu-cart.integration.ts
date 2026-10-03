@@ -35,7 +35,7 @@ async function data(r: Response): Promise<unknown> {
 export async function verifyMenuCartIntegration(admin: Client, baseEnv: Env) {
   const env = { ...baseEnv, DASHBOARD_MENU_ENABLED: "true", CART_QUOTE_ENABLED: "true" };
   const worker = createApiWorker(undefined, undefined, undefined, undefined, undefined, {
-    verify: () => Promise.resolve({ userId: owner, aal: "aal2" }),
+    verify: () => Promise.resolve({ userId: owner, sessionId: owner, aal: "aal2" }),
   });
   const menuUrl = `https://api.test/v1/dashboard/restaurants/${restaurantId}/locations/${locationId}/menu`;
   const read = () =>
@@ -57,7 +57,7 @@ export async function verifyMenuCartIntegration(admin: Client, baseEnv: Env) {
     );
   const projection = await postgresMenuAdmin(
     env.HYPERDRIVE!.connectionString,
-    { userId: owner, aal: "aal2" },
+    { userId: owner, sessionId: owner, aal: "aal2" },
     restaurantId,
     locationId,
     null,

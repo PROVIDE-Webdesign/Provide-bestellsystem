@@ -19,7 +19,12 @@ export interface DashboardAccessEnvironment extends DashboardAuthEnvironment {
 }
 
 export interface DashboardAccessReader {
-  read(connectionString: string, userId: string, aal: "aal1" | "aal2"): Promise<unknown>;
+  read(
+    connectionString: string,
+    userId: string,
+    aal: "aal1" | "aal2",
+    sessionId?: string,
+  ): Promise<unknown>;
 }
 
 export async function handleDashboardAccess(
@@ -67,6 +72,7 @@ export async function handleDashboardAccess(
       environment.HYPERDRIVE.connectionString,
       identity.userId,
       identity.aal,
+      identity.sessionId,
     );
     const access = parseDashboardAccessContext(value);
     if (!access) throw new Error("Invalid dashboard access response");

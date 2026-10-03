@@ -13,6 +13,8 @@
     "ORDER_STATUS_READ_ENABLED": "false",
     "DASHBOARD_AUTH_ENABLED": "false",
     "DASHBOARD_PERSONNEL_ENABLED": "false",
+    "ACCOUNT_RECOVERY_ENABLED": "false",
+    "ACCOUNT_RECOVERY_ORIGIN": "https://replace-with-preview-dashboard.example",
     "PERSONNEL_INVITATIONS_ENABLED": "false",
     "PERSONNEL_DASHBOARD_ORIGIN": "https://replace-with-preview-dashboard.example",
     "PROVIDE_ADMIN_ENABLED": "false",

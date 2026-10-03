@@ -57,9 +57,11 @@ describe("dashboard access API", () => {
   });
   it("verifies identity before reading a minimal access context", async () => {
     const verifier = {
-      verify: vi
-        .fn()
-        .mockResolvedValue({ userId: "f1000000-0000-0000-0000-000000000001", aal: "aal2" }),
+      verify: vi.fn().mockResolvedValue({
+        userId: "f1000000-0000-0000-0000-000000000001",
+        aal: "aal2",
+        sessionId: "f1100000-0000-0000-0000-000000000001",
+      }),
     };
     const reader = { read: vi.fn().mockResolvedValue(context) };
     const worker = createApiWorker(
@@ -79,6 +81,7 @@ describe("dashboard access API", () => {
       env.HYPERDRIVE.connectionString,
       "f1000000-0000-0000-0000-000000000001",
       "aal2",
+      "f1100000-0000-0000-0000-000000000001",
     );
   });
 

@@ -41,6 +41,7 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       {
         verify: vi.fn().mockResolvedValue({
           userId: "f1000000-0000-0000-0000-000000000001",
+          sessionId: "f1000000-0000-0000-0000-000000000001",
           aal: "aal2",
         }),
       },

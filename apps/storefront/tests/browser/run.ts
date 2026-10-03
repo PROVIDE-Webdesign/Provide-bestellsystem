@@ -1,3 +1,4 @@
+import { verifyRecoveryBrowser } from "./recovery.ts";
 import { verifyLocationOperationsBrowser } from "./location-operations.ts";
 import assert from "node:assert/strict";
 import { verifyOrderLiveBrowser } from "./order-live.ts";
@@ -457,6 +458,7 @@ try {
     await verifyProvideBrowser(page, output, viewport.width);
     await verifyPersonnelBrowser(page, output, viewport.width);
     await verifyViewerBrowser(page, output, viewport.width);
+    await verifyRecoveryBrowser(page, output, viewport.width);
     assert.deepEqual(errors, []);
     await context.close();
     console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);
