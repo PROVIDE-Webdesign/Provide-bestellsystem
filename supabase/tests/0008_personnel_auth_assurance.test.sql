@@ -557,15 +557,15 @@ set local request.jwt.claim.sub = '81000000-0000-0000-0000-000000000004';
 select pg_temp.fixture_claims('{"sub":"81000000-0000-0000-0000-000000000004"}',true);
 
 select ok(
-  private.is_restaurant_member('82000000-0000-0000-0000-000000000001'),
-  'a missing aal claim is treated as aal1 for a driver'
+  not private.is_restaurant_member('82000000-0000-0000-0000-000000000001'),
+  'a missing aal claim cannot establish a current provider session'
 );
 select ok(
-  private.can_access_location(
+  not private.can_access_location(
     '82000000-0000-0000-0000-000000000001',
     '83000000-0000-0000-0000-000000000001'
   ),
-  'a driver without an aal claim keeps aal1 location access'
+  'a driver without an aal claim receives no current-session location access'
 );
 
 select pg_temp.fixture_claims('{"sub":"81000000-0000-0000-0000-000000000004","aal":"aal3"}',true);
