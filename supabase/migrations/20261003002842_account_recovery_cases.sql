@@ -284,7 +284,7 @@ declare c private.account_recovery_cases;
 begin
  select * into c from private.account_recovery_cases where id=cid for update;
  if c.id is null or c.state<>'executing' or actor<>c.executor_user_id or sid<>c.executor_session_id or
- not private.recovery_provider_session(actor,sid,aal) or private.recovery_identity_snapshot(c.target_user_id)<>c.identity_snapshot or
+ not private.recovery_provider_session(actor,sid,aal) or clock_timestamp()>c.expires_at or private.recovery_identity_snapshot(c.target_user_id)<>c.identity_snapshot or
  (c.kind='lost_factor' and (not private.recovery_operator(actor,sid,aal) or clock_timestamp()>c.approval_expires_at or
  exists(select 1 from private.account_recovery_approvals a where a.case_id=cid and
  (not private.recovery_operator(a.user_id,a.session_id,'aal2') or a.actor_snapshot<>private.recovery_identity_snapshot(a.user_id))))) then return null;end if;

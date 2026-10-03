@@ -28,15 +28,22 @@ export function totp(secret: string): string {
 }
 
 export async function actualCommand(token: string, command: RecoveryCommand, password?: string) {
+  if (
+    !db ||
+    !url ||
+    !key ||
+    ![db, url].every((v) => ["127.0.0.1", "localhost"].includes(new URL(v).hostname))
+  )
+    throw Error("Explicit disposable loopback stack required");
   const env = {
     DASHBOARD_AUTH_ENABLED: "true",
     ACCOUNT_RECOVERY_ENABLED: "true",
     ACCOUNT_RECOVERY_ORIGIN: "http://127.0.0.1:4321",
     SUPABASE_AUTH_ISSUER: `${url}/auth/v1`,
     SUPABASE_AUTH_AUDIENCE: "authenticated",
-    SUPABASE_SERVICE_ROLE_KEY: key!,
+    SUPABASE_SERVICE_ROLE_KEY: key,
     HYPERDRIVE_CACHE_DISABLED: "true",
-    HYPERDRIVE: { connectionString: db! },
+    HYPERDRIVE: { connectionString: db },
   };
   const response = await handleAccountRecovery(
     new Request("https://isolated-api.test/v1/account/recovery", {

@@ -133,3 +133,25 @@ $$;
 revoke all on function private.is_restaurant_member(uuid),private.has_restaurant_role(uuid,text[]),private.can_access_location(uuid,uuid),private.dashboard_order_topic_allowed(text) from public,anon,authenticated,service_role;
 grant execute on function private.is_restaurant_member(uuid),private.has_restaurant_role(uuid,text[]),private.can_access_location(uuid,uuid) to authenticated,service_role;
 grant execute on function private.dashboard_order_topic_allowed(text) to authenticated;
+
+-- Policy expressions retain function OIDs after a rename. Rebind them to the guarded
+-- entry points before removing the old browser entry points from use.
+do $$ declare p record;using_expression text;check_expression text;helper text;statement text;begin
+ for p in select pol.polname,n.nspname,c.relname,pg_catalog.pg_get_expr(pol.polqual,pol.polrelid) as q,
+   pg_catalog.pg_get_expr(pol.polwithcheck,pol.polrelid) as w
+   from pg_catalog.pg_policy pol join pg_catalog.pg_class c on c.oid=pol.polrelid
+   join pg_catalog.pg_namespace n on n.oid=c.relnamespace
+   where coalesce(pg_catalog.pg_get_expr(pol.polqual,pol.polrelid),'') like '%_before_account_session%'
+      or coalesce(pg_catalog.pg_get_expr(pol.polwithcheck,pol.polrelid),'') like '%_before_account_session%'
+ loop
+  using_expression:=p.q;check_expression:=p.w;
+  foreach helper in array array['is_restaurant_member','has_restaurant_role','can_access_location','dashboard_order_topic_allowed'] loop
+   using_expression:=replace(using_expression,helper||'_before_account_session',helper);
+   check_expression:=replace(check_expression,helper||'_before_account_session',helper);
+  end loop;
+  statement:=format('alter policy %I on %I.%I',p.polname,p.nspname,p.relname);
+  if using_expression is not null then statement:=statement||' using ('||using_expression||')';end if;
+  if check_expression is not null then statement:=statement||' with check ('||check_expression||')';end if;
+  execute statement;
+ end loop;
+end $$;
