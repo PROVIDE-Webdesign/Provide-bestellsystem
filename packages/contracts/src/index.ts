@@ -64,3 +64,4 @@ export * from "./order-history.js";
 export * from "./provide-admin.js";
 export * from "./personnel.js";
 export * from "./account-recovery.js";
+export * from "./support.js";

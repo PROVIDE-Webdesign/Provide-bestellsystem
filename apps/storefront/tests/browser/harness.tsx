@@ -1,3 +1,4 @@
+import { SupportCases } from "../../../dashboard/app/components/SupportCases";
 import { RecoveryPanel } from "../../../dashboard/app/components/RecoveryPanel";
 import { LocationOperations } from "../../../dashboard/app/components/LocationOperations";
 import { ProvideAdmin } from "../../../dashboard/app/components/ProvideAdmin";
@@ -14,6 +15,7 @@ import {
   type OrderLiveSubscriber,
 } from "../../../dashboard/lib/order-live";
 import "../../app/styles.css";
+const support = new URLSearchParams(location.search).has("support");
 const recovery = new URLSearchParams(location.search).has("recovery");
 const recoveryOperator = new URLSearchParams(location.search).has("operator");
 const operations = new URLSearchParams(location.search).has("operations");
@@ -47,6 +49,7 @@ const syntheticLive: OrderLiveSubscriber = (_restaurant, _location, onChange, on
   };
 };
 if (
+  support ||
   recovery ||
   dashboard ||
   board ||
@@ -60,7 +63,12 @@ if (
   void import("../../../dashboard/app/styles.css");
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {recovery ? (
+    {support ? (
+      <main>
+        <p>Synthetischer O1-Browserprüflauf · keine echten Fälle</p>
+        <SupportCases />
+      </main>
+    ) : recovery ? (
       <main>
         <RecoveryPanel operator={recoveryOperator} />
       </main>

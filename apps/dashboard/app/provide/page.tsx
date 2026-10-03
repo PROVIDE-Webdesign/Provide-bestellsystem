@@ -8,7 +8,8 @@ export default function ProvidePage() {
         <p className="eyebrow">PROVIDE · Plattformbetrieb</p>
         <h1>PROVIDE-Administration</h1>
         <p>Mandantenfreigaben und Feature-Regeln mit eigenständigen Berechtigungen.</p>
-        <a href="/">Restaurant-Dashboard öffnen</a>
+        <a href="/">Restaurant-Dashboard öffnen</a> ·{" "}
+        <a href="/provide/support">Supportfälle öffnen</a>
       </header>
       {enabled ? (
         <ProvideAuthClient />

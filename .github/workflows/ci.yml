@@ -95,6 +95,12 @@ jobs:
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
 
+      - name:
+          Test actual isolated support grants, MFA, session revocation and transaction boundaries
+        run: pnpm --filter @provide/api exec vitest run src/support.integration.test.ts
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
   browser:
     strategy:
       fail-fast: false

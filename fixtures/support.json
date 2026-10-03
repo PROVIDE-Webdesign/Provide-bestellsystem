@@ -1,0 +1,43 @@
+{
+  "restaurantId": "f2000000-0000-0000-0000-000000000001",
+  "locationId": "f3000000-0000-0000-0000-000000000001",
+  "serverNow": "2026-10-03T10:00:00.000Z",
+  "timezone": "Europe/Berlin",
+  "canManage": true,
+  "cases": [
+    {
+      "caseId": "fa000000-0000-0000-0000-000000000001",
+      "kind": "email_uncertain",
+      "sourceId": "fb000000-0000-0000-0000-000000000001",
+      "orderId": "fc000000-0000-0000-0000-000000000001",
+      "orderNumber": "BS-00000421",
+      "state": "open",
+      "severity": "normal",
+      "deadline": "2026-10-04T10:00:00.000Z",
+      "assigneeUserId": null,
+      "revision": 1,
+      "createdAt": "2026-10-03T10:00:00.000Z",
+      "updatedAt": "2026-10-03T10:00:00.000Z",
+      "previousCaseId": null,
+      "resolution": null,
+      "reason": "triage",
+      "evidence": {
+        "kind": "email_uncertain",
+        "sourceId": "fb000000-0000-0000-0000-000000000001",
+        "orderId": "fc000000-0000-0000-0000-000000000001",
+        "orderNumber": "BS-00000421",
+        "stateCode": "uncertain",
+        "problem": true,
+        "canClose": false,
+        "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "recordedAt": null,
+        "observedAt": "2026-10-03T10:00:00.000Z"
+      }
+    }
+  ],
+  "nextCursor": null,
+  "scanned": 0,
+  "scanCursor": null,
+  "currentSource": null,
+  "audit": []
+}

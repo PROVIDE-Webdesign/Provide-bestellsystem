@@ -37,9 +37,9 @@ Staging-Pilot.
   [Arbeitsblock 3.15](docs/work-blocks/3.15-realtime-order-alerts.md), Entwurfs-PR #15.
 - Externe Pilot-/Gerätefälle sind bis zur Laptopverfügbarkeit
   [eingefroren](docs/planning/2026-10-01-frozen-pilot-acceptance.md).
-- Aktueller bestätigter Ausgangsstand E11: **68,419312 % (68 %)**, zwölf technische Lücken. PR #19
-  (A1 einschließlich Befundkorrektur 3.20) ist am 02.10.2026 vom Nutzer technisch endfreigegeben;
-  Draft, Ready, Merge, Deployment und Livebetrieb bleiben getrennt.
+- Historischer bestätigter Ausgangsstand E11: **68,419312 % (68 %)**, zwölf technische Lücken. PR
+  #19 (A1 einschließlich Befundkorrektur 3.20) ist am 02.10.2026 vom Nutzer technisch
+  endfreigegeben; Draft, Ready, Merge, Deployment und Livebetrieb bleiben getrennt.
 - A3 Viewer wird als getrennter
   [Arbeitsblock 3.21](docs/work-blocks/3.21-viewer-read-only-permissions.md) auf PR19 umgesetzt.
   [Vertrag](docs/decisions/0037-viewer-read-only-permissions.md) und
@@ -50,6 +50,15 @@ Staging-Pilot.
   [Gutschrift](docs/planning/2026-10-02-viewer-progress-update.md). Positionsweiser A2-Abgleich über
   zwölf Hauptblöcke und 82 Unterpositionen; technische Umsetzung, keine Produktionsreife. Die
   frühere 84-%-Schätzung ist ersetzt.
+- A4 Konto-/MFA-Recovery ist gemäß E20 ausschließlich am unveränderten PR21-Head technisch
+  nutzer-endfreigegeben; [Arbeitsblock 3.23](docs/work-blocks/3.23-account-mfa-recovery.md).
+- O1 wird gemäß E22 im getrennten Draft-PR22 umgesetzt:
+  [Arbeitsblock 3.24](docs/work-blocks/3.24-support-cases.md),
+  [40-Fälle-Nachweis](docs/testing/support-cases.md) und
+  [positionsweiser Fortschrittsabgleich](docs/planning/2026-10-03-support-progress-update.md). Nach
+  vollständigem Nachweis am aktuellen Head: **69,477513 % (69 %)**, zehn technische Lücken
+  einschließlich des weitergehenden O1-Umfangs aus A2 §10. Technische Endfreigabeprüfung bleibt
+  separat; kein Ready-Wechsel, Merge oder Deployment.
 - Das Deployment der kundenbezogenen Arbeitsblöcke steht aus.
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 

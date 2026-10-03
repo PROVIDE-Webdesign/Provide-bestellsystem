@@ -1,3 +1,4 @@
+import { handleSupport, postgresSupport, type SupportRepository } from "./support.js";
 import { handleAccountRecovery } from "./account-recovery.js";
 import {
   handleProvideAdmin,
@@ -61,6 +62,7 @@ interface HyperdriveBinding {
 }
 
 interface Env extends OnlineEnvironment {
+  readonly SUPPORT_CASES_ENABLED?: string;
   readonly ACCOUNT_RECOVERY_ENABLED?: string;
   readonly ACCOUNT_RECOVERY_ORIGIN?: string;
   readonly DASHBOARD_PERSONNEL_ENABLED?: string;
@@ -121,6 +123,7 @@ export function createApiWorker(
   provideAdmin: ProvideAdminRepository = postgresProvideAdmin,
   personnel: PersonnelRepository = postgresPersonnel,
   inviteProvider: PersonnelInviteProvider = supabasePersonnelInvite,
+  support: SupportRepository = postgresSupport,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -159,6 +162,8 @@ export function createApiWorker(
           logger,
           cors,
         );
+      if (route.name === "support")
+        return handleSupport(request, env, dashboardTokenVerifier, support, context, logger, cors);
       if (route.name === "provideAdmin")
         return handleProvideAdmin(
           request,
