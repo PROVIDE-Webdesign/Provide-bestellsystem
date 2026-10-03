@@ -2,6 +2,7 @@ import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey, type JWTPayload } 
 
 export interface DashboardIdentity {
   readonly userId: string;
+  readonly sessionId?: string;
   readonly aal: "aal1" | "aal2";
 }
 
@@ -100,12 +101,14 @@ export function createDashboardTokenVerifier(
       if (
         typeof payload.sub !== "string" ||
         !uuidPattern.test(payload.sub) ||
-        payload.role !== "authenticated"
+        payload.role !== "authenticated" ||
+        typeof payload.session_id !== "string" ||
+        !uuidPattern.test(payload.session_id)
       )
         throw new InvalidDashboardTokenError();
       const aal = payload.aal === undefined ? "aal1" : payload.aal;
       if (aal !== "aal1" && aal !== "aal2") throw new InvalidDashboardTokenError();
-      return { userId: payload.sub, aal };
+      return { userId: payload.sub, aal, sessionId: payload.session_id };
     },
   };
 }

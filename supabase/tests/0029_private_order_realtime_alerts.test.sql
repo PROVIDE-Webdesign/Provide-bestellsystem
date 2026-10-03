@@ -1,4 +1,28 @@
 begin;
+
+-- Disposable pgTAP fixture only: materialize a provider-shaped session for old role/scope tests.
+-- New A4 tests deliberately omit/revoke these rows to exercise the strict product gate.
+create function pg_temp.fixture_claims(value text, local_only boolean) returns text
+language plpgsql security definer set search_path='' as $$
+declare c jsonb := value::jsonb; u uuid; a text; sid uuid;
+begin
+  u := coalesce(c->>'sub',nullif(current_setting('request.jwt.claim.sub',true),''))::uuid;
+  a := coalesce(c->>'aal','aal1');
+  if u is not null and exists(select 1 from auth.users where id=u) and a in ('aal1','aal2') then
+    sid := case when a='aal2' then u else md5(u::text||'aal1')::uuid end;
+    if a='aal2' then
+      insert into auth.mfa_factors(id,user_id,friendly_name,factor_type,status,secret,created_at,updated_at)
+      values(u,u,'Synthetic test only','totp','verified','SYNTHETICTEST',now(),now()) on conflict(id) do nothing;
+    end if;
+    insert into auth.sessions(id,user_id,created_at,updated_at,aal,factor_id)
+    values(sid,u,clock_timestamp(),clock_timestamp(),a::auth.aal_level,case when a='aal2' then u else null end)
+    on conflict(id) do nothing;
+    c := c || jsonb_build_object('session_id',sid);
+  end if;
+  return set_config('request.jwt.claims',c::text,local_only);
+end $$;
+
+
 select plan(32);
 \ir fixtures/storefront.fixture.inc
 
@@ -9,17 +33,17 @@ select ok(not has_function_privilege('authenticated','private.escalate_order_acc
 select ok(not has_table_privilege('authenticated','private.order_acceptance_events','SELECT'),'audit has no direct browser projection');
 select ok(exists(select 1 from pg_policy where polrelid='realtime.messages'::regclass and polname='dashboard_orders_private_receive' and polcmd='r'),'receive-only private broadcast policy exists');
 select is(private.dashboard_order_topic_allowed('orders:v1:invalid:invalid'),false,'invalid scope fails closed');
-select set_config('request.jwt.claims','{"sub":"f1000000-0000-0000-0000-000000000001","role":"authenticated","aal":"aal1"}',true);
+select pg_temp.fixture_claims('{"sub":"f1000000-0000-0000-0000-000000000001","role":"authenticated","aal":"aal1"}',true);
 select is(private.dashboard_order_topic_allowed('orders:v1:f2000000-0000-0000-0000-000000000001:f3000000-0000-0000-0000-000000000001'),false,'owner needs MFA for channel');
-select set_config('request.jwt.claims','{"sub":"f1000000-0000-0000-0000-000000000001","role":"authenticated","aal":"aal2"}',true);
+select pg_temp.fixture_claims('{"sub":"f1000000-0000-0000-0000-000000000001","role":"authenticated","aal":"aal2"}',true);
 select is(private.dashboard_order_topic_allowed('orders:v1:f2000000-0000-0000-0000-000000000001:f3000000-0000-0000-0000-000000000001'),true,'owner with MFA can join own scope');
 select is(private.dashboard_order_topic_allowed('orders:v1:f2000000-0000-0000-0000-000000000002:f3000000-0000-0000-0000-000000000002'),false,'foreign tenant cannot join');
 select is(private.dashboard_order_topic_allowed('orders:v1:f2000000-0000-0000-0000-000000000001:f3000000-0000-0000-0000-000000000002'),false,'foreign location under own tenant cannot join');
-select set_config('request.jwt.claims','{"sub":"f1000000-0000-0000-0000-000000000003","role":"authenticated","aal":"aal1"}',true);
+select pg_temp.fixture_claims('{"sub":"f1000000-0000-0000-0000-000000000003","role":"authenticated","aal":"aal1"}',true);
 select is(private.dashboard_order_topic_allowed('orders:v1:f2000000-0000-0000-0000-000000000001:f3000000-0000-0000-0000-000000000001'),true,'assigned kitchen can join at aal1');
 update public.restaurant_memberships set status='suspended' where user_id='f1000000-0000-0000-0000-000000000003';
 select is(private.dashboard_order_topic_allowed('orders:v1:f2000000-0000-0000-0000-000000000001:f3000000-0000-0000-0000-000000000001'),false,'revoked membership fails fresh authorization');
-select set_config('request.jwt.claims','{"sub":"f1000000-0000-0000-0000-000000000004","role":"authenticated","aal":"aal2"}',true);
+select pg_temp.fixture_claims('{"sub":"f1000000-0000-0000-0000-000000000004","role":"authenticated","aal":"aal2"}',true);
 select is(private.dashboard_order_topic_allowed('orders:v1:f2000000-0000-0000-0000-000000000001:f3000000-0000-0000-0000-000000000001'),false,'driver cannot join operational scope');
 
 select private.submit_public_guest_pickup_order('storefront-restaurant-a','storefront-a-mitte',

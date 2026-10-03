@@ -1,3 +1,4 @@
+import { lockAccountSession } from "./account-session.js";
 import { Client } from "pg";
 import {
   menuIdPattern,
@@ -37,8 +38,12 @@ export const postgresMenuAdmin: MenuAdminRepository = async (
   });
   try {
     await client.connect();
-    await client.query(command ? "BEGIN" : "BEGIN READ ONLY");
+    await client.query("BEGIN");
     await client.query("SET LOCAL ROLE service_role");
+    if (!(await lockAccountSession(client, identity))) {
+      await client.query("ROLLBACK");
+      return { outcome: "forbidden" };
+    }
     await client.query("SET LOCAL statement_timeout='8s'");
     const r = await client.query<{ data: unknown }>(
       "select private.menu_dashboard($1,$2,$3,$4,$5::jsonb) as data",

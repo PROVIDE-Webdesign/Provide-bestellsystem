@@ -204,12 +204,29 @@ describe.skipIf(!db || !url || !key || !publicKey)("isolated actual A4 Auth prov
         [claims.session_id],
       );
       expect(session.rows[0]?.user_id).toBe(id);
+      const live = async () =>
+        (
+          await sql.query<{ live: boolean }>("select private.account_session_live($1,$2,$3) live", [
+            id,
+            claims.session_id,
+            claims.aal,
+          ])
+        ).rows[0]!.live;
+      expect(await live()).toBe(true);
       const list = await admin.auth.admin.mfa.listFactors({ userId: id });
       expect(list.error?.message).toBeUndefined();
       expect(list.data!.factors.some((f) => f.id === enrolled.data.id)).toBe(true);
       const removed = await user.auth.mfa.unenroll({ factorId: enrolled.data.id });
       expect(removed.error?.message).toBeUndefined();
       expect(decodeJwt(token).aal).toBe("aal2");
+      expect(await live()).toBe(false);
+      const observed = (
+        await sql.query<{ source: string; actor_user_id: string | null }>(
+          "select source,actor_user_id from private.account_security_events where target_user_id=$1 and action='verified_factor_removed'",
+          [id],
+        )
+      ).rows;
+      expect(observed).toEqual([{ source: "provider_observation", actor_user_id: null }]);
       const second = await user.auth.mfa.enroll({
         factorType: "totp",
         friendlyName: "Synthetic A4 replacement",

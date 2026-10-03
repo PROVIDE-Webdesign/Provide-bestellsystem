@@ -1,12 +1,15 @@
+import { lockAccountSession } from "./account-session.js";
+import type { DashboardIdentity } from "./dashboard-auth.js";
 import { Client } from "pg";
 
 import type { DashboardOrdersReader } from "./dashboard-orders.js";
 
 async function query(
   connectionString: string,
-  readOnly: boolean,
+  _readOnly: boolean,
   sql: string,
   values: readonly unknown[],
+  identity?: DashboardIdentity,
 ) {
   const client = new Client({
     connectionString,
@@ -15,8 +18,12 @@ async function query(
   });
   try {
     await client.connect();
-    await client.query(readOnly ? "BEGIN READ ONLY" : "BEGIN");
+    await client.query("BEGIN");
     await client.query("SET LOCAL ROLE service_role");
+    if (identity && !(await lockAccountSession(client, identity))) {
+      await client.query("ROLLBACK");
+      return { outcome: "forbidden" };
+    }
     await client.query("SET LOCAL statement_timeout = '5s'");
     const result = await client.query<{ data: unknown }>(sql, [...values]);
     await client.query("COMMIT");
@@ -41,6 +48,7 @@ export const postgresDashboardOrdersReader: DashboardOrdersReader = {
       true,
       "select private.read_dashboard_acceptance($1::uuid,$2::text,$3::uuid,$4::uuid) as data",
       [identity.userId, identity.aal, scope.restaurantId, scope.locationId],
+      identity,
     );
   },
   async escalateAlerts(connectionString) {
@@ -70,6 +78,7 @@ export const postgresDashboardOrdersReader: DashboardOrdersReader = {
         command.action,
         "confirmedFor" in command ? command.confirmedFor : null,
       ],
+      identity,
     );
   },
   retryRefund(connectionString, identity, scope) {
@@ -78,6 +87,7 @@ export const postgresDashboardOrdersReader: DashboardOrdersReader = {
       false,
       "select private.retry_online_refund($1,$2,$3,$4,$5) as data",
       [identity.userId, identity.aal, scope.restaurantId, scope.locationId, scope.orderId],
+      identity,
     );
   },
   list(connectionString, identity, scope, filters) {
@@ -97,6 +107,7 @@ export const postgresDashboardOrdersReader: DashboardOrdersReader = {
         filters.fulfillmentType ?? null,
         filters.orderNumber?.slice(3) ?? null,
       ],
+      identity,
     );
   },
   detail(connectionString, identity, scope) {
@@ -105,6 +116,7 @@ export const postgresDashboardOrdersReader: DashboardOrdersReader = {
       true,
       "SELECT private.attach_order_number(private.read_dashboard_order($1::uuid,$2::text,$3::uuid,$4::uuid,$5::uuid)) AS data",
       [identity.userId, identity.aal, scope.restaurantId, scope.locationId, scope.orderId],
+      identity,
     );
   },
   transition(connectionString, identity, scope, command) {
@@ -122,6 +134,7 @@ export const postgresDashboardOrdersReader: DashboardOrdersReader = {
         command.targetStatus,
         command.reasonCode ?? null,
       ],
+      identity,
     );
   },
 };

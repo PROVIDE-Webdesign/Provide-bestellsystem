@@ -6,15 +6,17 @@ Auth-Schnittstellen. Dieser Stand implementiert noch keinen Recovery-Ablauf.
 
 ## Konkreter Prüfstand
 
-- Neuer lokaler Branch: `codex/a4-account-mfa-recovery-20261003`.
+- Branch in Draft-PR21: `codex/a4-account-mfa-recovery-20261003`.
 - Unveränderte Basis PR20: `1b00f7791576b31acf07a54d3f197822e52dd1ab`.
 - SDK: `@supabase/supabase-js` 2.116.0; CLI: 2.117.0, entsprechend vorhandener CI.
 - `apps/api/src/recovery.integration.test.ts` verwendet ausschließlich tatsächlich ausgestellte
   Auth-Sitzungen, synthetische Konten und einen expliziten Loopback-Stack.
 - Die vorhandene Datenbank-CI führt den Test nach den bisherigen Integrationsketten aus. Keine neue
   Workflow-Berechtigung, kein Provider-Projekt und keine Secrets.
-- Kein Produktcode, keine ausgefüllte Migration, keine Default-Aktivierung und keine Änderung von
-  PR20. Kein Ready-Wechsel, Merge oder Deployment.
+- PR21 bleibt Draft; PR20 unverändert. Kein Ready-Wechsel, Merge oder Deployment.
+- CI151 am Head `487aad953fe9837091c62caaf80f17289050010a`: alle fünf Jobs PASS, einschließlich
+  beider tatsächlicher Provider-Gegenproben. Der anschließende Session-Gate-Stand benötigt einen
+  eigenen Laufnachweis.
 
 ## Zwei notwendige Provider-Gegenproben
 
@@ -43,23 +45,24 @@ fachliche Zugangssperre. Selbst ihr späterer PASS erfüllt nicht automatisch di
 Prüffälle A4-T01 bis A4-T35. Alle 35 bleiben bis zum jeweiligen Implementierungs- und Laufnachweis
 offen.
 
-Vor Umsetzung sind insbesondere zu klären: tatsächliches Verhalten der gepinnten Auth-Version beim
-Faktorentfernen, Recovery-AMR nach PKCE, aktueller Sessionzustand und verwendbare
-Audit-Aktionsnamen. Keine DML-Änderung in `auth.mfa_factors` als Produktweg und kein UI-only-Schutz
-des letzten Faktors.
+Die isolierten Gegenproben bestätigen: Recovery-AMR nach PKCE, weiterhin signiertes aal2 nach
+direktem Faktorentfernen, physisches Entfernen der Sitzung nach globalem Sign-out und die
+Aktionsnamen `factor_unenrolled`, `factor_deleted`, `user_updated_password`. Keine DML-Änderung in
+`auth.mfa_factors` als Produktweg und kein UI-only-Schutz des letzten Faktors.
 
 ## Fortsetzung und Grenzen
 
-Die automatische Freigabeprüfung hat den Upload dieses Branches zweimal abgelehnt, weil sie keine
-ausreichende user-authored Berechtigung zur Veröffentlichung im Remote
-`PROVIDE-Webdesign/Provide-bestellsystem` festgestellt hat. Das Remote wurde lesend geprüft und
-stimmt mit dem verbundenen PR20 überein; der Upload bleibt trotzdem bis zur ausdrücklichen
-Nutzerfreigabe gesperrt. Es wird kein alternativer Uploadweg als Umgehung verwendet.
+Der Nutzer hat Upload und separaten Draft-PR am 03.10.2026 ausdrücklich freigegeben. Der Branch ist
+hochgeladen, [Draft-PR21](https://github.com/PROVIDE-Webdesign/Provide-bestellsystem/pull/21) gegen
+`codex/a3-viewer-permission-20261002` eröffnet und CI151 geprüft. Die vorherige Upload-Sperre ist
+damit erledigt.
 
-Nach ausdrücklicher Freigabe: diesen Branch hochladen, einen getrennten Draft-PR gegen
-`codex/a3-viewer-permission-20261002` eröffnen, reale isolierte Gegenproben ausführen, mögliche
-Befunde korrigieren und anschließend A4 im bereits bestätigten Paketumfang vollständig umsetzen und
-prüfen. Keine erneute fachliche Entscheidung über A4-D01 bis A4-D06 notwendig.
+Die Umsetzung läuft im bestätigten Paketumfang weiter. Aktueller Arbeitsschritt: serverseitige
+Sitzungsprüfung in allen fachlichen API-Adaptern, restriktive RLS-Policies einschließlich neuer
+privater Realtime-Joins und unveränderliche Provider-Beobachtung beim Entfernen eines bestätigten
+Faktors. Fehlende Sitzungskennung wird im Produkt nicht toleriert. Synthetische Sitzungszeilen
+bestehen ausschließlich in wegwerfbaren Test-Fixtures. Fallsteuerung, Recovery-Oberfläche und der
+vollständige Nachweis der 35 Prüffälle sind noch offen.
 
 Fortschritt unverändert 69,014550264550 %, elf Funktionslücken. Planung und
 Integrationstestvorbereitung erhalten keine Gutschrift. A4 bleibt technisch offen; die bisherige

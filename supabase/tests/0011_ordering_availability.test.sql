@@ -1,5 +1,29 @@
 begin;
 
+-- Disposable pgTAP fixture only: materialize a provider-shaped session for old role/scope tests.
+-- New A4 tests deliberately omit/revoke these rows to exercise the strict product gate.
+create function pg_temp.fixture_claims(value text, local_only boolean) returns text
+language plpgsql security definer set search_path='' as $$
+declare c jsonb := value::jsonb; u uuid; a text; sid uuid;
+begin
+  u := coalesce(c->>'sub',nullif(current_setting('request.jwt.claim.sub',true),''))::uuid;
+  a := coalesce(c->>'aal','aal1');
+  if u is not null and exists(select 1 from auth.users where id=u) and a in ('aal1','aal2') then
+    sid := case when a='aal2' then u else md5(u::text||'aal1')::uuid end;
+    if a='aal2' then
+      insert into auth.mfa_factors(id,user_id,friendly_name,factor_type,status,secret,created_at,updated_at)
+      values(u,u,'Synthetic test only','totp','verified','SYNTHETICTEST',now(),now()) on conflict(id) do nothing;
+    end if;
+    insert into auth.sessions(id,user_id,created_at,updated_at,aal,factor_id)
+    values(sid,u,clock_timestamp(),clock_timestamp(),a::auth.aal_level,case when a='aal2' then u else null end)
+    on conflict(id) do nothing;
+    c := c || jsonb_build_object('session_id',sid);
+  end if;
+  return set_config('request.jwt.claims',c::text,local_only);
+end $$;
+
+
+
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public;
 
@@ -1236,7 +1260,7 @@ select throws_ok(
 
 set local role authenticated;
 set local request.jwt.claim.sub = 'b1000000-0000-0000-0000-000000000001';
-set local request.jwt.claims = '{"sub":"b1000000-0000-0000-0000-000000000001","aal":"aal2"}';
+select pg_temp.fixture_claims('{"sub":"b1000000-0000-0000-0000-000000000001","aal":"aal2"}',true);
 
 select is(
   (

@@ -33,6 +33,16 @@ describe.skipIf(!url || !db)("isolated real private Realtime transport", () => {
     await admin.connect();
     const clients: SupabaseClient[] = [];
     const clientFor = async (suffix: string, aal = "aal2") => {
+      const uid = `f1000000-0000-0000-0000-${suffix.padStart(12, "0")}`;
+      const sessionId =
+        aal === "aal2"
+          ? uid
+          : (await admin.query<{ id: string }>("select md5($1::text||'aal1')::uuid id", [uid]))
+              .rows[0]!.id;
+      await admin.query(
+        "insert into auth.sessions(id,user_id,created_at,updated_at,aal) values($1,$2,clock_timestamp(),clock_timestamp(),$3::auth.aal_level) on conflict(id) do nothing",
+        [sessionId, uid, aal],
+      );
       const now = Math.floor(Date.now() / 1000);
       const token = await new SignJWT({
         iss: `${url}/auth/v1`,
@@ -40,6 +50,7 @@ describe.skipIf(!url || !db)("isolated real private Realtime transport", () => {
         role: "authenticated",
         sub: `f1000000-0000-0000-0000-${suffix.padStart(12, "0")}`,
         aal,
+        session_id: sessionId,
         iat: now,
         exp: now + 180,
       })
@@ -74,7 +85,11 @@ describe.skipIf(!url || !db)("isolated real private Realtime transport", () => {
         }),
       };
     };
-    const identity = { userId: "f1000000-0000-0000-0000-000000000001", aal: "aal2" as const };
+    const identity = {
+      userId: "f1000000-0000-0000-0000-000000000001",
+      sessionId: "f1000000-0000-0000-0000-000000000001",
+      aal: "aal2" as const,
+    };
     const read = async () => {
       const raw = await postgresDashboardOrdersReader.alerts!(db, identity, {
         restaurantId,

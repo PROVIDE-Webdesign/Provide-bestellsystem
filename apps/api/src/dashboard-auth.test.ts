@@ -21,6 +21,7 @@ async function fixture() {
   const sign = (claims: Record<string, unknown> = {}, expiration = "5m") =>
     new SignJWT({
       aal: "aal2",
+      session_id: "f1100000-0000-0000-0000-000000000001",
       role: "authenticated",
       ...claims,
     })
@@ -80,6 +81,7 @@ describe("dashboard authentication boundary", () => {
     await expect(verifier.verify(await sign(), environment)).resolves.toEqual({
       userId: "f1000000-0000-0000-0000-000000000001",
       aal: "aal2",
+      sessionId: "f1100000-0000-0000-0000-000000000001",
     });
     await expect(
       verifier.verify(await sign({ aal: undefined }), environment),
@@ -88,6 +90,9 @@ describe("dashboard authentication boundary", () => {
       verifier.verify(await sign({ role: "service_role" }), environment),
     ).rejects.toThrow();
     await expect(verifier.verify(await sign({ aal: "aal3" }), environment)).rejects.toThrow();
+    for (const session_id of [undefined, "", "not-a-uuid"]) {
+      await expect(verifier.verify(await sign({ session_id }), environment)).rejects.toThrow();
+    }
   });
 
   it("rejects a wrong signature, issuer, audience and expired token", async () => {

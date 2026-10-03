@@ -1,3 +1,4 @@
+import { lockAccountSession } from "./account-session.js";
 import { Client } from "pg";
 import {
   parseProvideAdminCommand,
@@ -41,8 +42,12 @@ export const postgresProvideAdmin: ProvideAdminRepository = async (
   });
   try {
     await client.connect();
-    await client.query(command.action === "read" ? "BEGIN READ ONLY" : "BEGIN");
+    await client.query("BEGIN");
     await client.query("SET LOCAL ROLE service_role");
+    if (!(await lockAccountSession(client, identity))) {
+      await client.query("ROLLBACK");
+      return { outcome: "forbidden" };
+    }
     await client.query("SET LOCAL statement_timeout='5s'");
     const result = await client.query<{ data: unknown }>(
       command.action === "read"

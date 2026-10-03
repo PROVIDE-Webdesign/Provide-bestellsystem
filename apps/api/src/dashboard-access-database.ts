@@ -1,9 +1,10 @@
+import { lockAccountSession } from "./account-session.js";
 import { Client } from "pg";
 
 import type { DashboardAccessReader } from "./dashboard-access.js";
 
 export const postgresDashboardAccessReader: DashboardAccessReader = {
-  async read(connectionString, userId, aal) {
+  async read(connectionString, userId, aal, sessionId) {
     const client = new Client({
       connectionString,
       connectionTimeoutMillis: 5000,
@@ -11,8 +12,14 @@ export const postgresDashboardAccessReader: DashboardAccessReader = {
     });
     try {
       await client.connect();
-      await client.query("BEGIN READ ONLY");
+      await client.query("BEGIN");
       await client.query("SET LOCAL ROLE service_role");
+      if (
+        !(await lockAccountSession(client, { userId, aal, ...(sessionId ? { sessionId } : {}) }))
+      ) {
+        await client.query("ROLLBACK");
+        return { aal, memberships: [] };
+      }
       await client.query("SET LOCAL statement_timeout = '5s'");
       const result = await client.query<{ data: unknown }>(
         "SELECT private.read_dashboard_access_context($1::uuid,$2::text) AS data",

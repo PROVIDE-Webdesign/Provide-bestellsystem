@@ -1,0 +1,37 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path=extensions,public;
+select plan(18);
+insert into auth.users(id,email) values('a4100000-0000-0000-0000-000000000001','a4-synthetic@example.invalid'),('a4100000-0000-0000-0000-000000000002','a4-other@example.invalid');
+insert into auth.mfa_factors(id,user_id,factor_type,status,secret,created_at,updated_at)
+values('a4200000-0000-0000-0000-000000000001','a4100000-0000-0000-0000-000000000001','totp','verified','SYNTHETICTEST',now(),now());
+insert into auth.sessions(id,user_id,aal,factor_id,created_at,updated_at) values
+('a4300000-0000-0000-0000-000000000001','a4100000-0000-0000-0000-000000000001','aal2','a4200000-0000-0000-0000-000000000001',clock_timestamp(),clock_timestamp());
+select ok(private.account_session_live('a4100000-0000-0000-0000-000000000001','a4300000-0000-0000-0000-000000000001','aal2'),'live owned current TOTP session is accepted');
+select ok(not private.account_session_live('a4100000-0000-0000-0000-000000000001',null,'aal2'),'missing sid rejected');
+select ok(not private.account_session_live('a4100000-0000-0000-0000-000000000001','malformed','aal2'),'malformed sid safely rejected');
+select ok(not private.account_session_live('a4100000-0000-0000-0000-000000000002','a4300000-0000-0000-0000-000000000001','aal2'),'foreign session rejected');
+select ok(not private.account_session_live('a4100000-0000-0000-0000-000000000001','a4300000-0000-0000-0000-000000000001','aal1'),'stale assurance rejected');
+update auth.users set banned_until=now()+interval '1 hour' where id='a4100000-0000-0000-0000-000000000001';
+select ok(not private.account_session_live('a4100000-0000-0000-0000-000000000001','a4300000-0000-0000-0000-000000000001','aal2'),'provider ban rejected');
+update auth.users set banned_until=null where id='a4100000-0000-0000-0000-000000000001';
+update auth.sessions set not_after=now()-interval '1 second';
+select ok(not private.account_session_live('a4100000-0000-0000-0000-000000000001','a4300000-0000-0000-0000-000000000001','aal2'),'expired provider session rejected');
+update auth.sessions set not_after=null;
+update private.account_security_state set blocked=true where user_id='a4100000-0000-0000-0000-000000000001';
+select ok(not private.account_session_live('a4100000-0000-0000-0000-000000000001','a4300000-0000-0000-0000-000000000001','aal2'),'account recovery block rejected');
+update private.account_security_state set blocked=false,invalid_before=clock_timestamp() where user_id='a4100000-0000-0000-0000-000000000001';
+select ok(not private.account_session_live('a4100000-0000-0000-0000-000000000001','a4300000-0000-0000-0000-000000000001','aal2'),'old session remains invalid after unlock');
+update private.account_security_state set invalid_before='-infinity';
+delete from auth.mfa_factors where id='a4200000-0000-0000-0000-000000000001';
+select ok(not private.account_session_live('a4100000-0000-0000-0000-000000000001','a4300000-0000-0000-0000-000000000001','aal2'),'direct provider factor removal rejected even for old aal2 JWT');
+select ok((select blocked and needs_review from private.account_security_state where user_id='a4100000-0000-0000-0000-000000000001'),'uncontrolled removal requires review');
+select is((select source from private.account_security_events where target_user_id='a4100000-0000-0000-0000-000000000001'),'provider_observation','audit records real source');
+select is((select actor_user_id from private.account_security_events where target_user_id='a4100000-0000-0000-0000-000000000001'),null::uuid,'audit does not invent a human actor');
+select throws_ok('update private.account_security_events set action=''rewritten''','42501','Account security audit is immutable','audit cannot be rewritten');
+select ok(not has_function_privilege('authenticated','private.account_session_live(uuid,text,text)','execute'),'no browser target-state oracle');
+select ok(not has_function_privilege('authenticated','private.lock_account_session(uuid,text,text)','execute'),'no browser server-lock RPC');
+select ok(has_function_privilege('authenticated','private.current_account_session_live()','execute'),'RLS can inspect only authenticated self');
+select ok(not exists(select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relrowsecurity and not exists(select 1 from pg_policy p where p.polrelid=c.oid and p.polname='account_session_required' and not p.polpermissive)),'every existing public RLS table has restrictive current-session gate');
+select * from finish();
+rollback;
