@@ -68,3 +68,36 @@ it("redacts backend/provider errors and rejects raw authority and oversized bodi
   ).toBe(400);
   expect(fetch).not.toHaveBeenCalled();
 });
+it("cancels a chunked oversized body before consuming the remaining stream", async () => {
+  let chunks = 0;
+  const cancel = vi.fn();
+  const body = new ReadableStream<Uint8Array>(
+    {
+      pull(controller) {
+        chunks++;
+        controller.enqueue(new Uint8Array(2048));
+      },
+      cancel,
+    },
+    { highWaterMark: 0 },
+  );
+  const request = new Request("https://dashboard.test/api/recovery", {
+    method: "POST",
+    headers: { origin: "https://dashboard.test", "content-type": "application/json" },
+    body,
+    duplex: "half",
+  } as RequestInit);
+  expect((await POST(request)).status).toBe(400);
+  expect(chunks).toBe(3);
+  expect(cancel).toHaveBeenCalledOnce();
+  expect(fetch).not.toHaveBeenCalled();
+});
+it("rejects malformed input and a valid projection belonging to another case", async () => {
+  const malformed = req();
+  expect((await POST(new Request(malformed, { body: "{" }))).status).toBe(400);
+  expect(fetch).not.toHaveBeenCalled();
+  vi.mocked(fetch).mockResolvedValue(
+    Response.json({ data: { ...projection, caseId: "a4100000-0000-0000-0000-000000000002" } }),
+  );
+  expect((await POST(req())).status).toBe(503);
+});

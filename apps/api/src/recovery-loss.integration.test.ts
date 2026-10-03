@@ -36,7 +36,8 @@ describe.skipIf(!db || !url || !key || !publicKey)(
         auth: { persistSession: false, autoRefreshToken: false },
       });
       const ids: string[] = [],
-        clients: SupabaseClient[] = [];
+        clients: SupabaseClient[] = [],
+        realtimeClients: SupabaseClient[] = [];
       const restaurantId = crypto.randomUUID(),
         otherRestaurantId = crypto.randomUUID(),
         locationId = crypto.randomUUID();
@@ -54,7 +55,7 @@ describe.skipIf(!db || !url || !key || !publicKey)(
           accessToken: () => Promise.resolve(token),
           auth: { persistSession: false, autoRefreshToken: false },
         });
-        clients.push(probe);
+        realtimeClients.push(probe);
         await probe.realtime.setAuth(token);
         const channel = probe.channel(orderLiveTopic(restaurantId, locationId), {
           config: { private: true },
@@ -458,7 +459,7 @@ describe.skipIf(!db || !url || !key || !publicKey)(
         await sql.query("delete from public.restaurants where id=any($1::uuid[])", [
           [restaurantId, otherRestaurantId],
         ]);
-        for (const client of clients) await client.removeAllChannels();
+        for (const client of [...clients, ...realtimeClients]) await client.removeAllChannels();
         for (const id of ids) expect((await admin.auth.admin.deleteUser(id)).error).toBeNull();
         for (const client of clients) await client.auth.signOut();
         await sql.end();

@@ -1,6 +1,36 @@
 import { parseRecoveryRequest, parseRecoveryCase } from "@provide/contracts";
 import { dashboardAccessToken } from "@/lib/session.js";
 import { dashboardRouteFailure } from "@/lib/route-response.js";
+async function boundedJson(request: Request): Promise<unknown> {
+  const reader = request.body?.getReader();
+  if (!reader) return undefined;
+  const parts: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > 4096) {
+        await reader.cancel();
+        return undefined;
+      }
+      parts.push(value);
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const part of parts) {
+      bytes.set(part, offset);
+      offset += part.byteLength;
+    }
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  } catch {
+    await reader.cancel().catch(() => undefined);
+    return undefined;
+  } finally {
+    reader.releaseLock();
+  }
+}
 export async function POST(request: Request) {
   if (
     process.env.ACCOUNT_RECOVERY_ENABLED !== "true" ||
@@ -16,9 +46,7 @@ export async function POST(request: Request) {
   try {
     if (!request.headers.get("content-type")?.startsWith("application/json"))
       return dashboardRouteFailure(400);
-    const raw = await request.text();
-    if (new TextEncoder().encode(raw).byteLength > 4096) return dashboardRouteFailure(400);
-    const q = parseRecoveryRequest(JSON.parse(raw));
+    const q = parseRecoveryRequest(await boundedJson(request));
     if (!q) return dashboardRouteFailure(400);
     const base = new URL(process.env.DASHBOARD_API_BASE_URL ?? "");
     if (
@@ -62,7 +90,7 @@ export async function POST(request: Request) {
       value && typeof value === "object" && "data" in value
         ? parseRecoveryCase(value.data)
         : undefined;
-    if (!data) return dashboardRouteFailure(503);
+    if (!data || data.caseId !== q.command.caseId) return dashboardRouteFailure(503);
     return Response.json(
       { data },
       { headers: { "cache-control": "private, no-store", "referrer-policy": "no-referrer" } },
