@@ -13,7 +13,7 @@ import {
   totp,
 } from "./recovery-proof.integration.js";
 import { supabaseRecoveryEffect, type RecoveryProvider } from "./account-recovery.js";
-import { orderLiveTopic } from "@provide/contracts";
+import { orderLiveTopic, parseRecoveryCase } from "@provide/contracts";
 const db = process.env.TEST_DATABASE_URL,
   url = process.env.TEST_REALTIME_URL,
   key = process.env.TEST_AUTH_ADMIN_KEY,
@@ -102,12 +102,31 @@ describe.skipIf(!db || !url || !key || !publicKey)(
           ).error,
         ).toBeNull();
         const token = (await client.auth.getSession()).data.session!.access_token;
-        return { id, email, password, client, token, factorId: factor.data.id };
+        const refresh = (await client.auth.getSession()).data.session!.refresh_token;
+        return { id, email, password, client, token, refresh, factorId: factor.data.id };
       }
       try {
         const target = await account("target"),
           first = await account("operator-one"),
           second = await account("operator-two");
+        const otherSession = createClient(url, publicKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+        clients.push(otherSession);
+        const aal1Login = await otherSession.auth.signInWithPassword({
+          email: target.email,
+          password: target.password,
+        });
+        expect(aal1Login.error).toBeNull();
+        const oldAal1 = aal1Login.data.session!.access_token;
+        expect(
+          (
+            await sql.query("select private.account_session_live($1,$2,'aal1') live", [
+              target.id,
+              decodeJwt(oldAal1).session_id,
+            ])
+          ).rows[0],
+        ).toEqual({ live: true });
         await sql.query(
           "insert into public.restaurants(id,slug,display_name) values($1,$3,'Synthetic A4 first'),($2,$4,'Synthetic A4 second')",
           [restaurantId, otherRestaurantId, `a4-${restaurantId}`, `a4-${otherRestaurantId}`],
@@ -117,7 +136,7 @@ describe.skipIf(!db || !url || !key || !publicKey)(
           [locationId, restaurantId],
         );
         await sql.query(
-          "insert into public.restaurant_memberships(restaurant_id,user_id,role,status) values($1,$3,'owner','active'),($2,$3,'viewer','suspended')",
+          "insert into public.restaurant_memberships(restaurant_id,user_id,role,status,suspended_at) values($1,$3,'owner','active',null),($2,$3,'viewer','suspended',now())",
           [restaurantId, otherRestaurantId, target.id],
         );
         const beforeMemberships = (
@@ -212,14 +231,27 @@ describe.skipIf(!db || !url || !key || !publicKey)(
           contactId,
           evidenceReference: "independent-synthetic-proof",
         });
-        const one = await actualCommand(first.token, {
-          action: "approve",
-          caseId: c.caseId,
-          commandId: crypto.randomUUID(),
-          expectedRevision: checked.revision,
-        });
+        const concurrent = await Promise.all(
+          [first, second].map((operator) =>
+            actualResponse(operator.token, {
+              action: "approve",
+              caseId: c.caseId,
+              commandId: crypto.randomUUID(),
+              expectedRevision: checked.revision,
+            }),
+          ),
+        );
+        expect(concurrent.map((r) => r.status).sort()).toEqual([200, 409]);
+        const winner = concurrent.find((r) => r.status === 200)!;
+        const body: unknown = await winner.json();
+        const one =
+          body && typeof body === "object" && "data" in body
+            ? parseRecoveryCase(body.data)
+            : undefined;
+        if (!one) throw Error("No concurrent approval projection");
         expect(one.state).toBe("verified");
-        const approved = await actualCommand(second.token, {
+        const retryOperator = concurrent[0]!.status === 409 ? first : second;
+        const approved = await actualCommand(retryOperator.token, {
           action: "approve",
           caseId: c.caseId,
           commandId: crypto.randomUUID(),
@@ -290,7 +322,27 @@ describe.skipIf(!db || !url || !key || !publicKey)(
         });
         expect(providerCalls).toBe(1);
         expect(awaiting.state).toBe("awaiting_reenrollment");
+        const changed = await actualResponse(
+          first.token,
+          { ...execute, expectedRevision: awaiting.revision },
+          undefined,
+          { provider: lostResponse },
+        );
+        expect(changed.status).toBe(409);
+        await sql.query(
+          "update private.account_recovery_grants set active=false where user_id=$1",
+          [first.id],
+        );
+        expect(
+          (await actualResponse(first.token, execute, undefined, { provider: lostResponse }))
+            .status,
+        ).toBe(403);
+        expect(providerCalls).toBe(1);
+        await sql.query("update private.account_recovery_grants set active=true where user_id=$1", [
+          first.id,
+        ]);
         await actualBusinessDenied(target.token, restaurantId, locationId);
+        await actualBusinessDenied(oldAal1, restaurantId, locationId);
         expect(await dataRows(target.token, restaurantId)).toEqual([]);
         expect(await join(target.token)).toBe(REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR);
         expect(
@@ -332,6 +384,15 @@ describe.skipIf(!db || !url || !key || !publicKey)(
           expectedRevision: awaiting.revision,
         });
         expect(complete.state).toBe("completed");
+        for (const oldRefresh of [target.refresh, aal1Login.data.session!.refresh_token]) {
+          const rejected = await fetch(`${url}/auth/v1/token?grant_type=refresh_token`, {
+            method: "POST",
+            headers: { apikey: publicKey, "content-type": "application/json" },
+            body: JSON.stringify({ refresh_token: oldRefresh }),
+          });
+          expect([400, 401]).toContain(rejected.status);
+          await rejected.body?.cancel();
+        }
         expect(await dataRows(fresh, restaurantId)).toEqual([{ id: restaurantId }]);
         expect(await dataRows(fresh, otherRestaurantId)).toEqual([]);
         expect(
@@ -373,10 +434,12 @@ describe.skipIf(!db || !url || !key || !publicKey)(
             [c.caseId],
           )
         ).rows;
-        expect(actors.filter((a) => a.action === "approve").map((a) => a.actor_user_id)).toEqual([
-          first.id,
-          second.id,
-        ]);
+        expect(
+          actors
+            .filter((a) => a.action === "approve")
+            .map((a) => a.actor_user_id)
+            .sort(),
+        ).toEqual([first.id, second.id].sort());
         console.info(
           "A4 actual MFA-loss evidence: two distinct operators, Admin factor removal, all old sessions revoked, new actual TOTP completion, grant unchanged, exact command actors",
         );

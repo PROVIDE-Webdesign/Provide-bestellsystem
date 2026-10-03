@@ -85,5 +85,58 @@ select ok(not has_function_privilege('authenticated','private.has_restaurant_rol
 select ok(not has_function_privilege('authenticated','private.account_recovery_command(uuid,uuid,text,jsonb)','execute'),'no new direct browser recovery RPC');
 select ok(not has_table_privilege('authenticated','private.account_recovery_contacts','select'),'no browser proof/contact directory');
 select ok(not has_table_privilege('authenticated','private.account_recovery_audit','select'),'no browser immutable-audit directory');
+update private.account_recovery_contacts set created_at=clock_timestamp()+interval '1 hour' where user_id=pg_temp.u(19);
+select is(pg_temp.run(19,19,'request','{"kind":"lost_factor","reason":"factor_lost"}')->>'outcome','allowed','new contact scenario creates only request');
+select is(pg_temp.run(1,19,'verify',jsonb_build_object('contactId',pg_temp.u(19),'evidenceReference','new-contact'))->>'outcome','forbidden','contact agreed after request cannot prove identity');
+select pg_temp.approved(20);
+update auth.users set banned_until=clock_timestamp()+interval '1 hour' where id=pg_temp.u(20);
+select is(pg_temp.run(1,20,'execute')->>'outcome','conflict','new target ban invalidates prior approval');
+select ok((select banned_until>clock_timestamp() from auth.users where id=pg_temp.u(20)),'recovery never removes a target ban');
+select pg_temp.approved(21);
+insert into public.restaurant_memberships(restaurant_id,user_id,role,status) values(pg_temp.c(1),pg_temp.u(21),'viewer','active');
+select is(pg_temp.run(1,21,'execute')->>'outcome','conflict','changed membership invalidates prior approval');
+create temporary table replay_command(q jsonb);
+insert into replay_command values(jsonb_build_object('action','request','caseId',pg_temp.c(22),'commandId',gen_random_uuid(),'kind','lost_factor','reason','factor_lost'));
+select is(private.account_recovery_command(pg_temp.u(22),pg_temp.u(22),'aal2',(select q from replay_command))->>'outcome','allowed','first command records replay receipt');
+select is(private.account_recovery_command(pg_temp.u(22),pg_temp.u(22),'aal2',(select q from replay_command))->>'outcome','allowed','identical request replays without duplicate case');
+select is(private.account_recovery_command(pg_temp.u(22),pg_temp.u(22),'aal2',(select q||'{"reason":"different"}'::jsonb from replay_command))->>'outcome','conflict','same command ID with different payload conflicts');
+select is((select count(*)::integer from private.account_recovery_cases where id=pg_temp.c(22)),1,'replay created exactly one case');
+select pg_temp.approved(23);
+select is(private.account_recovery_command(pg_temp.u(1),pg_temp.u(1),'aal2',jsonb_build_object('action','execute','caseId',pg_temp.c(23),'commandId',gen_random_uuid(),'expectedRevision',1))->>'outcome','conflict','stale revision cannot execute');
+select is(pg_temp.run(1,23,'reject')->'data'->>'state','rejected','independent operator may reject before effect');
+select is(pg_temp.run(1,23,'execute')->>'outcome','conflict','rejected approval cannot execute');
+select pg_temp.approved(24);
+select is(pg_temp.run(1,24,'execute')->'data'->>'state','executing','factor consistency scenario claims expected effect');
+delete from auth.mfa_factors where id=pg_temp.u(24);
+insert into auth.mfa_factors(id,user_id,factor_type,status,secret,created_at,updated_at) values(pg_temp.u(124),pg_temp.u(24),'totp','verified','SYNTHETICTEST',clock_timestamp(),clock_timestamp());
+select is(private.finish_account_recovery_effect(pg_temp.u(1),pg_temp.u(1),'aal2',pg_temp.c(24),gen_random_uuid(),true)->'data'->>'state','needs_review','unexpected factor during effect invalidates reconciliation');
+select ok((select blocked and needs_review from private.account_security_state where user_id=pg_temp.u(24)),'unexpected factor never auto unlocks');
+update auth.sessions set aal='aal1' where id=pg_temp.u(6);
+select is(private.account_recovery_command(pg_temp.u(6),pg_temp.u(6),'aal1',jsonb_build_object('action','request','caseId',pg_temp.c(28),'commandId',gen_random_uuid(),'kind','replace_factor','reason','factor_replaced','oldFactorId',pg_temp.u(6)))->>'outcome','forbidden','current aal1 cannot replace a factor');
+update auth.sessions set aal='aal2' where id=pg_temp.u(6);
+insert into auth.mfa_factors(id,user_id,factor_type,status,secret,created_at,updated_at) values(pg_temp.u(66),pg_temp.u(6),'totp','verified','SYNTHETICTEST',clock_timestamp(),clock_timestamp());
+select is(pg_temp.run(6,28,'request',jsonb_build_object('kind','replace_factor','reason','factor_replaced','oldFactorId',pg_temp.u(66)))->>'outcome','forbidden','owned but unconfirmed old factor is rejected');
+update auth.users set email_confirmed_at=null where id=pg_temp.u(29);
+select is(pg_temp.run(29,29,'request','{"kind":"lost_factor","reason":"factor_lost"}')->>'outcome','forbidden','unconfirmed email cannot start automatic recovery');
+-- Test-only awaiting fixtures isolate final role/MFA and current-factor requirements.
+insert into auth.users(id,email,email_confirmed_at) select pg_temp.u(n),'a4-complete-'||n||'@example.invalid',now() from generate_series(31,34)n;
+insert into public.restaurant_memberships(restaurant_id,user_id,role,status) values(pg_temp.c(1),pg_temp.u(31),'owner','active'),(pg_temp.c(1),pg_temp.u(32),'manager','active'),(pg_temp.c(1),pg_temp.u(33),'viewer','active');
+update private.account_security_state set blocked=true,invalid_before=clock_timestamp() where user_id in(pg_temp.u(31),pg_temp.u(32),pg_temp.u(33),pg_temp.u(34));
+insert into private.account_recovery_cases(id,target_user_id,kind,state,bound_session_id,expires_at,identity_snapshot,factor_snapshot,required_approvals,new_factor_id,executing_at)
+ select pg_temp.c(n),pg_temp.u(n),case when n=34 then 'replace_factor' else 'password' end,'awaiting_reenrollment',pg_temp.u(n),clock_timestamp()+interval '24 hours',private.recovery_identity_snapshot(pg_temp.u(n)),'[]',0,case when n=34 then pg_temp.u(134) end,clock_timestamp() from generate_series(31,34)n;
+insert into auth.sessions(id,user_id,aal,created_at,updated_at) select pg_temp.u(n+100),pg_temp.u(n),'aal1',clock_timestamp(),clock_timestamp() from generate_series(31,34)n;
+create function pg_temp.complete(n integer,a text) returns jsonb language sql as $$
+ select private.account_recovery_command(pg_temp.u(n),pg_temp.u(n+100),a,jsonb_build_object('action','complete','caseId',pg_temp.c(n),'commandId',gen_random_uuid(),'expectedRevision',1))
+$$;
+select is(pg_temp.complete(31,'aal1')->>'outcome','forbidden','password completion cannot bypass owner MFA');
+select is(pg_temp.complete(32,'aal1')->>'outcome','forbidden','password completion cannot bypass manager MFA');
+select is(pg_temp.complete(33,'aal1')->'data'->>'state','completed','viewer may complete with fresh aal1 and keeps read role');
+select is((select role from public.restaurant_memberships where user_id=pg_temp.u(33)),'viewer','completion never promotes viewer');
+insert into auth.mfa_factors(id,user_id,factor_type,status,secret,created_at,updated_at) values(pg_temp.u(134),pg_temp.u(34),'totp','verified','SYNTHETICTEST',clock_timestamp(),clock_timestamp()),(pg_temp.u(234),pg_temp.u(34),'totp','verified','SYNTHETICTEST',clock_timestamp(),clock_timestamp());
+update auth.sessions set aal='aal2',factor_id=pg_temp.u(234) where id=pg_temp.u(134);
+select is(pg_temp.complete(34,'aal2')->>'outcome','forbidden','replacement completion must verify the exact new factor in current session');
+update auth.sessions set factor_id=pg_temp.u(134) where id=pg_temp.u(134);
+select is(pg_temp.complete(34,'aal2')->'data'->>'state','completed','current session confirmed with exact replacement factor can complete');
+select ok(not exists(select 1 from private.account_recovery_audit where source<>'application'),'command events explicitly identify application source');
 select * from finish();
 rollback;

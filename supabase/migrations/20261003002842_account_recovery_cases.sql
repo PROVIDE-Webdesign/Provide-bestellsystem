@@ -15,7 +15,7 @@ create table private.account_recovery_cases (
  security_revision bigint, revision integer not null default 1, bound_session_id uuid not null,
  created_at timestamptz not null default clock_timestamp(),expires_at timestamptz not null,
  approval_expires_at timestamptz,executing_at timestamptz,
- identity_snapshot text not null,factor_snapshot text not null,
+ identity_snapshot text not null,factor_snapshot text not null,execution_factor_snapshot text,
  required_approvals integer not null check(required_approvals in (0,1,2)),
  contact_id uuid references private.account_recovery_contacts(id),evidence_reference text,
  new_factor_id uuid,old_factor_ids uuid[] not null default '{}',
@@ -32,7 +32,7 @@ create table private.account_recovery_approvals (
 create table private.account_recovery_audit (
  id bigint generated always as identity primary key,case_id uuid not null,
  target_user_id uuid not null,actor_user_id uuid not null,
- command_id uuid not null,action text not null,reason text not null,
+ command_id uuid not null,source text not null default 'application' check(source='application'),action text not null,reason text not null,
  revision integer not null,recorded_at timestamptz not null default clock_timestamp()
 );
 create table private.account_recovery_receipts (
@@ -68,6 +68,18 @@ create function private.recovery_factor_snapshot_except(u uuid,f uuid) returns t
 language sql stable security definer set search_path='' as $$
  select coalesce(jsonb_agg(jsonb_build_object('id',id,'status',status,'type',factor_type,'updated',updated_at) order by id),'[]')::text
  from auth.mfa_factors where user_id=u and id<>f
+$$;
+-- Only the claimed deletions may disappear during the external effect. No added,
+-- modified or unrelated removed factor may silently inherit the previous approval.
+create function private.recovery_factor_effect_consistent(c private.account_recovery_cases) returns boolean
+language sql stable security definer set search_path='' as $$
+ with current_factors as (select value f from jsonb_array_elements(private.recovery_factor_snapshot(c.target_user_id)::jsonb)),
+ expected_factors as (select value f from jsonb_array_elements(c.execution_factor_snapshot::jsonb))
+ select c.execution_factor_snapshot is not null
+ and not exists(select 1 from current_factors x where not exists(select 1 from expected_factors e where e.f=x.f))
+ and not exists(select 1 from expected_factors e where
+   (c.kind='password' or not (e.f->>'id')::uuid=any(c.old_factor_ids))
+   and not exists(select 1 from current_factors x where x.f=e.f))
 $$;
 create function private.recovery_provider_session(u uuid,sid uuid,a text) returns boolean
 language sql stable security definer set search_path='' as $$
@@ -187,14 +199,15 @@ begin
    update private.account_security_state set blocked=true,invalid_before=clock_timestamp(),revision=revision+1 where user_id=target;
    -- Narrow server-only session revocation; never edit factors or bans through database DML.
    delete from auth.sessions where user_id=target and id<>c.bound_session_id;
-   update private.account_recovery_cases set security_revision=(select revision from private.account_security_state where user_id=target),state='executing',executing_at=clock_timestamp(),executor_user_id=actor,executor_session_id=sid where id=cid;
+   update private.account_recovery_cases set security_revision=(select revision from private.account_security_state where user_id=target),execution_factor_snapshot=private.recovery_factor_snapshot(target),state='executing',executing_at=clock_timestamp(),executor_user_id=actor,executor_session_id=sid where id=cid;
   elsif act='complete' then
    if c.state<>'awaiting_reenrollment' or sid=c.bound_session_id or
     not exists(select 1 from auth.sessions s join private.account_security_state st on st.user_id=s.user_id
       where s.id=sid and s.user_id=target and s.created_at>st.invalid_before) or
     exists(select 1 from auth.mfa_amr_claims where session_id=sid and authentication_method='recovery') or
-    (c.kind in ('lost_factor','replace_factor') and (aal<>'aal2' or not exists(select 1 from auth.mfa_factors f where f.user_id=target and f.status::text='verified' and
-      (f.id=c.new_factor_id or f.created_at>c.executing_at)))) or
+    (c.kind in ('lost_factor','replace_factor') and (aal<>'aal2' or not exists(select 1 from auth.mfa_factors f join auth.sessions ss on ss.factor_id=f.id
+      where ss.id=sid and ss.user_id=target and f.user_id=target and f.status::text='verified' and f.factor_type::text='totp' and
+      ((c.kind='replace_factor' and f.id=c.new_factor_id) or (c.kind='lost_factor' and f.created_at>c.executing_at))))) or
     (c.kind='password' and (cardinality(c.old_factor_ids)>0 or exists(select 1 from public.restaurant_memberships where user_id=target and status='active' and role in ('owner','manager')) or exists(select 1 from private.provide_admin_grants where user_id=target and active)) and aal<>'aal2')
     then return jsonb_build_object('outcome','forbidden');end if;
    if (select needs_review from private.account_security_state where user_id=target) then return jsonb_build_object('outcome','forbidden');end if;
@@ -230,7 +243,7 @@ begin
    (c.kind<>'lost_factor' or clock_timestamp()<c.approval_expires_at) then
   return jsonb_build_object('outcome','allowed','data',private.recovery_projection(c));
  end if;
- if not authorized or not applied or clock_timestamp()>c.expires_at or exists(select 1 from private.account_security_events e where e.target_user_id=c.target_user_id and e.revision>c.security_revision and
+ if not authorized or not applied or not private.recovery_factor_effect_consistent(c) or clock_timestamp()>c.expires_at or exists(select 1 from private.account_security_events e where e.target_user_id=c.target_user_id and e.revision>c.security_revision and
    ((c.kind='password' and e.action<>'password_changed') or (c.kind<>'password' and (e.action<>'verified_factor_removed' or not e.factor_id=any(c.old_factor_ids))))) or private.recovery_identity_snapshot(c.target_user_id)<>c.identity_snapshot or
    (c.kind='lost_factor' and (clock_timestamp()>c.approval_expires_at or exists(select 1 from private.account_recovery_approvals a where a.case_id=cid and (not private.recovery_operator(a.user_id,a.session_id,'aal2') or a.actor_snapshot<>private.recovery_identity_snapshot(a.user_id))))) then
   update private.account_security_state set needs_review=true where user_id=c.target_user_id;
@@ -247,7 +260,7 @@ begin
  values(cid,c.target_user_id,actor,cmd,'effect_reconciled',case when applied then 'provider_state_applied' else 'provider_state_uncertain' end,c.revision);
  return jsonb_build_object('outcome','allowed','data',private.recovery_projection(c));
 end $$;
-revoke all on function private.recovery_identity_snapshot(uuid),private.recovery_factor_snapshot(uuid),private.recovery_factor_snapshot_except(uuid,uuid),private.recovery_provider_session(uuid,uuid,text),
+revoke all on function private.recovery_identity_snapshot(uuid),private.recovery_factor_snapshot(uuid),private.recovery_factor_snapshot_except(uuid,uuid),private.recovery_factor_effect_consistent(private.account_recovery_cases),private.recovery_provider_session(uuid,uuid,text),
  private.recovery_operator(uuid,uuid,text),private.recovery_projection(private.account_recovery_cases),private.account_recovery_command(uuid,uuid,text,jsonb),private.finish_account_recovery_effect(uuid,uuid,text,uuid,uuid,boolean)
  from public,anon,authenticated,service_role;
 grant execute on function private.account_recovery_command(uuid,uuid,text,jsonb),private.finish_account_recovery_effect(uuid,uuid,text,uuid,uuid,boolean) to service_role;
@@ -284,7 +297,7 @@ declare c private.account_recovery_cases;
 begin
  select * into c from private.account_recovery_cases where id=cid for update;
  if c.id is null or c.state<>'executing' or actor<>c.executor_user_id or sid<>c.executor_session_id or
- not private.recovery_provider_session(actor,sid,aal) or clock_timestamp()>c.expires_at or private.recovery_identity_snapshot(c.target_user_id)<>c.identity_snapshot or
+ not private.recovery_provider_session(actor,sid,aal) or clock_timestamp()>c.expires_at or not private.recovery_factor_effect_consistent(c) or private.recovery_identity_snapshot(c.target_user_id)<>c.identity_snapshot or
  (c.kind='lost_factor' and (not private.recovery_operator(actor,sid,aal) or clock_timestamp()>c.approval_expires_at or
  exists(select 1 from private.account_recovery_approvals a where a.case_id=cid and
  (not private.recovery_operator(a.user_id,a.session_id,'aal2') or a.actor_snapshot<>private.recovery_identity_snapshot(a.user_id))))) then return null;end if;

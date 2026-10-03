@@ -10,6 +10,74 @@ const key = process.env.TEST_AUTH_ADMIN_KEY;
 const publicKey = process.env.TEST_REALTIME_KEY;
 
 describe.skipIf(!db || !url || !key || !publicKey)("isolated actual A4 Auth provider", () => {
+  it("rejects a provider-issued recovery proof after its provider expiry without changing a password", async () => {
+    if (
+      !db ||
+      !url ||
+      !key ||
+      !publicKey ||
+      ![db, url].every((v) => ["127.0.0.1", "localhost"].includes(new URL(v).hostname))
+    )
+      throw Error("Disposable loopback stack required");
+    const sql = new Client({ connectionString: db });
+    await sql.connect();
+    const admin = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const browser = createClient(url, publicKey, {
+      auth: { flowType: "pkce", persistSession: false, autoRefreshToken: false },
+    });
+    const email = `a4-expiry-${crypto.randomUUID()}@example.invalid`,
+      password = `Synthetic-${crypto.randomUUID()}!`;
+    const user = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    expect(user.error).toBeNull();
+    const id = user.data.user!.id;
+    try {
+      expect(
+        (
+          await browser.auth.resetPasswordForEmail(email, {
+            redirectTo: "http://127.0.0.1:4321/auth/recovery",
+          })
+        ).error,
+      ).toBeNull();
+      // Time fixture only: retain the real provider-issued token and expire its recorded issue time.
+      const row = (
+        await sql.query<{ recovery_token: string }>(
+          "update auth.users set recovery_sent_at=clock_timestamp()-interval '2 days' where id=$1 returning recovery_token",
+          [id],
+        )
+      ).rows[0]!;
+      const verify = new URL(`${url}/auth/v1/verify`);
+      verify.searchParams.set("token", row.recovery_token);
+      verify.searchParams.set("type", "recovery");
+      verify.searchParams.set("redirect_to", "http://127.0.0.1:4321/auth/recovery");
+      const response = await fetch(verify, { redirect: "manual" });
+      expect([302, 303]).toContain(response.status);
+      const redirect = new URL(response.headers.get("location")!);
+      await response.body?.cancel();
+      expect(redirect.searchParams.has("code")).toBe(false);
+      expect(new URLSearchParams(redirect.hash.slice(1)).get("error_code")).toBe("otp_expired");
+      expect((await browser.auth.signInWithPassword({ email, password })).error).toBeNull();
+      expect(
+        (
+          await sql.query("select blocked from private.account_security_state where user_id=$1", [
+            id,
+          ])
+        ).rows[0],
+      ).toEqual({ blocked: false });
+      expect(
+        (
+          await sql.query("select id from private.account_recovery_cases where target_user_id=$1", [
+            id,
+          ])
+        ).rowCount,
+      ).toBe(0);
+    } finally {
+      await admin.auth.admin.deleteUser(id);
+      await browser.auth.signOut();
+      await sql.end();
+    }
+  }, 30000);
   it("proves actual PKCE password recovery, provider-bound purpose, verifier rejection and single-use exchange", async () => {
     if (
       !db ||
