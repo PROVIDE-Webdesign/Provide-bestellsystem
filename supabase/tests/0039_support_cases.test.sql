@@ -9,7 +9,9 @@ create function pg_temp.support(q jsonb,actor integer default 6) returns jsonb l
 $$;
 create function pg_temp.read_support(actor integer default 6) returns jsonb language sql as $$select pg_temp.support('{"action":"read","caseId":null,"cursor":null}',actor)$$;
 -- Rights are deliberately independent of every existing restaurant/platform role.
-select is(pg_temp.read_support(n)->>'outcome','forbidden','T04 restaurant role grants no support right: '||n) from generate_series(1,6)n;
+update public.restaurant_memberships set role='viewer' where user_id=pg_temp.u(6);
+select is(pg_temp.read_support(n)->>'outcome','forbidden','T04 restaurant role grants no support right (6 = viewer): '||n) from generate_series(1,6)n;
+update public.restaurant_memberships set role='manager' where user_id=pg_temp.u(6);
 insert into private.provide_admin_grants(user_id) values(pg_temp.u(6));
 select is(pg_temp.read_support()->>'outcome','forbidden','T03 global platform grant is not support authority');
 insert into private.support_grants(user_id,restaurant_id,location_id,can_read,can_manage) values(pg_temp.u(6),'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',true,true);

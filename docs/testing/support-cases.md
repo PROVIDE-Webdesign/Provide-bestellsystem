@@ -22,7 +22,7 @@ CI stehen im O1-Prüfnachweis/Projektprotokoll.
 | O1-T01 | Ohne Login und ohne Supportgrant                        | Zugriff verweigert; keine Fall-/Quellinformation.                                                                            | U/S39/A                                                                   |
 | O1-T02 | AAL1 trotz Supportgrant                                 | Lesen und Bearbeiten verweigert.                                                                                             | U/S39/A                                                                   |
 | O1-T03 | PROVIDE-Admin ohne Supportgrant                         | Kein impliziter Supportzugriff.                                                                                              | S39                                                                       |
-| O1-T04 | Owner/Manager/Kitchen/Driver/Viewer ohne Grant          | Kein Rollen-Bypass.                                                                                                          | S39/R(A3)                                                                 |
+| O1-T04 | Owner/Manager/Kitchen/Driver/Viewer ohne Grant          | Kein Rollen-Bypass.                                                                                                          | S39 (Owner/Manager/Kitchen/Driver/Viewer ausdrücklich) / R(A3)            |
 | O1-T05 | Standortgrant greift auf anderen Standort/Mandant zu    | Keine Daten oder Mutation; Cursor/Referenzen ebenfalls geprüft.                                                              | S39/S40/A/B                                                               |
 | O1-T06 | Restaurantgrant und globaler Grant                      | Nur jeweiliger erlaubter Umfang; kein frei verschobener Fall.                                                                | S39                                                                       |
 | O1-T07 | Grantentzug während geöffneter Sitzung                  | Nächster Aufruf verweigert; UI verwirft geladene Daten.                                                                      | S39/A/B                                                                   |
@@ -57,18 +57,30 @@ CI stehen im O1-Prüfnachweis/Projektprotokoll.
 | O1-T36 | Verlorene Antwort nach Commit                           | Replay liefert bestehendes Ergebnis; kein zweiter Aktionsaudit.                                                              | S39/A/B; Fault injection nach tatsächlichem Commit, identischer Replay    |
 | O1-T37 | Direkte Browser-DML/RPC und Auditänderung               | Verweigert; private Serveroperationen eng berechtigt; append-only geschützt.                                                 | S39                                                                       |
 | O1-T38 | Alle fünf Typen und manuelle Störung                    | Deterministische Quellenzuordnung; fehlende Quelle als unbekannt, nicht als Erfolg.                                          | U/S39/S40                                                                 |
-| O1-T39 | Default aus, Tastatur, 390/1440 px, drei Engines        | Geschlossener Default; erreichbare Labels/Fokus, nachvollziehbare Konflikte; synthetische UI klar markiert.                  | U/B/R; Browser noch nicht ausgeführt                                      |
-| O1-T40 | Bestehende Zahlungen, E-Mail, Historie, Personal, A3/A4 | Relevante Regression am finalen Head; Pflicht-CI und isolierte Auth-/HTTP-/SQL-Nachweise; praktische Abnahmen nicht ersetzt. | R/A; finale CI am Head noch ausstehend                                    |
+| O1-T39 | Default aus, Tastatur, 390/1440 px, drei Engines        | Geschlossener Default; erreichbare Labels/Fokus, nachvollziehbare Konflikte; synthetische UI klar markiert.                  | U/B/R; Kennzeichnung im Harness, DST-Falldaten synthetisch                |
+| O1-T40 | Bestehende Zahlungen, E-Mail, Historie, Personal, A3/A4 | Relevante Regression am finalen Head; Pflicht-CI und isolierte Auth-/HTTP-/SQL-Nachweise; praktische Abnahmen nicht ersetzt. | R/A; finalen Head und Pflichtlauf im aktuellen O1-Nachweis abgleichen     |
 
-## Status dieses lokalen Entwurfs
+## Ausgeführter Implementierungsnachweis und Grenzen
 
-496 Unit-Tests bestanden; zehn umgebungsabhängige Integrationen lokal ausdrücklich skipped. Lint,
-Typen und Builds wurden im Vorlauf geprüft; finale Wiederholung nach Abschluss der Korrekturen
-erforderlich. 84 neue SQL-Prüfungen (60 + 24) bestanden im WASM-PostgreSQL-Vorlauf mit sämtlichen
-Projektmigrationen, synthetischen Auth-Tabellen und No-op-Realtime-Send. Dies ist kein tatsächlicher
-Supabase-Auth-/Realtime-/Security-Advisor-Nachweis. Browserinstallation lokal am Archivdownload
-gescheitert; kein Browser-PASS behauptet.
+CI161 (Run 37119368549) am Head `6945c37affce039d98d4ca435e937ed72de1461d` bestand mit allen fünf
+Pflichtjobs: 496 Unit-Tests, 40 SQL-Dateien / 1.760 pgTAP-Prüfungen, Security Advisors, zehn
+tatsächlichen isolierten Integrationsfällen sowie Chromium, Firefox und WebKit. Darin bestanden T31
+mit tatsächlichem konkurrierendem Quellzeilen-Writer und T36 mit Fault injection nach tatsächlichem
+Commit und identischem Replay.
 
-T31/T36 enthalten konkrete Fault-/Parallelitätsnachweise; deren tatsächlicher isolierter Lauf bleibt
-bis zur CI offen. Kein vollständiger Fachfall wird allein aufgrund dieser Zuordnung als
-endabgenommen erklärt. F01–F03 bleiben eingefroren.
+Der anschließende Nachweisabgleich ergänzt den ausdrücklichen Viewer-ohne-Grant-Fall, die physische
+Entfernung gespeicherter Kontaktfelder bei unveränderter Fall-/Audithistorie, die sichtbare
+synthetische Harness-Kennzeichnung und den wiederholten lokalen DST-Stundenwert mit unterscheidbarem
+Offset. SQL-Datei S39 enthält 60, S40 jetzt 26 Assertions. Der finale Lauf muss diese Ergänzungen am
+aktuellen PR-Head enthalten; die vorangegangene CI wird nicht als Nachweis eines späteren Heads
+verwendet. Aktueller Head/Tree, finaler CI-Lauf, Bildsichtprüfung und die einzelnen 40
+Fallauswertungen werden im O1-Prüfnachweis und Projektprotokoll festgehalten.
+
+Lokal bleiben zehn umgebungsabhängige Integrationen ausdrücklich skipped. Der
+PostgreSQL-WASM-Vorlauf nutzt synthetische Auth-Tabellen und No-op-Realtime-Send und ersetzt den
+tatsächlichen isolierten Stack nicht. Browser prüfen die echte SupportCases-Komponente mit
+synthetischem Transport und synthetischen Daten; sie sind kein Browser-End-to-End-Nachweis gegen
+Auth/HTTP/DB. Der gesonderte Integrationslauf verwendet tatsächliche Loopback-Auth-TOTP und den
+Produktionsverifier. Kein externer Provider-Abgleich, keine Providerzahlung und keine praktische
+Geräte-/Screenreaderabnahme. F01–F03 bleiben eingefroren. Die separate technische Endfreigabeprüfung
+und Nutzer-Endfreigabe sind nicht Teil dieses Implementierungsnachweises.

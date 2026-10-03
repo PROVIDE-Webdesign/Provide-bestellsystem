@@ -39,6 +39,11 @@ select pg_temp.scan_all();
 select is((select count(*) from private.support_cases),(select c from counts),'T15/T16 repeated scan has no duplicate cases');
 select is((select count(*) from private.support_audit),(select a from counts),'T16 unchanged evidence adds no audit');
 select ok(not exists(select 1 from private.support_cases where evidence::text ~ 'acct_|cs_test_|pi_|guest@example|phone|contact_name|address|provider_reference|last_error_code'),'T10/T12 minimal evidence has no contacts, provider IDs or raw errors');
+create temporary table history_before_contact_delete as select md5(jsonb_build_object('cases',(select jsonb_agg(to_jsonb(c) order by id) from private.support_cases c),'audit',(select jsonb_agg(to_jsonb(a) order by id) from private.support_audit a))::text) hash;
+-- Physical erasure is an administrator test fixture, never an O1 command.
+update public.order_customer_contacts set purged_at=clock_timestamp(),contact_name=null,phone_e164=null,email=null where order_id in(select id from source_orders);
+select is((select count(*) from public.order_customer_contacts where order_id in(select id from source_orders) and(contact_name is not null or phone_e164 is not null or email is not null)),0::bigint,'T12 synthetic contact fields physically erased through the permitted purge transition');
+select is(md5(jsonb_build_object('cases',(select jsonb_agg(to_jsonb(c) order by id) from private.support_cases c),'audit',(select jsonb_agg(to_jsonb(a) order by id) from private.support_audit a))::text),(select hash from history_before_contact_delete),'T12 physical contact deletion preserves all support references and audit');
 create temporary table selected_case as select id,revision,source_id from private.support_cases where kind='payment_review';
 create function pg_temp.close_payment(reason text,fp text default null) returns jsonb language sql as $$
  select pg_temp.support(jsonb_build_object('action','update','requestId',gen_random_uuid(),'caseId',id,'expectedRevision',(select revision from private.support_cases where id=s.id),'operation','status','assigneeUserId',null,'state','resolved','severity',null,'deadline',null,'reason',reason,'sourceFingerprint',fp)) from selected_case s

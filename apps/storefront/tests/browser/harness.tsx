@@ -65,6 +65,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {support ? (
       <main>
+        <p>Synthetischer O1-Browserprüflauf · keine echten Fälle</p>
         <SupportCases />
       </main>
     ) : recovery ? (

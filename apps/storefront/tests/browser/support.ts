@@ -6,6 +6,7 @@ export async function verifySupportBrowser(page: Page, output: string, width: nu
   let denied = false,
     canManage = true,
     revision = 1,
+    deadline = raw.cases[0]!.deadline,
     lost: SupportCommand | null = null,
     calls = 0;
   await page.route("**/api/support", async (route) => {
@@ -37,6 +38,7 @@ export async function verifySupportBrowser(page: Page, output: string, width: nu
           cases: raw.cases.map((c) => ({
             ...c,
             revision,
+            deadline,
             assigneeUserId: revision > 1 ? "f1000000-0000-0000-0000-000000000006" : null,
           })),
           currentSource: detail ? raw.cases[0]!.evidence : null,
@@ -45,6 +47,11 @@ export async function verifySupportBrowser(page: Page, output: string, width: nu
     });
   });
   await page.goto("http://127.0.0.1:4321/?support=1");
+  assert.ok(
+    await page
+      .getByText("Synthetischer O1-Browserprüflauf · keine echten Fälle", { exact: true })
+      .isVisible(),
+  );
   assert.equal(calls, 0, "no background scan or arbitrary scope fetch");
   await page.getByLabel("Mandanten-ID", { exact: true }).fill(raw.restaurantId);
   await page.getByLabel("Standort-ID", { exact: true }).fill(raw.locationId);
@@ -113,6 +120,23 @@ export async function verifySupportBrowser(page: Page, output: string, width: nu
     "read-only cannot create",
   );
   await page.screenshot({ path: `${output}/support-readonly-${width}.png`, fullPage: true });
+  // The repeated local hour during DST must retain its distinct UTC offset.
+  const shown: string[] = [];
+  for (const utc of ["2026-10-25T00:30:00.000Z", "2026-10-25T01:30:00.000Z"]) {
+    deadline = utc;
+    await page.getByRole("button", { name: "Fälle laden", exact: true }).click();
+    const expected = await page.evaluate(
+      (value) =>
+        new Date(value).toLocaleString("de-DE", {
+          timeZone: "Europe/Berlin",
+          timeZoneName: "short",
+        }),
+      utc,
+    );
+    await page.getByText(`Offen · Normal · Frist ${expected}`, { exact: true }).waitFor();
+    shown.push(expected);
+  }
+  assert.notEqual(shown[0], shown[1], "DST repeated hour is disambiguated by zone offset");
   // Scope edits must discard even a delayed successful response from the old scope.
   let release: () => void = () => undefined;
   const late = new Promise<void>((resolve) => {
