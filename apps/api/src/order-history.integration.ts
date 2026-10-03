@@ -10,7 +10,11 @@ export async function verifyHistoryIntegration(
     restaurantId: "f2000000-0000-0000-0000-000000000001",
     locationId: "f3000000-0000-0000-0000-000000000001",
   };
-  const identity = { userId: "f1000000-0000-0000-0000-000000000002", aal: "aal2" as const };
+  const identity = {
+    userId: "f1000000-0000-0000-0000-000000000002",
+    sessionId: "f1000000-0000-0000-0000-000000000002",
+    aal: "aal2" as const,
+  };
   const logger = { error: vi.fn() },
     worker = createApiWorker(undefined, logger, undefined, undefined, undefined, {
       verify: () => Promise.resolve(identity),

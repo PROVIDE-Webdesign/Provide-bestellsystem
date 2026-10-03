@@ -7,7 +7,12 @@ type Env = Parameters<ReturnType<typeof createApiWorker>["fetch"]>[1];
 
 export async function verifyOrderNumberIntegration(admin: Client, env: Env) {
   const worker = createApiWorker(undefined, undefined, undefined, undefined, undefined, {
-    verify: () => Promise.resolve({ userId: "f1000000-0000-0000-0000-000000000001", aal: "aal2" }),
+    verify: () =>
+      Promise.resolve({
+        userId: "f1000000-0000-0000-0000-000000000001",
+        sessionId: "f1000000-0000-0000-0000-000000000001",
+        aal: "aal2",
+      }),
   });
   const base = "https://api.test/v1/storefront/storefront-restaurant-a/storefront-a-mitte";
   const time = await admin.query<{ requested_for: string }>(

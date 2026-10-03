@@ -17,7 +17,11 @@ export async function verifyEmailIntegration(
     restaurantId: "f2000000-0000-0000-0000-000000000001",
     locationId: "f3000000-0000-0000-0000-000000000001",
   };
-  const identity = { userId: "f1000000-0000-0000-0000-000000000001", aal: "aal2" as const };
+  const identity = {
+    userId: "f1000000-0000-0000-0000-000000000001",
+    sessionId: "f1000000-0000-0000-0000-000000000001",
+    aal: "aal2" as const,
+  };
   const { rows } = await admin.query<{ data: { orderId: string } }>(
     "select private.submit_public_guest_pickup_order($1,$2,$3,$4,date_trunc('hour',now())+interval '4 hours',$5::jsonb,$6,$7::jsonb,$8,30) as data",
     [

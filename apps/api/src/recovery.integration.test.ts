@@ -1,34 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { Client } from "pg";
-import { createHmac } from "node:crypto";
 import { decodeJwt } from "jose";
 import { describe, expect, it } from "vitest";
+import { totp, actualCommand } from "./recovery-proof.integration.js";
 
 const db = process.env.TEST_DATABASE_URL;
 const url = process.env.TEST_REALTIME_URL;
 const key = process.env.TEST_AUTH_ADMIN_KEY;
 const publicKey = process.env.TEST_REALTIME_KEY;
-
-function totp(secret: string): string {
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-  let bits = "";
-  for (const c of secret.replace(/=/g, "").toUpperCase()) {
-    const n = alphabet.indexOf(c);
-    if (n < 0) throw Error("Invalid synthetic TOTP secret");
-    bits += n.toString(2).padStart(5, "0");
-  }
-  const bytes = Uint8Array.from(bits.match(/.{8}/g)!.map((b) => parseInt(b, 2)));
-  const counter = new Uint8Array(8);
-  new DataView(counter.buffer).setBigUint64(0, BigInt(Math.floor(Date.now() / 30000)));
-  const hmac = createHmac("sha1", bytes).update(counter).digest();
-  const offset = hmac[hmac.length - 1]! & 15;
-  return (
-    (new DataView(hmac.buffer, hmac.byteOffset, hmac.byteLength).getUint32(offset) & 0x7fffffff) %
-    1000000
-  )
-    .toString()
-    .padStart(6, "0");
-}
 
 describe.skipIf(!db || !url || !key || !publicKey)("isolated actual A4 Auth provider", () => {
   it("proves actual PKCE password recovery, provider-bound purpose, verifier rejection and single-use exchange", async () => {
@@ -108,6 +87,7 @@ describe.skipIf(!db || !url || !key || !publicKey)("isolated actual A4 Auth prov
       const exchanged = await recovery.auth.exchangeCodeForSession(code);
       expect(exchanged.error?.message).toBeUndefined();
       const token = exchanged.data.session!.access_token;
+      const oldRefresh = exchanged.data.session!.refresh_token;
       const claims = decodeJwt(token);
       expect(claims.sub).toBe(id);
       expect(
@@ -122,8 +102,29 @@ describe.skipIf(!db || !url || !key || !publicKey)("isolated actual A4 Auth prov
       ).rows.map((r) => r.authentication_method);
       expect(methods).toContain("recovery");
       expect((await recovery.auth.exchangeCodeForSession(code)).error).toBeTruthy();
-      const changed = await recovery.auth.updateUser({ password: nextPassword });
-      expect(changed.error?.message).toBeUndefined();
+      const recoveryCase = await actualCommand(token, {
+        action: "request",
+        caseId: crypto.randomUUID(),
+        commandId: crypto.randomUUID(),
+        kind: "password",
+        reason: "forgot_password",
+      });
+      expect(recoveryCase.state).toBe("requested");
+      const awaiting = await actualCommand(
+        token,
+        {
+          action: "begin_password",
+          caseId: recoveryCase.caseId,
+          commandId: crypto.randomUUID(),
+          expectedRevision: recoveryCase.revision,
+        },
+        nextPassword,
+      );
+      expect(awaiting.state).toBe("awaiting_reenrollment");
+      expect(
+        (await sql.query("select id from auth.sessions where user_id=$1", [id])).rowCount,
+      ).toBe(0);
+      expect((await recovery.auth.refreshSession()).error).toBeTruthy();
       const login = createClient(url, publicKey, {
         auth: { persistSession: false, autoRefreshToken: false },
       });
@@ -133,6 +134,40 @@ describe.skipIf(!db || !url || !key || !publicKey)("isolated actual A4 Auth prov
       expect(decodeJwt(newSession.data.session!.access_token).session_id).not.toBe(
         claims.session_id,
       );
+      const newToken = newSession.data.session!.access_token;
+      const completed = await actualCommand(newToken, {
+        action: "complete",
+        caseId: awaiting.caseId,
+        commandId: crypto.randomUUID(),
+        expectedRevision: awaiting.revision,
+      });
+      expect(completed.state).toBe("completed");
+      const staleRefresh = await fetch(`${url}/auth/v1/token?grant_type=refresh_token`, {
+        method: "POST",
+        headers: { "content-type": "application/json", apikey: publicKey },
+        body: JSON.stringify({ refresh_token: oldRefresh }),
+      });
+      expect([400, 401]).toContain(staleRefresh.status);
+      await staleRefresh.body?.cancel();
+      expect(
+        (
+          await sql.query<{ live: boolean }>("select private.account_session_live($1,$2,$3) live", [
+            id,
+            claims.session_id,
+            claims.aal,
+          ])
+        ).rows[0]!.live,
+      ).toBe(false);
+      const newClaims = decodeJwt(newToken);
+      expect(
+        (
+          await sql.query<{ live: boolean }>("select private.account_session_live($1,$2,$3) live", [
+            id,
+            newClaims.session_id,
+            newClaims.aal,
+          ])
+        ).rows[0]!.live,
+      ).toBe(true);
       await login.auth.signOut();
       const actionTypes = (
         await sql.query<{ action: string }>(
@@ -261,6 +296,111 @@ describe.skipIf(!db || !url || !key || !publicKey)("isolated actual A4 Auth prov
           staleTokenAal: claims.aal,
           revokedSessionAbsent: true,
         }),
+      );
+    } finally {
+      await admin.auth.admin.deleteUser(id);
+      await user.auth.signOut();
+      await sql.end();
+    }
+  }, 30000);
+  it("replaces a factor only after old-session binding and new verification, then requires a new actual MFA session", async () => {
+    if (
+      !db ||
+      !url ||
+      !key ||
+      !publicKey ||
+      ![db, url].every((v) => ["127.0.0.1", "localhost"].includes(new URL(v).hostname))
+    )
+      throw Error("Explicit disposable loopback stack required");
+    const admin = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const user = createClient(url, publicKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const sql = new Client({ connectionString: db });
+    await sql.connect();
+    const email = `a4-replacement-${crypto.randomUUID()}@example.invalid`,
+      password = `Synthetic-${crypto.randomUUID()}!`;
+    const made = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    expect(made.error).toBeNull();
+    const id = made.data.user!.id;
+    try {
+      expect((await user.auth.signInWithPassword({ email, password })).error).toBeNull();
+      const old = await user.auth.mfa.enroll({ factorType: "totp", friendlyName: "Synthetic old" });
+      expect(old.error).toBeNull();
+      if (!old.data || old.data.type !== "totp") throw Error("No synthetic old factor");
+      expect(
+        (
+          await user.auth.mfa.challengeAndVerify({
+            factorId: old.data.id,
+            code: totp(old.data.totp.secret),
+          })
+        ).error,
+      ).toBeNull();
+      const oldToken = (await user.auth.getSession()).data.session!.access_token;
+      const bound = await actualCommand(oldToken, {
+        action: "request",
+        caseId: crypto.randomUUID(),
+        commandId: crypto.randomUUID(),
+        kind: "replace_factor",
+        reason: "factor_replaced",
+        oldFactorId: old.data.id,
+      });
+      const next = await user.auth.mfa.enroll({
+        factorType: "totp",
+        friendlyName: "Synthetic new",
+      });
+      expect(next.error).toBeNull();
+      if (!next.data || next.data.type !== "totp") throw Error("No synthetic new factor");
+      expect(
+        (
+          await user.auth.mfa.challengeAndVerify({
+            factorId: next.data.id,
+            code: totp(next.data.totp.secret),
+          })
+        ).error,
+      ).toBeNull();
+      const token = (await user.auth.getSession()).data.session!.access_token;
+      expect(decodeJwt(token).session_id).toBe(decodeJwt(oldToken).session_id);
+      const awaiting = await actualCommand(token, {
+        action: "begin_replacement",
+        caseId: bound.caseId,
+        commandId: crypto.randomUUID(),
+        expectedRevision: bound.revision,
+        newFactorId: next.data.id,
+      });
+      expect(awaiting.state).toBe("awaiting_reenrollment");
+      const listed = await admin.auth.admin.mfa.listFactors({ userId: id });
+      expect(listed.data!.factors.map((f) => f.id)).toEqual([next.data.id]);
+      expect((await user.auth.refreshSession()).error).toBeTruthy();
+      expect((await user.auth.signInWithPassword({ email, password })).error).toBeNull();
+      expect(
+        (
+          await user.auth.mfa.challengeAndVerify({
+            factorId: next.data.id,
+            code: totp(next.data.totp.secret),
+          })
+        ).error,
+      ).toBeNull();
+      const fresh = (await user.auth.getSession()).data.session!.access_token;
+      const done = await actualCommand(fresh, {
+        action: "complete",
+        caseId: awaiting.caseId,
+        commandId: crypto.randomUUID(),
+        expectedRevision: awaiting.revision,
+      });
+      expect(done.state).toBe("completed");
+      expect(
+        (
+          await sql.query<{ live: boolean }>(
+            "select private.account_session_live($1,$2,'aal2') live",
+            [id, decodeJwt(oldToken).session_id],
+          )
+        ).rows[0]!.live,
+      ).toBe(false);
+      console.info(
+        "A4 actual controlled replacement evidence: old-bound, new-verified, provider-removed, old-refresh-rejected, fresh-MFA-completed",
       );
     } finally {
       await admin.auth.admin.deleteUser(id);

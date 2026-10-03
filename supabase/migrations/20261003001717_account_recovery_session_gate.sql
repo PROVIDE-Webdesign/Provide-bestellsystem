@@ -67,6 +67,7 @@ language sql stable security definer set search_path = '' as $$
       and not st.blocked and s.created_at > st.invalid_before
       and (s.not_after is null or s.not_after > now())
       and s.aal::text=p_aal
+      and not exists(select 1 from auth.mfa_amr_claims amr where amr.session_id=s.id and amr.authentication_method='recovery')
       and (p_aal='aal1' or exists (
         select 1 from auth.mfa_factors f where f.id=s.factor_id and f.user_id=u.id
         and f.status::text='verified' and f.factor_type::text='totp'
@@ -104,3 +105,31 @@ revoke all on function private.initialize_account_security(), private.immutable_
  from public,anon,authenticated,service_role;
 grant execute on function private.current_account_session_live() to authenticated;
 grant execute on function private.lock_account_session(uuid,text,text) to service_role;
+
+-- Direct private helper calls must not bypass the policy gate either.
+alter function private.is_restaurant_member(uuid) rename to is_restaurant_member_before_account_session;
+alter function private.has_restaurant_role(uuid,text[]) rename to has_restaurant_role_before_account_session;
+alter function private.can_access_location(uuid,uuid) rename to can_access_location_before_account_session;
+alter function private.dashboard_order_topic_allowed(text) rename to dashboard_order_topic_allowed_before_account_session;
+revoke all on function private.is_restaurant_member_before_account_session(uuid),
+ private.has_restaurant_role_before_account_session(uuid,text[]),private.can_access_location_before_account_session(uuid,uuid),
+ private.dashboard_order_topic_allowed_before_account_session(text) from public,anon,authenticated,service_role;
+create function private.is_restaurant_member(target_restaurant_id uuid) returns boolean
+language sql stable security definer set search_path='' as $$
+ select private.current_account_session_live() and private.is_restaurant_member_before_account_session(target_restaurant_id)
+$$;
+create function private.has_restaurant_role(target_restaurant_id uuid,allowed_roles text[]) returns boolean
+language sql stable security definer set search_path='' as $$
+ select private.current_account_session_live() and private.has_restaurant_role_before_account_session(target_restaurant_id,allowed_roles)
+$$;
+create function private.can_access_location(target_restaurant_id uuid,target_location_id uuid) returns boolean
+language sql stable security definer set search_path='' as $$
+ select private.current_account_session_live() and private.can_access_location_before_account_session(target_restaurant_id,target_location_id)
+$$;
+create function private.dashboard_order_topic_allowed(topic text) returns boolean
+language sql stable security definer set search_path='' as $$
+ select private.current_account_session_live() and private.dashboard_order_topic_allowed_before_account_session(topic)
+$$;
+revoke all on function private.is_restaurant_member(uuid),private.has_restaurant_role(uuid,text[]),private.can_access_location(uuid,uuid),private.dashboard_order_topic_allowed(text) from public,anon,authenticated,service_role;
+grant execute on function private.is_restaurant_member(uuid),private.has_restaurant_role(uuid,text[]),private.can_access_location(uuid,uuid) to authenticated,service_role;
+grant execute on function private.dashboard_order_topic_allowed(text) to authenticated;

@@ -18,11 +18,19 @@ export async function verifyProvideIntegration(
     actor,
   ]);
   await admin.query(
+    "insert into auth.mfa_factors(id,user_id,factor_type,status,secret,created_at,updated_at) values($1,$1,'totp','verified','SYNTHETICTEST',now(),now())",
+    [actor],
+  );
+  await admin.query(
+    "insert into auth.sessions(id,user_id,aal,factor_id,created_at,updated_at) values($1,$1,'aal2',$1,clock_timestamp(),clock_timestamp())",
+    [actor],
+  );
+  await admin.query(
     "insert into private.provide_admin_grants(user_id,restaurant_id) values($1,$2)",
     [actor, r],
   );
   const worker = createApiWorker(undefined, { error: vi.fn() }, undefined, undefined, undefined, {
-    verify: () => Promise.resolve({ userId: actor, aal: "aal2" }),
+    verify: () => Promise.resolve({ userId: actor, sessionId: actor, aal: "aal2" }),
   });
   const env = { ...sourceEnv, PROVIDE_ADMIN_ENABLED: "true", PROVIDE_ADMIN_LIVE_ENABLED: "false" };
   const send = async (q: unknown, status = 200) => {
