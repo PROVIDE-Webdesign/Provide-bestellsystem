@@ -1,4 +1,10 @@
-# A4: isolierter Auth-Nachweis vor der Recovery-Implementierung
+# A4: historischer isolierter Provider-Voraussetzungsnachweis
+
+Dieses Dokument bewahrt die vorbereitenden Stände CI151–153. Aussagen zu damals noch offenen
+Implementierungsteilen sind historisch. Der aktuelle Fallvertrag steht in
+[ADR0038](../decisions/0038-account-mfa-recovery.md), die vollständige Fachfallzuordnung in der
+[Recovery-Prüfmatrix](account-mfa-recovery-cases.md). Der aktuelle Head und seine Laufnachweise
+stehen im jüngsten A4-Prüfnachweis und Projektprotokoll.
 
 Verbindliche Grundlage: Architektur A2, Projektprotokoll E16 und fachlich bestätigte A4-D01 bis
 A4-D06. Der Umsetzungsauftrag vom 03.10.2026 beginnt mit dem Nachweis der gepinnten

@@ -73,7 +73,7 @@ describe.skipIf(!db || !url || !key || !publicKey)("isolated actual A4 Auth prov
         ).rowCount,
       ).toBe(0);
     } finally {
-      await admin.auth.admin.deleteUser(id);
+      expect((await admin.auth.admin.deleteUser(id)).error).toBeNull();
       await browser.auth.signOut();
       await sql.end();
     }
@@ -289,7 +289,7 @@ describe.skipIf(!db || !url || !key || !publicKey)("isolated actual A4 Auth prov
     } finally {
       await recovery.auth.signOut();
       await wrongContext.auth.signOut();
-      await admin.auth.admin.deleteUser(id);
+      expect((await admin.auth.admin.deleteUser(id)).error).toBeNull();
       await sql.end();
     }
   }, 30000);
@@ -398,7 +398,7 @@ describe.skipIf(!db || !url || !key || !publicKey)("isolated actual A4 Auth prov
         }),
       );
     } finally {
-      await admin.auth.admin.deleteUser(id);
+      expect((await admin.auth.admin.deleteUser(id)).error).toBeNull();
       await user.auth.signOut();
       await sql.end();
     }
@@ -503,7 +503,7 @@ describe.skipIf(!db || !url || !key || !publicKey)("isolated actual A4 Auth prov
         "A4 actual controlled replacement evidence: old-bound, new-verified, provider-removed, old-refresh-rejected, fresh-MFA-completed",
       );
     } finally {
-      await admin.auth.admin.deleteUser(id);
+      expect((await admin.auth.admin.deleteUser(id)).error).toBeNull();
       await user.auth.signOut();
       await sql.end();
     }

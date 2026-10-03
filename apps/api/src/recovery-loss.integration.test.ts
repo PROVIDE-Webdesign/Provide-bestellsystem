@@ -448,12 +448,18 @@ describe.skipIf(!db || !url || !key || !publicKey)(
           .query(`drop trigger if exists ${auditTrigger} on private.account_recovery_audit`)
           .catch(() => undefined);
         await sql.query(`drop function if exists ${auditFunction}()`).catch(() => undefined);
+        // Remove fixture membership rows while their restaurant still exists: its revision
+        // trigger legitimately requires that parent. No production cascade is changed here.
+        await sql.query(
+          "delete from public.restaurant_memberships where restaurant_id=any($1::uuid[])",
+          [[restaurantId, otherRestaurantId]],
+        );
         await sql.query("delete from public.locations where id=$1", [locationId]);
         await sql.query("delete from public.restaurants where id=any($1::uuid[])", [
           [restaurantId, otherRestaurantId],
         ]);
         for (const client of clients) await client.removeAllChannels();
-        for (const id of ids) await admin.auth.admin.deleteUser(id);
+        for (const id of ids) expect((await admin.auth.admin.deleteUser(id)).error).toBeNull();
         for (const client of clients) await client.auth.signOut();
         await sql.end();
       }

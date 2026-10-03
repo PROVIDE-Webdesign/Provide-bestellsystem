@@ -33,3 +33,4 @@ Aktueller technischer Nachweis:
 - [Zuverlässige transaktionale Gast-Bestellbenachrichtigungen](../decisions/0024-order-notification-dispatch.md)
 - [Sichere Lieferbestellungen und PLZ-Gebiete](../decisions/0025-secure-delivery-orders.md)
 - [Onlinezahlungen im Testbetrieb](../decisions/0026-sandbox-online-payments.md)
+- [Konto- und MFA-Recovery](../decisions/0038-account-mfa-recovery.md)
