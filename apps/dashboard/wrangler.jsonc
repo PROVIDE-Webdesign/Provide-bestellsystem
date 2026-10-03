@@ -17,6 +17,7 @@
     "ACCOUNT_RECOVERY_ENABLED": "false",
     "ACCOUNT_RECOVERY_ORIGIN": "https://replace-with-preview-dashboard.example",
     "PROVIDE_ADMIN_ENABLED": "false",
+    "SUPPORT_CASES_ENABLED": "false",
     "DASHBOARD_ORDER_OPERATIONS_ENABLED": "false",
     "DASHBOARD_ORDER_ALERTS_ENABLED": "false",
     "DASHBOARD_REALTIME_ENABLED": "false",

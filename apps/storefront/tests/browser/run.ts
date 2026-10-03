@@ -1,3 +1,4 @@
+import { verifySupportBrowser } from "./support.ts";
 import { verifyRecoveryBrowser } from "./recovery.ts";
 import { verifyLocationOperationsBrowser } from "./location-operations.ts";
 import assert from "node:assert/strict";
@@ -456,6 +457,7 @@ try {
     await verifyLocationOperationsBrowser(page, output, viewport.width);
     await verifyHistoryBrowser(page, output, viewport.width);
     await verifyProvideBrowser(page, output, viewport.width);
+    await verifySupportBrowser(page, output, viewport.width);
     await verifyPersonnelBrowser(page, output, viewport.width);
     await verifyViewerBrowser(page, output, viewport.width);
     await verifyRecoveryBrowser(page, output, viewport.width);

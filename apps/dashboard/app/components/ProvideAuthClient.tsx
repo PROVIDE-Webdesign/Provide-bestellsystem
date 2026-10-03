@@ -4,7 +4,8 @@ import { createDashboardBrowserClient } from "@/lib/supabase-browser.js";
 import { LoginForm } from "./LoginForm.js";
 import { MfaPanel } from "./MfaPanel.js";
 import { ProvideAdmin } from "./ProvideAdmin.js";
-export function ProvideAuthClient() {
+import { SupportCases } from "./SupportCases.js";
+export function ProvideAuthClient({ support = false }: { support?: boolean }) {
   const [nonce, setNonce] = useState(0),
     [state, setState] = useState<"checking" | "login" | "mfa" | "ready">("checking");
   useEffect(() => {
@@ -41,7 +42,8 @@ export function ProvideAuthClient() {
     };
   }, [nonce]);
   if (state === "checking") return <p role="status">Sitzung wird geprüft …</p>;
-  if (state === "login") return <LoginForm enabled returnTo="/provide" />;
+  if (state === "login")
+    return <LoginForm enabled returnTo={support ? "/provide/support" : "/provide"} />;
   if (state === "mfa") return <MfaPanel onVerified={() => setNonce((n) => n + 1)} />;
   return (
     <>
@@ -57,7 +59,7 @@ export function ProvideAuthClient() {
       >
         Abmelden
       </button>
-      <ProvideAdmin />
+      {support ? <SupportCases /> : <ProvideAdmin />}
     </>
   );
 }

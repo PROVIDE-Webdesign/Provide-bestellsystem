@@ -18,6 +18,7 @@
     "PERSONNEL_INVITATIONS_ENABLED": "false",
     "PERSONNEL_DASHBOARD_ORIGIN": "https://replace-with-preview-dashboard.example",
     "PROVIDE_ADMIN_ENABLED": "false",
+    "SUPPORT_CASES_ENABLED": "false",
     "PROVIDE_ADMIN_LIVE_ENABLED": "false",
     "DASHBOARD_ORDER_OPERATIONS_ENABLED": "false",
     "DASHBOARD_ORDER_ALERTS_ENABLED": "false",
