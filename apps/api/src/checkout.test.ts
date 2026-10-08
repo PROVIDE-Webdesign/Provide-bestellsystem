@@ -1,5 +1,31 @@
 import { describe, expect, it, vi } from "vitest";
-import { createApiWorker } from "./index.js";
+import {
+  handleGuestPickupOrder,
+  type CheckoutWriter,
+  type CheckoutEnvironment,
+} from "./checkout.js";
+import type { ApiLogger } from "./logger.js";
+import { routeRequest } from "./router.js";
+import type { StorefrontRoute } from "./storefront.js";
+function domainWorker(
+  _probe: unknown,
+  logger: ApiLogger,
+  _reader: unknown,
+  writer: CheckoutWriter,
+) {
+  return {
+    fetch: (request: Request, env: CheckoutEnvironment) =>
+      handleGuestPickupOrder(
+        request,
+        routeRequest(request) as StorefrontRoute,
+        env,
+        writer,
+        { requestId: "domain-test" },
+        logger,
+        new Headers(),
+      ),
+  };
+}
 
 const url =
   "https://api.example.test/v1/storefront/storefront-restaurant-a/storefront-a-mitte/orders";
@@ -41,12 +67,12 @@ const request = (
   headers: HeadersInit = { "content-type": "application/json" },
 ) => new Request(url, { method: "POST", headers, body: JSON.stringify(value) });
 
-describe("guest pickup checkout API", () => {
+describe("guest pickup domain handler (unit; O3 transport tested separately)", () => {
   it.each([null, "", "bad-email"])(
     "rejects missing email before storing an order",
     async (email) => {
       const writer = { submit: vi.fn() };
-      const w = createApiWorker(vi.fn(), { error: vi.fn() }, undefined, writer);
+      const w = domainWorker(vi.fn(), { error: vi.fn() }, undefined, writer);
       expect(
         (await w.fetch(request({ ...body, customer: { ...body.customer, email } }), env)).status,
       ).toBe(400);
@@ -55,7 +81,7 @@ describe("guest pickup checkout API", () => {
   );
   it("submits only normalized values and returns an allowlisted confirmation", async () => {
     const writer = { submit: vi.fn().mockResolvedValue({ ...confirmation, internal: "hidden" }) };
-    const worker = createApiWorker(vi.fn(), { error: vi.fn() }, undefined, writer);
+    const worker = domainWorker(vi.fn(), { error: vi.fn() }, undefined, writer);
     const response = await worker.fetch(request(), env);
     expect(response.status).toBe(201);
     expect(writer.submit).toHaveBeenCalledWith(
@@ -78,7 +104,7 @@ describe("guest pickup checkout API", () => {
 
   it("fails closed unless every server-side write setting is explicit", async () => {
     const writer = { submit: vi.fn() };
-    const worker = createApiWorker(vi.fn(), { error: vi.fn() }, undefined, writer);
+    const worker = domainWorker(vi.fn(), { error: vi.fn() }, undefined, writer);
     for (const unsafe of [
       { ...env, CHECKOUT_WRITE_ENABLED: "false" },
       { ...env, HYPERDRIVE_CACHE_DISABLED: "false" },
@@ -100,7 +126,7 @@ describe("guest pickup checkout API", () => {
 
   it("rejects unsupported fields, notice mismatches and invalid media types before SQL", async () => {
     const writer = { submit: vi.fn() };
-    const worker = createApiWorker(vi.fn(), { error: vi.fn() }, undefined, writer);
+    const worker = domainWorker(vi.fn(), { error: vi.fn() }, undefined, writer);
     expect((await worker.fetch(request({ ...body, price: 1 }), env)).status).toBe(400);
     expect(
       (await worker.fetch(request({ ...body, privacyNoticeVersion: "old" }), env)).status,
@@ -113,7 +139,7 @@ describe("guest pickup checkout API", () => {
 
   it("bounds request bodies before parsing", async () => {
     const writer = { submit: vi.fn() };
-    const worker = createApiWorker(vi.fn(), { error: vi.fn() }, undefined, writer);
+    const worker = domainWorker(vi.fn(), { error: vi.fn() }, undefined, writer);
     const response = await worker.fetch(
       new Request(url, {
         method: "POST",
@@ -131,9 +157,9 @@ describe("guest pickup checkout API", () => {
     const writer = {
       submit: vi.fn().mockRejectedValue(new Error("Synthetic Guest +999100000001")),
     };
-    const worker = createApiWorker(vi.fn(), logger, undefined, writer);
+    const worker = domainWorker(vi.fn(), logger, undefined, writer);
     const response = await worker.fetch(request(), env);
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(503);
     expect(await response.text()).not.toContain("Synthetic Guest");
     expect(JSON.stringify(logger.error.mock.calls)).not.toContain("999100000001");
   });

@@ -1,7 +1,7 @@
 import { expect } from "vitest";
 import type { Client } from "pg";
 import { parseGuestPickupOrderConfirmation } from "@provide/contracts";
-import { createApiWorker } from "./index.js";
+import { createProtectedIntegrationWorker as createApiWorker } from "./checkout-integration-fixture.js";
 
 type Env = Parameters<ReturnType<typeof createApiWorker>["fetch"]>[1];
 
@@ -39,15 +39,16 @@ export async function verifyOrderNumberIntegration(admin: Client, env: Env) {
       }),
       env,
     );
+  const observed: { key: string; status: number }[] = [];
   const submit = async (key: string, distinctSlot = false) => {
     const requestedFor = distinctSlot
       ? new Date(Date.parse(request.requestedFor) + 3600000).toISOString()
       : request.requestedFor;
     const response = await post("orders", { ...request, requestedFor, submissionKey: key });
-    expect(
-      response.status,
-      response.status === 201 ? undefined : await response.clone().text(),
-    ).toBe(201);
+    // An overlapping command can validate before the first commit (201), or
+    // observe its read-only receipt afterward (200); order identity is invariant.
+    expect([200, 201], await response.clone().text()).toContain(response.status);
+    observed.push({ key, status: response.status });
     const envelope: { data?: unknown } = await response.json();
     const confirmation = parseGuestPickupOrderConfirmation(envelope.data)!;
     expect(confirmation.orderNumber).toMatch(/^BS-[0-9]{8,19}$/);
@@ -63,6 +64,16 @@ export async function verifyOrderNumberIntegration(admin: Client, env: Env) {
   expect(repeat.orderNumber).toBe(first.orderNumber);
   expect(second.orderId).not.toBe(first.orderId);
   expect(second.orderNumber).not.toBe(first.orderNumber);
+  expect(
+    observed.filter((r) => r.key === "number-api-race-001").some((r) => r.status === 201),
+  ).toBe(true);
+  expect(observed.filter((r) => r.key === "number-api-race-002")).toEqual([
+    { key: "number-api-race-002", status: 201 },
+  ]);
+  const replay = await post("orders", { ...request, submissionKey: "number-api-race-001" });
+  expect(replay.status).toBe(200);
+  const replayBody: { data?: unknown } = await replay.json();
+  expect(parseGuestPickupOrderConfirmation(replayBody.data)).toEqual(first);
   const records = await admin.query<{ id: string; number: string }>(
     "select id,private.format_order_number(order_number) as number from public.orders where submission_key in ('number-api-race-001','number-api-race-002')",
   );

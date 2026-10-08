@@ -1,3 +1,16 @@
+import {
+  handleProtectedStorefront,
+  checkoutProtectionConfigured,
+  type CheckoutProtectionEnvironment,
+} from "./checkout-protection.js";
+import {
+  postgresCheckoutProtection,
+  type CheckoutProtectionRepository,
+} from "./checkout-protection-database.js";
+import {
+  turnstileCheckoutChallenge,
+  type CheckoutChallengeVerifier,
+} from "./checkout-challenge.js";
 import { handleSupport, postgresSupport, type SupportRepository } from "./support.js";
 import { handleAccountRecovery } from "./account-recovery.js";
 import {
@@ -61,7 +74,7 @@ interface HyperdriveBinding {
   readonly connectionString: string;
 }
 
-interface Env extends OnlineEnvironment {
+interface Env extends OnlineEnvironment, CheckoutProtectionEnvironment {
   readonly SUPPORT_CASES_ENABLED?: string;
   readonly ACCOUNT_RECOVERY_ENABLED?: string;
   readonly ACCOUNT_RECOVERY_ORIGIN?: string;
@@ -124,6 +137,8 @@ export function createApiWorker(
   personnel: PersonnelRepository = postgresPersonnel,
   inviteProvider: PersonnelInviteProvider = supabasePersonnelInvite,
   support: SupportRepository = postgresSupport,
+  checkoutProtection: CheckoutProtectionRepository = postgresCheckoutProtection,
+  checkoutChallenge: CheckoutChallengeVerifier = turnstileCheckoutChallenge,
 ) {
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -207,46 +222,83 @@ export function createApiWorker(
           logger,
           cors,
         );
-      if (route.name === "cart-quote")
-        return handleCartQuote(request, route, env, cartQuoteReader, context, logger, cors);
-      if (route.name === "delivery-quote" || route.name === "delivery-orders") {
-        return handleDelivery(
-          request,
-          route,
-          route.name === "delivery-quote",
-          env,
-          deliveryRepository,
-          context,
-          logger,
-          cors,
-        );
-      }
       if (route.name === "stripeWebhook")
         return handleStripeWebhook(request, env, onlineRepository, context, onlineProvider);
-      if (route.name === "online-orders" || route.name === "payment-session")
-        return handleOnlinePayment(
-          request,
-          route,
-          route.name === "online-orders",
-          env,
-          onlineRepository,
-          onlineProvider,
-          context,
-          cors,
-        );
-      if (route.name === "orders") {
-        return handleGuestPickupOrder(request, route, env, checkoutWriter, context, logger, cors);
-      }
-
-      if (route.name === "orderStatus") {
-        return handlePublicOrderStatus(
+      if ("restaurantSlug" in route) {
+        return handleProtectedStorefront(
           request,
           route,
           env,
-          orderStatusReader,
+          checkoutProtection,
+          checkoutChallenge,
+          { checkout: checkoutWriter, delivery: deliveryRepository, online: onlineRepository },
           context,
-          logger,
           cors,
+          async (protectedRequest, writers) => {
+            if (route.name === "cart-quote")
+              return handleCartQuote(
+                protectedRequest,
+                route,
+                env,
+                cartQuoteReader,
+                context,
+                logger,
+                cors,
+              );
+            if (route.name === "delivery-quote" || route.name === "delivery-orders")
+              return handleDelivery(
+                protectedRequest,
+                route,
+                route.name === "delivery-quote",
+                env,
+                writers.delivery,
+                context,
+                logger,
+                cors,
+              );
+            if (route.name === "online-orders" || route.name === "payment-session")
+              return handleOnlinePayment(
+                protectedRequest,
+                route,
+                route.name === "online-orders",
+                env,
+                writers.online,
+                onlineProvider,
+                context,
+                cors,
+              );
+            if (route.name === "orders")
+              return handleGuestPickupOrder(
+                protectedRequest,
+                route,
+                env,
+                writers.checkout,
+                context,
+                logger,
+                cors,
+              );
+            if (route.name === "orderStatus")
+              return handlePublicOrderStatus(
+                protectedRequest,
+                route,
+                env,
+                orderStatusReader,
+                context,
+                logger,
+                cors,
+              );
+            if (route.name === "catalog" || route.name === "availability")
+              return handleStorefront(
+                protectedRequest,
+                route,
+                env,
+                storefrontReader,
+                context,
+                logger,
+                cors,
+              );
+            return jsonError("not_found", "Resource was not found.", context.requestId, 404, cors);
+          },
         );
       }
 
@@ -280,10 +332,6 @@ export function createApiWorker(
           logger,
           cors,
         );
-      }
-
-      if (route.name === "catalog" || route.name === "availability") {
-        return handleStorefront(request, route, env, storefrontReader, context, logger, cors);
       }
 
       if (route.name === "health") {
@@ -326,6 +374,22 @@ export function createApiWorker(
       }
     },
     scheduled(_controller: ScheduledController, env: Env, context: ExecutionContext) {
+      if (checkoutProtectionConfigured(env))
+        context.waitUntil(
+          (async () => {
+            // At most 20,000 rows per table/minute; capped stores drain within five minutes.
+            for (let i = 0; i < 20; i++) {
+              const result = await checkoutProtection.cleanup(env.HYPERDRIVE!.connectionString);
+              if (
+                result &&
+                typeof result === "object" &&
+                "deleted" in result &&
+                result.deleted === 0
+              )
+                break;
+            }
+          })().catch(() => logger.error(createRequestContext(), "checkout_cleanup_failed")),
+        );
       context.waitUntil(dispatchGuestPurge(env, logger, guestPurge));
       context.waitUntil(dispatchAcceptanceAlerts(env, dashboardOrdersReader, logger));
       context.waitUntil(dispatchOnlinePayments(env, onlineRepository, onlineProvider));

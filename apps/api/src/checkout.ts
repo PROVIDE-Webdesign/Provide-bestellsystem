@@ -108,13 +108,15 @@ export async function handleGuestPickupOrder(
     });
     if (!confirmation) throw new Error("Invalid checkout confirmation");
     return jsonSuccess(confirmation, context.requestId, 201, cors);
-  } catch {
+  } catch (error) {
     logger.error(context, "guest_pickup_order_rejected");
+    const rejected =
+      error !== null && typeof error === "object" && "code" in error && error.code === "P0001";
     return jsonError(
-      "order_unavailable",
-      "The order could not be submitted. Please review the cart and pickup time.",
+      rejected ? "order_unavailable" : "service_unavailable",
+      "The order result could not be confirmed. Please check the existing attempt.",
       context.requestId,
-      409,
+      rejected ? 409 : 503,
       cors,
     );
   }

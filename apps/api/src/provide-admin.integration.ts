@@ -1,7 +1,7 @@
 import type { Client } from "pg";
 import { expect, vi } from "vitest";
 import { parseProvideAdminState, type ProvideAdminCommand } from "@provide/contracts";
-import { createApiWorker } from "./index.js";
+import { createProtectedIntegrationWorker as createApiWorker } from "./checkout-integration-fixture.js";
 import {
   captureActivationFixture,
   restoreActivationFixture,

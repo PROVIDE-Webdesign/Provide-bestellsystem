@@ -8,7 +8,7 @@ import { Client } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import fixture from "../../../fixtures/storefront-catalog.json" with { type: "json" };
 import { parseGuestPickupOrderConfirmation } from "@provide/contracts";
-import { createApiWorker } from "./index.js";
+import { createProtectedIntegrationWorker as createApiWorker } from "./checkout-integration-fixture.js";
 import type { NotificationAdapter } from "./notifications.js";
 import { verifyDeliveryIntegration } from "./delivery.integration.js";
 import { verifyOnlineIntegration } from "./online-payments.integration.js";

@@ -1,7 +1,7 @@
 import type { Client } from "pg";
 import { expect, vi } from "vitest";
 import { object, parseOnlineOrderConfirmation, parseDeliveryQuote } from "@provide/contracts";
-import { createApiWorker } from "./index.js";
+import { createProtectedIntegrationWorker as createApiWorker } from "./checkout-integration-fixture.js";
 import { postgresOnlineRepository } from "./online-payments-database.js";
 import { processOnlinePayment } from "./online-payments.js";
 import type { SandboxProvider, ProviderSession } from "./stripe-sandbox.js";

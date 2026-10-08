@@ -1,0 +1,131 @@
+# O3: Zuordnung der 56 bestätigten Prüffälle
+
+Grundlage: Architektur A2 §8/§11, E29/E30 und Bestätigung mit Umsetzungsauftrag vom 08.10.2026,
+18:33:08 Europe/Berlin. Die Fachfälle und Erwartungen sind unverändert übernommen. 50 Fälle sind
+innerhalb des begrenzten Pakets isoliert automatisierbar; sechs externe/fachliche/physische Grenzen
+bleiben getrennt. Eine Quellenzuordnung ist kein ausgeführter Test und kein Produktionsnachweis. Der
+aktuelle Umsetzungsnachweis im Projektprotokoll bindet Ausführung, Ergebnisse und Artefakte an
+PR23-Head, Tree und den vollständigen Pflichtlauf. Lokale Integrations-Skips zählen nie als PASS.
+
+## Nachweisschichten
+
+| Kürzel | Quelle und tatsächliche Grenze                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UC     | `packages/contracts/src/checkout-protection.test.ts`: echte MAC-, Zeit-, Parser- und Stream-Prüfungen.                                                                                                                                                                                                                                                                                                                                                                           |
+| UA     | `apps/api/src/checkout-protection.test.ts` und `checkout-challenge.test.ts`: produktiver Dispatcher bzw. Siteverify-Adapter, Repository-/HTTP-Antwortdoubles. Kein externer Cloudflare-Nachweis.                                                                                                                                                                                                                                                                                 |
+| UG     | Storefront `protected-gateway.test.ts`: produktiver Gatewayvertrag, Cookie-/CSRF-/Headerfilter, begrenzte Streams und epochale Netzwerkbindung; transportierte Antworten und Edge-Metadaten synthetisch.                                                                                                                                                                                                                                                                         |
+| UI     | `checkout-client.test.ts`: produktiver Client, public-only Storage, ungewisse Antworten und explizite Wiederholung; Transport-/Storage-Doubles.                                                                                                                                                                                                                                                                                                                                  |
+| S      | `supabase/tests/0041_checkout_protection.test.sql`: migriertes echtes PostgreSQL, Rollen/RLS, 30/90-Minuten-Grenzen, atomare Sitzung/Receipt/Idempotenz, Budgets und physische TTL-Löschung.                                                                                                                                                                                                                                                                                     |
+| N      | `apps/api/src/checkout-protection.integration.test.ts`: neun Fälle mit produktivem Worker und echten getrennten PG-Verbindungen; drei Bestellarten, Race/Lock-Beobachtung, Rollback, 20 konkurrierende letzte Token, Issue-Deduplikation und 10k/100k-Speichergrenzen. Challenge/Provider explizite lokale Adapter; kein TLS in dieser Schicht.                                                                                                                                  |
+| H      | `scripts/ci-checkout-http.mjs`: tatsächlicher Chromium-Browser über getrennte HTTPS-Gateway-/API-Server und echtes PG; Secure/HttpOnly-Cookie, zwei Scopes/Tabs, Abholung/Lieferung, Antwortverlust nach Session- und Bestellcommit, Reload-Receipt, eigener Status nach Cookieverlust, Origin-/Bytegrenzen und neun direkte unsignierte API-Pfade. Temporäres Loopback-Zertifikat und lokale Edge-/Challenge-Doubles; externe Requests und Providerwirkungen ausdrücklich null. |
+| B      | `apps/storefront/tests/browser/checkout-protection.ts`: produktive UI in Chromium/Firefox/WebKit, 390/1440 px, 429/503, 30/90 Minuten einschließlich Timer nach geprüftem Restore und beständigem Receipthinweis nach Reload, fehlende/geblockte Metadaten, Warenkorberhalt, Tastatur/Fokus/Livestatus, reduzierte Bewegung und 200%-CSS-Zoom. Browsertransport synthetisch; physischer Zoom/Screenreader bleiben T56.                                                           |
+| R      | Bestehende vollständige Unit-/SQL-/Browser- und native öffentliche API-, Auth-, Realtime-, A1-, A3-, A4-, O1-, Job-/Webhook-/Payment-Regressionen. Zahlungsprovider in isolierten Tests lokal; kein neuer externer Provider-Aufruf.                                                                                                                                                                                                                                              |
+| CI     | `pnpm check` und alle fünf Pflichtjobs desselben finalen Heads; Browserbilder, HTTP-Bericht, Quellhashes und Logbelege. Fehlerhafte Vorläufe werden getrennt dokumentiert.                                                                                                                                                                                                                                                                                                       |
+
+## Unveränderte Fälle und überprüfbare Zuordnung
+
+| ID     | Fall                                  | Erwartung aus E30                                                                                                                                                                          | Belegschichten            |
+| ------ | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------- |
+| O3-T01 | Gültiger Sitzungsstart                | Cookieattribute und Hashspeicherung stimmen; serverseitige Ablaufzeit; keinerlei Bestellung/Providerwirkung.                                                                               | UG/S/N/H                  |
+| O3-T02 | Fehlender oder manipulierter Nachweis | Kein Checkoutwriter und keine Bestell-/Payment-/Outboxänderung.                                                                                                                            | UC/UG/S/N                 |
+| O3-T03 | Mandant und Standort wechseln         | Scopeabweichung verweigert; keine Existenz-/Kundeninformation.                                                                                                                             | UA/S/N/H                  |
+| O3-T04 | Schreibablauf exakt                   | Nur vor Ablauf neue Wirkung; Grenzzeit und Browserzeit eröffnen keinen Schreibweg.                                                                                                         | UC/S/B                    |
+| O3-T05 | Receipt nach Schreibablauf            | Nur gebundenes vorhandenes Ergebnis; keine neue Wirkung; fremder Schlüssel verweigert.                                                                                                     | UA/S/N                    |
+| O3-T06 | Receiptablauf exakt                   | Ergebnisabruf geschlossen, Bestellhistorie unverändert; UI verweist auf Status/Kontakt.                                                                                                    | S/UG/B                    |
+| O3-T07 | Erneuerung und laufender Commit       | Gemeinsame Sperrreihenfolge: entweder alte Abgabe committet und wird wiedergefunden oder alter Vorgang atomar gesperrt; niemals zwei Bestellungen.                                         | S/N                       |
+| O3-T08 | Fixation und Cookie-Injektion         | Nur serverausgegebene gültige Bindungen; keine Übernahme einer vorgegebenen Sitzung; verlorene Cookiekonkurrenz erzeugt keine Bestellung.                                                  | UG/S/N/H                  |
+| O3-T09 | Antwortverlust nach Commit            | Identische Order-ID, ein Slot-/Payment-/Outboxeffekt; keine zweite Providerwirkung.                                                                                                        | UI/S/N/H                  |
+| O3-T10 | Paralleler Doppelrequest              | Genau eine Bestellung/Receipt; Ergebnisse konsistent und keine Deadlocks.                                                                                                                  | S/N                       |
+| O3-T11 | Gleicher Schlüssel, anderer Inhalt    | Fingerprint-/bestehende Payloadprüfung verweigert; keine Überschreibung oder Zusatzwirkung.                                                                                                | UA/S/N/R                  |
+| O3-T12 | Zweiter Schlüssel derselben Sitzung   | Keine zweite Bestellung; nur neuer eigenständiger Vorgang nach bewusster Aktion.                                                                                                           | UA/S/N                    |
+| O3-T13 | Schlüssel in fremder Bindung          | Kein fremder Receipt-/Status-/Paymentzugriff und keine neue Wirkung.                                                                                                                       | UA/S/N/H                  |
+| O3-T14 | Rate vorwirkung / Commit-Rollback     | Nur zulässige Anfrage erreicht Wirkung; bei Transaktionsfehler keine Teilbestellung oder erfolgsbehauptender Receipt; Retry innerhalb gleicher Bindung möglich.                            | UA/S/N                    |
+| O3-T15 | Menü/Slot nach Erstellung ändern      | Neue Abgabe erneut servervalidiert; veraltete Prüfung ergibt verständlichen Konflikt, keine alte Preisautorisierung.                                                                       | R/N                       |
+| O3-T16 | Sperren nach bestätigter Abgabe       | Kein neuer Auftrag; gespeichertes Ergebnis bleibt im erlaubten Fenster wiederherstellbar, soweit globale Schutz-/Lesegates gültig bleiben.                                                 | UA/S/N                    |
+| O3-T17 | Cross-Origin und CSRF                 | Browser-Schreibweg vor Weiterleitung verweigert; SameSite oder CORS allein eröffnen keinen Weg.                                                                                            | UG/H                      |
+| O3-T18 | Body-/URL-Grenzen                     | Bounded Streaming/Parsergrenze; keine Credentials in URL; kein DB-/Provideraufruf nach Zurückweisung.                                                                                      | UC/UG/H                   |
+| O3-T19 | Direkter API-Aufruf                   | Alle geschützten Wirkungspfade geschlossen; Katalog-/GET-Vertrag ausdrücklich separat.                                                                                                     | UA/H                      |
+| O3-T20 | Gateway-Signatur verändern            | Nachweis ungültig; keine Rateautorität/Wirkung.                                                                                                                                            | UC                        |
+| O3-T21 | Gateway-Zeit und Nonce                | Zeitfenster eingehalten; nur eine Nonceannahme, kein Parallel-Replay.                                                                                                                      | UC/S/N                    |
+| O3-T22 | Clientheader überschreiben            | Gateway filtert statt pauschal weiterzureichen; nur selbst erzeugter Nachweis zählt; keine Dashboardcredentials.                                                                           | UG/H                      |
+| O3-T23 | Fehlerweitergabe                      | Gateway erhält sichere Codes/Wartezeit, strippt Header/Details und hält no-store/no-referrer.                                                                                              | UA/UG                     |
+| O3-T24 | Secrets/Rotation/Umgebung             | Kein ungeschützter Rückfall; Testmodusgrenzen und definierte Altsecretfrist werden eingehalten, keine Secret-Ausgabe.                                                                      | UC/UA/UG                  |
+| O3-T25 | Jeder Bucket Grenzfälle               | Letzte zulässige Anfrage akzeptiert, nächste 429, korrekte positive Wartezeit; DB-Zeit, kein ungeprüfter Clientzeit-Reset.                                                                 | S/N                       |
+| O3-T26 | Mehrere Worker/Verbindungen           | Atomare globale zulässige Anzahl; kein In-memory-/POP-Ausweichnachweis.                                                                                                                    | S/N                       |
+| O3-T27 | Scope-/Route-/Cookie-Wechsel          | Grober Netzwerkbucket bleibt über Wechsel wirksam; primäre Buckets korrekt getrennt.                                                                                                       | UA/UG                     |
+| O3-T28 | Shared NAT und Netzwechsel            | Enge Sitzungslimits getrennt; gröbere gemeinsame Grenze nachvollziehbar, keine Kontosperre; Sitzungscounter bleibt beim Wechsel.                                                           | UA                        |
+| O3-T29 | Gefälschte/fehlende Herkunft          | Keine freie Counterwahl; geschützte Anfrage geschlossen, keine Server-IP als massenhafte Gastidentität.                                                                                    | UG                        |
+| O3-T30 | Statusbruteforce                      | Missversuche kosten Budget; keine Existenzangabe; gültiger Scope und Rategruppen bleiben definiert.                                                                                        | UA/R                      |
+| O3-T31 | Rategroup vor DB/Providerwirkung      | Keine Domainwriter-/Adress-/Zahlungsproviderwirkung nach 429; Receipt-Replay erzeugt keine Providerwirkung.                                                                                | UA/N/R                    |
+| O3-T32 | Epoch, Speichergrenze und Neustart    | Keine aktuelle Limitumgehung; bestehende gültige Receipts nicht verdrängt; neue Keys kontrolliert verweigert, Aufräumen bounded.                                                           | UG/S/N                    |
+| O3-T33 | Positive Challengebindung             | Genau eine Sitzung, keine Bestellung; ohne passende Bindung keine Freigabe.                                                                                                                | UA/S/N/H                  |
+| O3-T34 | Challenge-Negativmatrix               | Keine Sitzung und keine Bestellung; Erklärung ohne rohe Token-/Providerdetails.                                                                                                            | UC/UA/S                   |
+| O3-T35 | Challenge-Race/Antwortverlust         | Stabiler Provider-Issuekey und atomarer Claim; höchstens eine Sitzung, gebundener Issue-Replay statt blindem zweitem Nachweis.                                                             | UA/UI/S/N/H               |
+| O3-T36 | Challengeausfall und gültige Sitzung  | Neue Sitzung 503/geschlossen; bestehende gültige Rechte werden nach eigenen Gates verarbeitet, kein Providerfehlersicherheits-Bypass.                                                      | UA/UI/B                   |
+| O3-T37 | Rate-/Noncestoreausfall               | Neue geschützte Wirkung unterbleibt; 503 ohne falsch behaupteten Nicht-Commit, keine flüchtige Ersatzfreigabe.                                                                             | UA/N                      |
+| O3-T38 | Flags und fehlende Konfiguration      | Kein ungeschütztes Schreiben; originale Daten-/Zahlungs-/Go-livegates können nicht durch Schutzflag ersetzt werden.                                                                        | UA/UG/N/R                 |
+| O3-T39 | Kernablauf echter Browser             | Cookie-/CSRF-/API-/Receiptvertrag durchgängig; echte Bestellung in isolierter DB, keine externe Zahlung. Head und Schichten dokumentieren.                                                 | H                         |
+| O3-T40 | UI-Retry und Reload                   | Ergebnis zuerst lesen; gleiche Order; kein neu generierter submissionKey und kein erneutes Senden der Kundendaten.                                                                         | UI/H                      |
+| O3-T41 | Cookie/Storage gesperrt               | Keine unsichere Credentialspeicherung oder automatische Neuabgabe; klarer Hinweis, Warenkorb bleibt.                                                                                       | UG/UI/B/H                 |
+| O3-T42 | Zwei Tabs und Scopewechsel            | Kein Receipt-/CSRF-/Bestellungsmix; max drei offene Vorgänge enforced; abgeschlossener Vorgang nicht erneut bestellt.                                                                      | UI/S/H                    |
+| O3-T43 | UI-Schutzfehler und Ablauf            | Warte-/Prüf-/Ablaufzustand verständlich; Warenkorb bleibt; keine automatische verbindliche Wiederholung.                                                                                   | UI/B                      |
+| O3-T44 | Automatische Accessibility            | Bedienweg ohne Fokusverlust; Fehler sind wahrnehmbar, Statusrefresh erzeugt keine Challenge. Kein Screenreader-Hand-PASS.                                                                  | B/H                       |
+| O3-T45 | Vorhandene Onlinegrenzen              | Alte Grenze und Idempotenz erhalten; Token/Deadline maßgeblich, Sitzung erzeugt keine neue Zahlungsart/Connected-Accountwirkung.                                                           | N/R                       |
+| O3-T46 | Status und Zahlungsrückleitung        | Zugriff unter eigenem Scope/Ablauf/Rate erlaubt; Checkoutcookie verleiht umgekehrt kein Status-/Zahlungsrecht.                                                                             | UA/UI/H/R                 |
+| O3-T47 | Webhook-/Jobgrenzen                   | Signatur/Event-Idempotenz und Leases unverändert; keine Gastchallenge; keine neue echte Providerzahlung.                                                                                   | R                         |
+| O3-T48 | A1/A3/A4/O1 Regression                | Schutzgrenzen bleiben unabhängig; Gastcookie/CSRF gewährt keine privilegierte Rolle und neutraler Recoverytext bleibt.                                                                     | S/R                       |
+| O3-T49 | Rohdatenfreiheit und Löschung         | Keine rohe IP, Cookieverifier, CSRF-, Challenge-/Status-/Paymenttokens, Kontakte oder Adressen in Schutzlogs; historische Bestellung bleibt, Claims werden physisch fristgerecht gelöscht. | UG/UI/S/N/H               |
+| O3-T50 | Gesamtnachweis und Ressourcen         | Alle neuen Fälle schichtengenau belegt; keine unbegründeten skipped-PASS; bounded Locks/Timeouts/Counterkeys; fünf bestehende Pflichtjobarten und exakter Head separat nachweisen.         | CI/N                      |
+| O3-T51 | Reale Edge-/Gatewayherkunft           | Reale Host-/Routing-/Herkunfts-/WAFparameter belegt; lokale Signaturtests sind kein realer Edge-PASS.                                                                                      | EXTERN - nicht ausgeführt |
+| O3-T52 | Echtes Turnstile-Widget               | Echte Siteverify-/Challengekonfiguration getrennt nachgewiesen; lokale Adapter/Dummykeys ersetzen keine Botwirksamkeit.                                                                    | EXTERN - nicht ausgeführt |
+| O3-T53 | Direktes Supabase Authlimit           | Providerlimits verhindern Umgehung des Apppfads; keine Kontoenumeration; keinerlei daraus fingierter A4-/Pilotabschluss.                                                                   | EXTERN - nicht ausgeführt |
+| O3-T54 | Datenschutz und Cookies               | Fachlich abgestimmte Rechtstexte und Verantwortlichkeiten; Hash/HMAC nicht als anonym etikettiert.                                                                                         | EXTERN - nicht ausgeführt |
+| O3-T55 | Reale Last und Shared NAT             | Fehlblockaden/Last/Kosten/Latenz belastbar bewertet; Produktionswerte gesondert bestätigt.                                                                                                 | EXTERN - nicht ausgeführt |
+| O3-T56 | Praktische Geräte/Assistenz           | Physische Safari/Android/Desktop-/Screenreaderbelege; bleibt eingefroren, Headless ist kein Ersatz.                                                                                        | EXTERN - nicht ausgeführt |
+
+## Ausführung und offene Grenzen
+
+### R23-01: verspätete Fortsetzungen nach Scopewechsel
+
+Der E33-Befund erweitert O3-T42 sowie die Regressionen T40/T43/T44: Ein noch ausstehendes Receipt A
+darf nach einem Propswechsel derselben Storefront-Instanz auf B weder Bestellung A anzeigen noch
+Warenkorb, Formular, Status-/Payment-Zustand, Storage oder Fokus von B ändern.
+`tests/browser/receipt-scope.ts` prüft committed, unsubmitted, 410 und 503, Unmount, verspäteten
+Bootstrap/Issue und eine gültige Wiederherstellung im aktuellen Scope. Je acht Szenarien bei
+390/1440 px laufen in Chromium, Firefox und WebKit. Die native Fetch-Hülle ignoriert hier
+absichtlich AbortSignal; HTTP, Widget und Storageinhalte bleiben synthetische Fixtures. Dies ist
+kein zusätzlicher echter HTTPS-/PG- oder physischer Gerätenachweis.
+
+Die Client-Units prüfen außerdem überholte Abfragen, JSON-Verarbeitung nach bereits empfangenen
+Headern, unveränderte Recoverymetadaten sowie die Identität eines neueren Bootstrap-Promises.
+Scopecleanup invalidiert die Clientgeneration; jede relevante asynchrone Fortsetzung und die
+UI-Abschluss-/Fehler-/Fokusverarbeitung verlangen zusätzlich den aktuellen Vorgang. Auch
+StrictMode-Cleanup darf einen danach neu gestarteten Vorgang nicht verwerfen. Keine Antwort löst
+eine automatische Bestellabgabe aus. Nur der vollständige erfolgreiche Pflichtlauf am neuen Head und
+dessen erneute technische Prüfung schließen R23-01; diese Quellenzuordnung allein ist keine
+Freigabe.
+
+Fehlerhafte Vorläufe werden getrennt dokumentiert: mobile Formular-Mindestbreite bei 200% Zoom,
+PG-Sperrbeobachtung, HTTP-Antwortverlust vor statt nach Headern, geteilte Testidentitäten/Queues und
+alte 201-Replay-Erwartungen wurden gezielt korrigiert. Ein echter WebKit-Befund beim Reload betraf
+die Reihenfolge von Ablauf-Timer und Receipthinweis; die Browserregression prüft nun beständige
+Recoveryrückmeldung nach Timerverarbeitung sowie die restliche Schreibfrist eines gültigen Restore.
+
+Der abschließende aktuelle O3-Umsetzungsnachweis nennt ausschließlich tatsächlich beendete Jobs am
+finalen Head: 601 Units, 41 SQL-Dateien / 3.072 Assertions, Security Advisors, neun neue und zehn
+bestehende tatsächliche native Fälle, echter Chromium/HTTPS/Gateway/API/PG-Lauf sowie
+Chromium/Firefox/WebKit mit zwölf neuen UI-Abläufen je Engine. Übersprungene oder fehlgeschlagene
+Schritte erhalten keinen PASS. Die sechs gesonderten Abnahmen bleiben unausgeführt.
+
+T37 speist Speicher-/Noncefehler im produktiven Dispatcher durch Repository-Doubles ein; reale
+Datenbanktransaktionen/Rollback werden getrennt in S/N belegt. T49 misst physische Löschung und
+bewahrt Bestellhistorie. Die Fristberechnung setzt einen gesunden minütlichen Cleanup-Job voraus;
+keine Behauptung, dass eine abgeschaltete oder gesperrte Datenbank eine reale SLA einhält. T50
+enthält begrenzte Konkurrenz-/Speichertests und keine reale Provider-/NAT-Lastabnahme.
+
+T51-T56 bleiben `NOT_EXECUTED`: reale Cloudflare-Edge-/WAF-Herkunft, reale Widget-/Siteverify-
+Konfiguration, direkte Supabase-Auth-Rates/Captcha, Datenschutz-/Cookiefreigabe, echte NAT-/Last-
+und Produktionslimitabnahme sowie F03-Geräte-/Screenreader-Handprüfung. F01-F03 bleiben eingefroren.
+Keine Abnahme wird aus Adapter-/UI-/SQL-Erfolg abgeleitet. Defaults geschlossen; kein Ready-Wechsel,
+Merge, Deployment oder neue Providerzahlung. Nächster Schritt nach abgeschlossenem
+Umsetzungsnachweis: separate technische Endfreigabeprüfung von PR23 am dann belegten Head.

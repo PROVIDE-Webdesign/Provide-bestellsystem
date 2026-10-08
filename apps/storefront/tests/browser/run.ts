@@ -1,4 +1,6 @@
 import { verifySupportBrowser } from "./support.ts";
+import { verifyCheckoutProtectionBrowser } from "./checkout-protection.ts";
+import { verifyReceiptScopeBrowser } from "./receipt-scope.ts";
 import { verifyRecoveryBrowser } from "./recovery.ts";
 import { verifyLocationOperationsBrowser } from "./location-operations.ts";
 import assert from "node:assert/strict";
@@ -65,6 +67,20 @@ try {
     // Synthetic fixture access expires on Oct 4; keep its observation date
     // deterministic without freezing timers or changing production expiry.
     await page.clock.setFixedTime(new Date("2026-10-03T10:00:00.000Z"));
+    await page.addInitScript(() => {
+      Object.assign(window, {
+        turnstile: {
+          render: (
+            _element: HTMLElement,
+            options: { cData: string; callback: (token: string) => void },
+          ) => {
+            queueMicrotask(() => options.callback("synthetic-" + options.cData));
+            return options.cData;
+          },
+          remove: () => undefined,
+        },
+      });
+    });
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     let quoted = 0,
@@ -88,11 +104,34 @@ try {
         await route.fulfill({ json: { data: configuredCatalog } });
         return;
       }
+      if (resource === "checkout-context") {
+        await route.fulfill({ json: { data: { ready: true, csrf: "a".repeat(43) } } });
+        return;
+      }
+      if (resource === "checkout-session") {
+        const q = route.request().postDataJSON() as { submissionKey: string };
+        await route.fulfill({
+          json: {
+            data: {
+              sessionId: "fb000000-0000-0000-0000-000000000021",
+              submissionKey: q.submissionKey,
+              writeExpiresAt: "2026-10-03T10:30:00.000Z",
+              receiptExpiresAt: "2026-10-03T11:30:00.000Z",
+            },
+          },
+        });
+        return;
+      }
+      if (resource === "checkout-receipt") {
+        await route.fulfill({ json: { data: { state: "unsubmitted", writeExpired: false } } });
+        return;
+      }
       if (resource === "order-status") {
         await route.fulfill({ json: { data: { ...numbered, status: "accepted" } } });
         return;
       }
-      const body = route.request().postDataJSON() as {
+      const posted: unknown = route.request().postDataJSON();
+      const body = (resource === "orders" ? (posted as { command: unknown }).command : posted) as {
         lines?: { menuItemId: string; quantity: number; variantId: string; optionIds: string[] }[];
       };
       if (resource === "cart-quote") {
@@ -199,6 +238,12 @@ try {
     await page.getByText("Enthaltene Steuer 7 %: 0,98 €", { exact: false }).waitFor();
     await page.screenshot({ path: output + `tax-${viewport.width}.png`, fullPage: true });
     await confirmation.check();
+    await page.getByRole("button", { name: "Sicherheitsprüfung starten" }).click();
+    await page
+      .getByText(
+        "Bestellversuch vorbereitet. Du kannst die Bestellung jetzt ausdrücklich absenden.",
+      )
+      .waitFor();
     assert.equal(
       await page.getByRole("button", { name: "Abholbestellung absenden" }).isEnabled(),
       true,
@@ -468,6 +513,8 @@ try {
     await context.close();
     console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);
   }
+  await verifyCheckoutProtectionBrowser(browser, output);
+  await verifyReceiptScopeBrowser(browser, output);
 } finally {
   await browser.close();
   await server.close();

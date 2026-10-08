@@ -28,6 +28,9 @@ input[type="radio"] {
   cursor: pointer;
 }
 button {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   border: 1px solid #234f3b;
   border-radius: 8px;
   padding: 13px 19px;
@@ -75,6 +78,7 @@ p {
   line-height: 1.6;
 }
 .storefront {
+  overflow-wrap: anywhere;
   max-width: 1240px;
   margin: auto;
   padding: 0 40px 32px;
@@ -89,6 +93,8 @@ p {
   margin-bottom: 48px;
 }
 .brand a {
+  min-width: 0;
+  max-width: 100%;
   text-decoration: none;
   font-weight: 850;
   letter-spacing: 0.12em;
@@ -190,10 +196,13 @@ address {
 }
 .side-column {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 20px;
 }
 .availability-panel,
 .cart-panel {
+  min-width: 0;
   background: white;
   border: 1px solid #d5dacf;
   border-radius: 12px;
@@ -280,6 +289,7 @@ input:not([type]) {
 }
 .cart-lines li {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -307,6 +317,7 @@ input:not([type]) {
 }
 .cart-total {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 16px;
   padding-top: 16px;
@@ -406,10 +417,10 @@ footer {
     padding-bottom: 22px;
   }
   .availability-panel {
-    padding: 24px;
+    padding: clamp(12px, 4vw, 24px);
   }
   .cart-panel {
-    padding: 24px;
+    padding: clamp(12px, 4vw, 24px);
   }
   footer {
     flex-direction: column;

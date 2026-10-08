@@ -1,7 +1,7 @@
 import { expect } from "vitest";
 import type { Client } from "pg";
-import { parseDeliveryQuote, parseLocationOperationsState } from "@provide/contracts";
-import { createApiWorker } from "./index.js";
+import { parseDeliveryQuote, parseLocationOperationsState, record } from "@provide/contracts";
+import { createProtectedIntegrationWorker as createApiWorker } from "./checkout-integration-fixture.js";
 type Env = Parameters<ReturnType<typeof createApiWorker>["fetch"]>[1];
 export async function verifyLocationOperationsIntegration(admin: Client, sourceEnv: Env) {
   const env = {
@@ -216,16 +216,16 @@ export async function verifyLocationOperationsIntegration(admin: Client, sourceE
     "select submission_key,id from public.orders where submission_key like 'controls-race-%'",
   );
   expect(row.rows).toHaveLength(1);
-  expect(
-    (
-      await (row.rows[0]!.submission_key.endsWith("003")
-        ? postDelivery()
-        : post(
-            row.rows[0]!.submission_key,
-            row.rows[0]!.submission_key.endsWith("002") ? 3600000 : 0,
-          ))
-    ).status,
-  ).toBe(201);
+  const replay = await (row.rows[0]!.submission_key.endsWith("003")
+    ? postDelivery()
+    : post(row.rows[0]!.submission_key, row.rows[0]!.submission_key.endsWith("002") ? 3600000 : 0));
+  // O3 observes this confirmed winner as a read, not a newly accepted command.
+  expect(replay.status).toBe(200);
+  expect(record(record(await replay.json())?.data)?.orderId).toBe(row.rows[0]!.id);
+  const afterReplay = await admin.query<{ n: number }>(
+    "select count(*)::integer n from public.orders where submission_key like 'controls-race-%'",
+  );
+  expect(afterReplay.rows[0]?.n).toBe(1);
   const clock = await admin.query<{ duration: string }>(
     "select (deadline-started_at)::text as duration from private.order_acceptance_alerts where order_id=$1",
     [row.rows[0]!.id],

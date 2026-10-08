@@ -15,6 +15,9 @@ export const apiErrorCodes = [
   "not_found",
   "order_unavailable",
   "payload_too_large",
+  "rate_limited",
+  "checkout_session_expired",
+  "checkout_result_unknown",
   "service_unavailable",
   "unauthorized",
   "unsupported_media_type",
@@ -65,3 +68,4 @@ export * from "./provide-admin.js";
 export * from "./personnel.js";
 export * from "./account-recovery.js";
 export * from "./support.js";
+export * from "./checkout-protection.js";

@@ -1,3 +1,4 @@
+import { readCheckoutBody } from "@provide/contracts";
 import {
   parseCartQuoteRequest,
   parseCartQuote,
@@ -200,7 +201,7 @@ export async function submitGuestPickupOrder(
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json"))
     return failure(415);
   try {
-    const bytes = await request.arrayBuffer();
+    const bytes = new TextEncoder().encode(await readCheckoutBody(request, 64 * 1024));
     if (bytes.byteLength > 64 * 1024) return failure(413);
     const source = JSON.parse(
       new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes),
@@ -232,7 +233,7 @@ export async function submitGuestPickupOrder(
     if (!response.ok)
       return failure([400, 409, 413, 415].includes(response.status) ? response.status : 503);
     if (!response.headers.get("content-type")?.startsWith("application/json")) return failure(503);
-    const text = await response.text();
+    const text = await readCheckoutBody(response, 16 * 1024);
     if (new TextEncoder().encode(text).byteLength > 16 * 1024) return failure(503);
     const payload = JSON.parse(text) as { data?: unknown };
     const confirmation =
@@ -298,7 +299,7 @@ export async function fetchPublicOrderStatus(
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json"))
     return failure(415);
   try {
-    const bytes = await request.arrayBuffer();
+    const bytes = new TextEncoder().encode(await readCheckoutBody(request, 64 * 1024));
     if (bytes.byteLength > 4 * 1024) return failure(413);
     const source = JSON.parse(
       new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes),
@@ -319,7 +320,7 @@ export async function fetchPublicOrderStatus(
     if (!response.ok)
       return failure([400, 404, 413, 415].includes(response.status) ? response.status : 503);
     if (!response.headers.get("content-type")?.startsWith("application/json")) return failure(503);
-    const text = await response.text();
+    const text = await readCheckoutBody(response, 16 * 1024);
     if (new TextEncoder().encode(text).byteLength > 16 * 1024) return failure(503);
     const payload = JSON.parse(text) as { data?: unknown };
     const status = parsePublicOrderStatus(payload.data);

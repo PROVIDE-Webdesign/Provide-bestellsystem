@@ -1,3 +1,4 @@
+import { readCheckoutBody, CheckoutBodyError } from "@provide/contracts";
 import type { ApiErrorCode, ApiErrorEnvelope, ApiSuccessEnvelope } from "@provide/contracts";
 
 const maxJsonBodyBytes = 64 * 1024;
@@ -38,25 +39,20 @@ export async function readJsonBody(
   request: Request,
   maximumBytes = maxJsonBodyBytes,
 ): Promise<unknown> {
-  const contentType = request.headers.get("content-type") ?? "";
-  if (!contentType.toLowerCase().startsWith("application/json")) {
-    throw new RequestBodyError("unsupported_media_type", "JSON content is required.", 415);
-  }
-
-  const contentLength = Number(request.headers.get("content-length") ?? "0");
-  if (Number.isFinite(contentLength) && contentLength > maximumBytes) {
-    throw new RequestBodyError("payload_too_large", "Request body is too large.", 413);
-  }
-
-  const bytes = await request.arrayBuffer();
-  if (bytes.byteLength > maximumBytes) {
-    throw new RequestBodyError("payload_too_large", "Request body is too large.", 413);
-  }
-
   try {
-    return JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes));
-  } catch {
-    throw new RequestBodyError("bad_request", "Request body is not valid JSON.", 400);
+    return JSON.parse(await readCheckoutBody(request, maximumBytes)) as unknown;
+  } catch (error) {
+    if (error instanceof CheckoutBodyError)
+      throw new RequestBodyError(
+        error.status === 413
+          ? "payload_too_large"
+          : error.status === 415
+            ? "unsupported_media_type"
+            : "bad_request",
+        error.message,
+        error.status,
+      );
+    throw error;
   }
 }
 

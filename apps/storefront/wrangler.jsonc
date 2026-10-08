@@ -14,6 +14,9 @@
   },
   "vars": {
     "APP_ENV": "preview",
+    "CHECKOUT_PROTECTION_ENABLED": "false",
+    "CHECKOUT_STOREFRONT_ORIGIN": "https://replace-with-preview-storefront.example.invalid",
+    "PUBLIC_CHECKOUT_TURNSTILE_SITE_KEY": "",
     "PUBLIC_ONLINE_PAYMENT_ENABLED": "false",
     "PUBLIC_API_URL": "https://replace-with-preview-api.example.invalid",
     "PUBLIC_CHECKOUT_PRIVACY_NOTICE_VERSION": "preview-v1",

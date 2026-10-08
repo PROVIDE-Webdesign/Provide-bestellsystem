@@ -1,5 +1,32 @@
 import { describe, expect, it, vi } from "vitest";
-import { createApiWorker } from "./index.js";
+import {
+  handlePublicOrderStatus,
+  type OrderStatusReader,
+  type OrderStatusEnvironment,
+} from "./order-status.js";
+import type { ApiLogger } from "./logger.js";
+import { routeRequest } from "./router.js";
+import type { StorefrontRoute } from "./storefront.js";
+function domainWorker(
+  _probe: unknown,
+  logger: ApiLogger,
+  _catalog: unknown,
+  _writer: unknown,
+  reader: OrderStatusReader,
+) {
+  return {
+    fetch: (request: Request, env: OrderStatusEnvironment) =>
+      handlePublicOrderStatus(
+        request,
+        routeRequest(request) as StorefrontRoute,
+        env,
+        reader,
+        { requestId: "domain-test" },
+        logger,
+        new Headers(),
+      ),
+  };
+}
 import { createStatusAccessToken } from "./status-token.js";
 
 const base = "https://api.example.test/v1/storefront/restaurant-a/location-a/order-status";
@@ -35,12 +62,12 @@ function request(token: string, value: Record<string, unknown> = {}) {
   });
 }
 
-describe("public order status API", () => {
+describe("public order status domain handler (unit; O3 transport tested separately)", () => {
   it("returns only the allowlisted status after capability verification", async () => {
     const token = await createStatusAccessToken(secret, scope, orderId);
     const reader = { read: vi.fn().mockResolvedValue({ ...status, contactName: "hidden" }) };
     const logger = { error: vi.fn() };
-    const worker = createApiWorker(vi.fn(), logger, undefined, undefined, reader);
+    const worker = domainWorker(vi.fn(), logger, undefined, undefined, reader);
     const response = await worker.fetch(request(token), env);
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
@@ -52,7 +79,7 @@ describe("public order status API", () => {
     const token = await createStatusAccessToken(secret, scope, orderId);
     const tampered = `${token.startsWith("A") ? "B" : "A"}${token.slice(1)}`;
     const reader = { read: vi.fn().mockResolvedValue(null) };
-    const worker = createApiWorker(vi.fn(), { error: vi.fn() }, undefined, undefined, reader);
+    const worker = domainWorker(vi.fn(), { error: vi.fn() }, undefined, undefined, reader);
     expect((await worker.fetch(request(tampered), env)).status).toBe(404);
     expect(reader.read).not.toHaveBeenCalled();
     expect((await worker.fetch(request(token), env)).status).toBe(404);
@@ -61,7 +88,7 @@ describe("public order status API", () => {
   it("accepts the previous secret during rotation", async () => {
     const token = await createStatusAccessToken(previous, scope, orderId);
     const reader = { read: vi.fn().mockResolvedValue(status) };
-    const worker = createApiWorker(vi.fn(), { error: vi.fn() }, undefined, undefined, reader);
+    const worker = domainWorker(vi.fn(), { error: vi.fn() }, undefined, undefined, reader);
     expect(
       (
         await worker.fetch(request(token), {
@@ -75,7 +102,7 @@ describe("public order status API", () => {
   it("fails closed on configuration and bounds the request before SQL", async () => {
     const token = await createStatusAccessToken(secret, scope, orderId);
     const reader = { read: vi.fn() };
-    const worker = createApiWorker(vi.fn(), { error: vi.fn() }, undefined, undefined, reader);
+    const worker = domainWorker(vi.fn(), { error: vi.fn() }, undefined, undefined, reader);
     expect(
       (await worker.fetch(request(token), { ...env, ORDER_STATUS_READ_ENABLED: "false" })).status,
     ).toBe(503);
@@ -98,7 +125,7 @@ describe("public order status API", () => {
     const token = await createStatusAccessToken(secret, scope, orderId);
     const logger = { error: vi.fn() };
     const reader = { read: vi.fn().mockRejectedValue(new Error(token)) };
-    const worker = createApiWorker(vi.fn(), logger, undefined, undefined, reader);
+    const worker = domainWorker(vi.fn(), logger, undefined, undefined, reader);
     const response = await worker.fetch(request(token), env);
     expect(response.status).toBe(503);
     expect(await response.text()).not.toContain(token);

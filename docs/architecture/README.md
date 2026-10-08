@@ -34,3 +34,4 @@ Aktueller technischer Nachweis:
 - [Sichere Lieferbestellungen und PLZ-Gebiete](../decisions/0025-secure-delivery-orders.md)
 - [Onlinezahlungen im Testbetrieb](../decisions/0026-sandbox-online-payments.md)
 - [Konto- und MFA-Recovery](../decisions/0038-account-mfa-recovery.md)
+- [O3 Checkout-Sitzung und Missbrauchsschutz](../decisions/0040-checkout-session-abuse-boundary.md)
