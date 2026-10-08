@@ -10,7 +10,11 @@ UI.
 2. Mit Manage einen internen Abgleich bewusst starten und angezeigte Fortsetzungen einzeln
    durchführen. Jede Seite liest höchstens 100 Quelleneinträge; ein abgelaufener Cursor verlangt
    einen neuen Scan. Niemals daraus eine neue Providerantwort oder Vollständigkeit nach nur einer
-   unvollständigen Seite ableiten.
+   unvollständigen Seite ableiten. Listen-/Detailwechsel sowie Fokus-/Timeraktualisierungen behalten
+   die offene Fortsetzung. Standortwechsel, Logout, 401/403 oder Verlust von Manage verwerfen sie;
+   ein späterer Rechte-/Standortrückwechsel stellt keinen alten Cursor wieder her. Ungültige,
+   verbrauchte oder abgelaufene Fortsetzungen werden ausdrücklich verworfen. Die Anzeige zählt den
+   letzten Scan-Abschnitt, nicht eine kumulative Quellenzahl oder einen frischen Providerabgleich.
 3. Fall öffnen, internen Quellzustand und getrennten Nachweis-/Beobachtungszeitpunkt prüfen.
    Übernehmen, berechtigt zuweisen oder unzugewiesen lassen. Wartestatus mit korrektem Grund setzen;
    interne Fristen sind keine externen SLAs. UTC-Eingabe wird in Standortzeit angezeigt.

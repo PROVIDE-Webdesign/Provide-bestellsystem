@@ -54,6 +54,14 @@ export function SupportCases() {
   const [pending, setPending] = useState<SupportCommand | null>(null),
     [operation, setOperation] = useState<Update["operation"]>("claim");
   const [kind, setKind] = useState<(typeof supportKinds)[number]>("incident");
+  // A read projection is not a scan receipt. Keep continuation only in this
+  // mounted session/scope; never persist it or infer it from a list/detail read.
+  const [scan, setScan] = useState<{
+    restaurantId: string;
+    locationId: string;
+    cursor: string | null;
+    scanned: number;
+  } | null>(null);
   const serial = useRef(0),
     controller = useRef<AbortController | null>(null),
     lastRead = useRef<SupportCommand | null>(null),
@@ -67,6 +75,7 @@ export function SupportCases() {
     setData(null);
     currentData.current = null;
     setPending(null);
+    setScan(null);
     setBusy(false);
     setError("");
     lastRead.current = null;
@@ -98,13 +107,19 @@ export function SupportCases() {
       if (!response.ok) {
         setData(null);
         if (response.status >= 500 && q.action !== "read") setPending(q);
-        if ([401, 403].includes(response.status)) lastRead.current = null;
+        if ([401, 403].includes(response.status)) {
+          lastRead.current = null;
+          setScan(null);
+        }
+        if (q.action === "scan" && [400, 404, 409, 410].includes(response.status)) setScan(null);
         setError(
-          response.status === 409
-            ? "Stand geändert. Bitte den Fall erneut laden."
-            : [401, 403].includes(response.status)
-              ? "Zugang oder Berechtigung fehlt. Angezeigte Daten wurden entfernt."
-              : "Abgleich derzeit nicht verfügbar.",
+          q.action === "scan" && [400, 404, 409, 410].includes(response.status)
+            ? "Abgleich-Fortsetzung ungültig oder abgelaufen. Bitte den Abgleich neu starten."
+            : response.status === 409
+              ? "Stand geändert. Bitte den Fall erneut laden."
+              : [401, 403].includes(response.status)
+                ? "Zugang oder Berechtigung fehlt. Angezeigte Daten wurden entfernt."
+                : "Abgleich derzeit nicht verfügbar.",
         );
         return;
       }
@@ -121,7 +136,23 @@ export function SupportCases() {
         throw Error("Invalid projection");
       setData(next);
       currentData.current = next;
-      if (q.action !== "scan")
+      if (!next.canManage) setScan(null);
+      else if (q.action === "scan")
+        setScan({
+          restaurantId: q.restaurantId,
+          locationId: q.locationId,
+          cursor: next.scanCursor,
+          scanned: next.scanned,
+        });
+      if (q.action === "scan")
+        lastRead.current = {
+          action: "read",
+          restaurantId: q.restaurantId,
+          locationId: q.locationId,
+          cursor: null,
+          caseId: null,
+        };
+      else
         lastRead.current = {
           action: "read",
           restaurantId: q.restaurantId,
@@ -158,6 +189,8 @@ export function SupportCases() {
     };
   }, []);
   const scope = { restaurantId, locationId };
+  const currentScan =
+    scan?.restaurantId === restaurantId && scan.locationId === locationId ? scan : null;
   const read = (caseId: string | null = null, cursor: string | null = null) =>
     void send({ action: "read", ...scope, caseId, cursor });
   const date = (value: string) =>
@@ -277,6 +310,7 @@ export function SupportCases() {
           {data.canManage && (
             <div className="support-actions">
               <button
+                disabled={busy}
                 onClick={() =>
                   void send({
                     action: "scan",
@@ -288,14 +322,15 @@ export function SupportCases() {
               >
                 Internen Abgleich starten (max. 100 Quellen)
               </button>
-              {data.scanCursor && (
+              {currentScan?.cursor && (
                 <button
+                  disabled={busy}
                   onClick={() =>
                     void send({
                       action: "scan",
                       ...scope,
                       requestId: crypto.randomUUID(),
-                      cursor: data.scanCursor,
+                      cursor: currentScan.cursor,
                     })
                   }
                 >
@@ -304,10 +339,12 @@ export function SupportCases() {
               )}
             </div>
           )}
-          {data.scanned > 0 && (
+          {currentScan && (
             <p role="status">
-              {data.scanned} interne Quellen geprüft.
-              {data.scanCursor ? " Weitere Quellen stehen aus." : " Dieser Abgleich ist beendet."}
+              {currentScan.scanned} interne Quellen im letzten Abschnitt geprüft.
+              {currentScan.cursor
+                ? " Weitere Quellen stehen aus."
+                : " Dieser Abgleich ist beendet."}
             </p>
           )}
           {!data.cases.length && <p>Keine erfassten Fälle in dieser Auswahl.</p>}

@@ -32,7 +32,7 @@ CI stehen im O1-Prüfnachweis/Projektprotokoll.
 | O1-T11 | Freier Text, Rohpayload oder URL als Beleg              | Nicht im erlaubten Vertrag; keine Speicherung/SSRF.                                                                          | U/S39                                                                     |
 | O1-T12 | Gastkontakt abgelaufen/physisch gelöscht                | Fallreferenz und Nicht-PII-Historie bleiben; Kontakt erscheint nie.                                                          | U/S40/R(Gastdatenablauf)                                                  |
 | O1-T13 | Standortwechsel/403/Abbruch mit verspäteter Antwort     | Alte Daten werden entfernt; Antwort überschreibt neuen Scope nicht.                                                          | B                                                                         |
-| O1-T14 | 100 Quellen und weitere Treffer                         | Begrenzter Lauf, stabile Fortsetzung; kein stiller Verlust weiterer Quellen.                                                 | S40                                                                       |
+| O1-T14 | 100 Quellen und weitere Treffer                         | Begrenzter Lauf, stabile Fortsetzung; kein stiller Verlust weiterer Quellen.                                                 | S40/B                                                                     |
 | O1-T15 | Zwei gleichzeitige Scans derselben Quelle               | Ein aktiver Fall; keine doppelten Auditereignisse.                                                                           | S40/A                                                                     |
 | O1-T16 | Wiederholter Scan unveränderter Quelle                  | Kein neuer Fall und keine unbegrenzten identischen Belege.                                                                   | S40                                                                       |
 | O1-T17 | Neue Episode nach resolved                              | Neuer verknüpfter Fall; alte Historie bleibt unverändert.                                                                    | S40                                                                       |
@@ -61,6 +61,27 @@ CI stehen im O1-Prüfnachweis/Projektprotokoll.
 | O1-T40 | Bestehende Zahlungen, E-Mail, Historie, Personal, A3/A4 | Relevante Regression am finalen Head; Pflicht-CI und isolierte Auth-/HTTP-/SQL-Nachweise; praktische Abnahmen nicht ersetzt. | R/A; finalen Head und Pflichtlauf im aktuellen O1-Nachweis abgleichen     |
 
 ## Ausgeführter Implementierungsnachweis und Grenzen
+
+### Gezielte Korrektur R22-01 (08.10.2026)
+
+E25 reproduzierte am Head `522c93b22e5a65b2e81ca7259c05cfdbf58fee3b` den Verlust einer offenen
+Scan-Fortsetzung durch eine normale Leseantwort. Scan-Receipt und Listen-/Detailprojektion werden
+jetzt getrennt gehalten, ausschließlich im gemounteten Sitzungs-/Standortkontext. Timer, Fokus,
+Liste, Detail, Detailaktualisierung und Listenpagination ersetzen den Scan-Cursor nicht. Es gibt
+keinen automatischen Folgescan. Nur eine erfolgreiche Scan-Antwort aktualisiert den letzten
+Abschnitt und die Fortsetzung; eine terminale Antwort beendet sie ausdrücklich.
+
+Browserregressionen für T14/T39 prüfen 100 + 1 synthetische Quellen, alle genannten Lesewege,
+verlorene Fortsetzungsantwort mit identischem Request-Replay, Cursor-Konflikt, 401, 403,
+manage-Rechteverlust und Standortwechsel einschließlich Rückwechsel. Fehlerhafte/abgelaufene
+Fortsetzung wird ausdrücklich verworfen, nicht als erfolgreicher Abschluss dargestellt. Die
+bestehende Abort-/Sequenzprüfung verwirft verspätete Antworten; Logout/Sessionwechsel unmountet die
+Ansicht. Scan-Metadaten werden nicht in Storage persistiert. Serverseitige Actor-/Scope-/AAL2- und
+aktuelle Sitzungsprüfungen, Cursor-Einmaligkeit und Ablauf bleiben unverändert.
+
+Der erneute Nachweis ist ausschließlich am neuen Head zu bewerten. Frühere CI163 und E25 bleiben
+historische Belege. Der Korrekturauftrag enthält keine technische Endfreigabe, keinen Ready-Wechsel,
+Merge oder Deployment; die erneute separate Endfreigabeprüfung folgt erst danach.
 
 CI161 (Run 37119368549) am Head `6945c37affce039d98d4ca435e937ed72de1461d` bestand mit allen fünf
 Pflichtjobs: 496 Unit-Tests, 40 SQL-Dateien / 1.760 pgTAP-Prüfungen, Security Advisors, zehn
