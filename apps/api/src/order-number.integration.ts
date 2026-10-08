@@ -1,7 +1,7 @@
 import { expect } from "vitest";
 import type { Client } from "pg";
 import { parseGuestPickupOrderConfirmation } from "@provide/contracts";
-import { createApiWorker } from "./index.js";
+import { createProtectedIntegrationWorker as createApiWorker } from "./checkout-integration-fixture.js";
 
 type Env = Parameters<ReturnType<typeof createApiWorker>["fetch"]>[1];
 

@@ -1,7 +1,7 @@
 import { expect } from "vitest";
 import type { Client } from "pg";
 import { postgresMenuAdmin } from "./menu-admin.js";
-import { createApiWorker } from "./index.js";
+import { createProtectedIntegrationWorker as createApiWorker } from "./checkout-integration-fixture.js";
 import {
   type MenuAdminCommand,
   parseMenuConfiguration,

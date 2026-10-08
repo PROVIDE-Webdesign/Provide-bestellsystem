@@ -1,7 +1,7 @@
 import { expect } from "vitest";
 import type { Client } from "pg";
 import { parseDeliveryQuote, parseLocationOperationsState } from "@provide/contracts";
-import { createApiWorker } from "./index.js";
+import { createProtectedIntegrationWorker as createApiWorker } from "./checkout-integration-fixture.js";
 type Env = Parameters<ReturnType<typeof createApiWorker>["fetch"]>[1];
 export async function verifyLocationOperationsIntegration(admin: Client, sourceEnv: Env) {
   const env = {

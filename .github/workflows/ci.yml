@@ -75,6 +75,11 @@ jobs:
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
 
+      - name: Test O3 real PostgreSQL concurrency and protected dispatcher
+        run: pnpm --filter @provide/api exec vitest run src/checkout-protection.integration.test.ts
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
       - name: Prepare masked loopback Realtime credentials
         run: node scripts/ci-realtime-env.mjs
 

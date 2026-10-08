@@ -8,6 +8,8 @@
     "APP_ENV": "preview",
     "HYPERDRIVE_CACHE_DISABLED": "false",
     "CHECKOUT_WRITE_ENABLED": "false",
+    "CHECKOUT_PROTECTION_ENABLED": "false",
+    "CHECKOUT_STOREFRONT_ORIGIN": "https://replace-with-preview-storefront.example.invalid",
     "CHECKOUT_PRIVACY_NOTICE_VERSION": "preview-v1",
     "CHECKOUT_RETENTION_DAYS": "30",
     "ORDER_STATUS_READ_ENABLED": "false",

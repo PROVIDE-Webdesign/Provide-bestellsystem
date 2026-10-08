@@ -22,6 +22,9 @@ export interface StorefrontEnvironment {
 }
 export interface StorefrontRoute extends StorefrontScope {
   readonly name:
+    | "checkout-context"
+    | "checkout-session"
+    | "checkout-receipt"
     | "cart-quote"
     | "catalog"
     | "availability"

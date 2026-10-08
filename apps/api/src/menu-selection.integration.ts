@@ -7,7 +7,7 @@ import {
   parseGuestDeliveryOrderConfirmation,
   parseOnlineOrderConfirmation,
 } from "@provide/contracts";
-import { createApiWorker } from "./index.js";
+import { createProtectedIntegrationWorker as createApiWorker } from "./checkout-integration-fixture.js";
 type Env = Parameters<ReturnType<typeof createApiWorker>["fetch"]>[1];
 async function responseData(response: Response): Promise<unknown> {
   const value: unknown = await response.json();

@@ -127,8 +127,12 @@ createRoot(document.getElementById("root")!).render(
       />
     ) : (
       <Storefront
-        restaurantSlug="storefront-restaurant-a"
-        locationSlug="storefront-a-mitte"
+        checkoutProtectionEnabled
+        checkoutTurnstileSiteKey="synthetic-local-widget"
+        restaurantSlug={
+          new URLSearchParams(location.search).get("restaurant") ?? "storefront-restaurant-a"
+        }
+        locationSlug={new URLSearchParams(location.search).get("location") ?? "storefront-a-mitte"}
         privacyNoticeVersion="preview-v1"
       />
     )}

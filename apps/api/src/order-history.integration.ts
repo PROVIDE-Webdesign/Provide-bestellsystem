@@ -1,7 +1,7 @@
 import type { Client } from "pg";
 import { expect, vi } from "vitest";
 import { parseOrderHistory, type HistoryQuery } from "@provide/contracts";
-import { createApiWorker } from "./index.js";
+import { createProtectedIntegrationWorker as createApiWorker } from "./checkout-integration-fixture.js";
 export async function verifyHistoryIntegration(
   admin: Client,
   sourceEnv: Parameters<ReturnType<typeof createApiWorker>["fetch"]>[1],

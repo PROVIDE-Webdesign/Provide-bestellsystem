@@ -1,0 +1,39 @@
+# O3 Checkout-Sitzung und Missbrauchsschutz
+
+## Fachliche Bestätigung und Umsetzung
+
+Der Nutzer bestätigt am 08.10.2026 um 18:33:08 Uhr Europe/Berlin O3-D01-D12 und den begrenzten
+Paketumfang aus E30 und beauftragt die Umsetzung. Grundlage ist
+`PROVIDE_Bestellsystem_O3_Vorbereitung_2026-10-08_V001.json`: 56 vorbereitete Fälle, davon 50
+isoliert automatisierbar und sechs getrennte externe/fachliche/physische Freigabegrenzen.
+
+Getrennter Zweig `codex/o3-checkout-abuse-20261008`, Basis PR22 ausschließlich am freigegebenen Head
+`9d734c48c34fad2d07f592be085c898ca15c2e26`, Tree `940a724d957d6840ba170042b2c24376ee20e2ef`.
+Bestehende Endfreigaben werden nicht auf neue Heads übertragen. Umsetzung begonnen; kein
+Implementierungs-PASS oder technische Endfreigabe daraus.
+
+Work / Sol / hoch. Start 18:33:08 Uhr, anfängliche Schätzung 90-150 Minuten einschließlich
+Nachweisen. Kein Ready-Wechsel, Merge, Deployment, neue Providerzahlung, reales Konto oder externe
+Cloudflare-/Supabase-Konfigurationsänderung. F01-F03 eingefroren. Defaults bleiben geschlossen.
+
+## Verbindliche Paketgrenzen
+
+- Höchstens eine verbindliche Bestellung pro Checkout-Sitzung: 30 Minuten Schreibfenster, 90 Minuten
+  Gesamtdauer für ausschließlich lesende Ergebniswiederherstellung.
+- Scope-/Vorgangsbindung, 256-Bit-Browsernachweis ausschließlich im sicheren HttpOnly-Cookie,
+  servergebundener CSRF-Nachweis und authentisierter Gatewayvertrag. Kein Headerdurchreichen.
+- Stabile Bestell-Idempotenz, atomarer Receipt und Wiederherstellung nach tatsächlichem
+  Commitverlust.
+- PostgreSQL-Token-Buckets: atomare begrenzte Zähler, getrennte Primär-/Netzwerkgruppen,
+  pseudonymisierte vertrauenswürdige Herkunft, TTL und Speicherobergrenzen gemäß O3-D06/D09.
+- Turnstile nur für Sessionstart/Erneuerung mit serverseitigem Nachweis. Lokale Adapter für
+  automatisierte Prüfungen; keine echten Providerzahlungen.
+- Bestehende SQL-20-Grenze, Status-/Zahlungstoken und Zahlungsfristen erhalten. Kein neuer
+  Authproxy, Coupon, Kundenkonto, Adressprovider oder A4-Fachprozess. Direkte
+  Supabase-Auth-/WAF-/Challenge- und reale Last-/Datenschutz-/Geräteabnahmen bleiben separat.
+
+## Nachweisstand
+
+Noch keine neuen Fälle ausgeführt. Geplante Belegschichten, 56 IDs und die bestätigten Empfehlungen
+bleiben in E30 nachvollziehbar. Nach Umsetzung werden tatsächliche Belege und Grenzen je Fall
+ergänzt; ein Unit-/Adapter-PASS ist kein echter DB-/Browser-/Provider-PASS.

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { createApiWorker } from "./index.js";
+import { handleDelivery } from "./delivery.js";
 import type { DeliveryRepository } from "./delivery.js";
 const request = {
   menuId: "f4000000-0000-0000-0000-000000000001",
@@ -28,31 +28,24 @@ function setup() {
     submit: vi.fn(),
   };
   const logger = { error: vi.fn() };
-  const worker = createApiWorker(
-    undefined,
-    logger,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    repository,
-  );
   const post = (body: unknown = request, environment = env, resource = "delivery-quote") =>
-    worker.fetch(
+    handleDelivery(
       new Request(`https://api.test/v1/storefront/restaurant-a/location-a/${resource}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       }),
+      { restaurantSlug: "restaurant-a", locationSlug: "location-a" },
+      resource === "delivery-quote",
       environment,
+      repository,
+      { requestId: "domain-test" },
+      logger,
+      new Headers(),
     );
   return { post, repository, logger };
 }
-describe("delivery HTTP boundary", () => {
+describe("delivery domain handler (unit; O3 transport tested separately)", () => {
   it("returns a safe no-store quote", async () => {
     const { post } = setup();
     const r = await post();
