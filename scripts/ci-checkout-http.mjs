@@ -171,12 +171,21 @@ try {
     location,
     policy.rows[0].id,
   ]);
+  // Vite 8's dev client opens a WebSocket even with HMR updates disabled. Attach
+  // that development-only transport to the same disposable TLS server instead
+  // of an unrelated/plaintext default port; keep all pageerror checks intact.
+  gateway = httpsServer(tls);
   vite = await viteServer({
     configFile: false,
     root: join(root, "apps/storefront/tests/browser"),
     plugins: [react()],
     resolve: { alias: { "@": join(root, "apps/dashboard") } },
-    server: { middlewareMode: true, hmr: false, fs: { allow: [root] } },
+    server: {
+      middlewareMode: true,
+      hmr: false,
+      ws: { server: gateway, protocol: "wss", host: "127.0.0.1" },
+      fs: { allow: [root] },
+    },
   });
   const { createApiWorker } = await vite.ssrLoadModule(join(root, "apps/api/src/index.ts"));
   const { handleCheckoutGateway } = await vite.ssrLoadModule(
@@ -223,7 +232,7 @@ try {
     }
   });
   apiOrigin = await listen(api);
-  gateway = httpsServer(tls, async (req, res) => {
+  gateway.on("request", async (req, res) => {
     if (!req.url.startsWith("/api/storefront/")) {
       vite.middlewares(req, res);
       return;
@@ -373,7 +382,7 @@ try {
     const page = await context.newPage();
     activePage = page;
     const errors = [];
-    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("pageerror", (error) => errors.push(error.stack ?? error.message));
     await page.goto(
       browserOrigin + `/?restaurant=${scope.restaurantSlug}&location=${scope.locationSlug}`,
     );
@@ -647,12 +656,12 @@ try {
 } finally {
   await writeFile(join(output, "report.json"), JSON.stringify(report, null, 2) + "\n");
   await browser?.close();
+  await vite?.close();
   for (const server of [gateway, api])
     if (server) {
       server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));
     }
-  await vite?.close();
   await admin.end();
   await rm(temporary, { recursive: true, force: true });
 }
