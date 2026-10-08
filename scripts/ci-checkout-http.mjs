@@ -63,7 +63,9 @@ const report = {
 const requests = [];
 let apiOrigin,
   browserOrigin,
-  dropCommittedWrite = false;
+  dropCommittedWrite = false,
+  dropIssueReply = true;
+let apiCalls = 0;
 const clone = (sql) =>
   sql.replace(/\bf([0-9a-f]{7}-)/g, "e$1").replaceAll("storefront-", "o3-http-");
 const restaurant = "e2000000-0000-0000-0000-000000000001";
@@ -195,6 +197,10 @@ try {
   };
   api = httpsServer(tls, async (req, res) => {
     try {
+      apiCalls++;
+      assert.ok(
+        !req.headers.cookie && !req.headers.authorization && !req.headers["cf-connecting-ip"],
+      );
       await webResponse(await worker.fetch(webRequest(req, apiOrigin), apiEnv), res);
     } catch {
       res.writeHead(500);
@@ -220,6 +226,7 @@ try {
         resource,
         fields: parsed ? Object.keys(parsed).sort() : [],
         sessionId: parsed?.sessionId,
+        issueId: parsed?.issueId,
         submissionKey: parsed?.command?.submissionKey ?? parsed?.submissionKey,
       });
       const response = await handleCheckoutGateway(
@@ -234,6 +241,11 @@ try {
         loopbackFetch,
         () => "127.0.0.1",
       );
+      if (dropIssueReply && resource === "checkout-session" && response.status === 201) {
+        dropIssueReply = false;
+        res.destroy();
+        return;
+      }
       if (
         dropCommittedWrite &&
         ["orders", "delivery-orders"].includes(resource) &&
@@ -251,25 +263,76 @@ try {
   });
   browserOrigin = await listen(gateway);
   apiEnv.CHECKOUT_STOREFRONT_ORIGIN = browserOrigin;
-  const unsigned = await loopbackFetch(
-    apiOrigin + `/v1/storefront/${scope.restaurantSlug}/${scope.locationSlug}/orders`,
-    { method: "POST", headers: { "content-type": "application/json" }, body: "{}" },
+  for (const resource of [
+    "orders",
+    "delivery-orders",
+    "online-orders",
+    "cart-quote",
+    "delivery-quote",
+    "order-status",
+    "payment-session",
+    "checkout-session",
+    "checkout-receipt",
+  ])
+    assert.equal(
+      (
+        await loopbackFetch(
+          apiOrigin + `/v1/storefront/${scope.restaurantSlug}/${scope.locationSlug}/${resource}`,
+          { method: "POST", headers: { "content-type": "application/json" }, body: "{}" },
+        )
+      ).status,
+      403,
+    );
+  const callsBefore = apiCalls;
+  for (const origin of [undefined, "null", "https://other.test"]) {
+    const blocked = await loopbackFetch(
+      browserOrigin + `/api/storefront/${scope.restaurantSlug}/${scope.locationSlug}/cart-quote`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(origin ? { origin } : {}) },
+        body: "{}",
+      },
+    );
+    assert.equal(blocked.status, 403);
+  }
+  const oversized = await loopbackFetch(
+    browserOrigin +
+      `/api/storefront/${scope.restaurantSlug}/${scope.locationSlug}/checkout-context`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: browserOrigin,
+        "x-provide-checkout-bootstrap": "1",
+      },
+      body: JSON.stringify({ padding: "x".repeat(1500) }),
+    },
   );
-  assert.equal(unsigned.status, 403);
+  assert.equal(oversized.status, 413);
+  assert.equal(
+    apiCalls,
+    callsBefore,
+    "Origin and bounded JSON failures precede the actual API transport",
+  );
+  report.cases.push({
+    id: "O3-T17/T18",
+    result: "PASS",
+    evidence: "actual HTTPS origin and oversize rejection; no API transport",
+  });
   report.cases.push({
     id: "O3-T19",
     result: "PASS",
-    evidence: "unsigned direct HTTPS API request denied",
+    evidence: "all nine unsigned direct HTTPS API POST paths denied",
   });
   browser = await chromium.launch({ headless: true });
   let sequence = 0;
   for (const [mode, lost] of [
-    ["pickup", false],
+    ["pickup", true],
     ["delivery", true],
   ]) {
     const context = await browser.newContext({
       ignoreHTTPSErrors: true,
-      viewport: { width: lost ? 390 : 1440, height: 1000 },
+      viewport: { width: mode === "delivery" ? 390 : 1440, height: 1000 },
       reducedMotion: "reduce",
     });
     await context.route("**/*", async (route) => {
@@ -339,6 +402,36 @@ try {
     await page.getByRole("checkbox", { name: /Datenschutzhinweis/ }).check();
     await page.getByRole("button", { name: "Sicherheitsprüfung starten" }).focus();
     await page.keyboard.press("Enter");
+    if (mode === "pickup") {
+      await page
+        .getByText(
+          "Die Sicherheitsprüfung konnte gerade nicht abgeschlossen werden. Dein Warenkorb bleibt erhalten.",
+          { exact: true },
+        )
+        .waitFor();
+      const pending = requests.filter((r) => r.resource === "checkout-session").at(-1);
+      await page.getByRole("button", { name: "Sicherheitsprüfung starten", exact: true }).click();
+      await page
+        .getByText(
+          "Bestellversuch vorbereitet. Du kannst die Bestellung jetzt ausdrücklich absenden.",
+          { exact: true },
+        )
+        .waitFor();
+      const replay = requests.filter((r) => r.resource === "checkout-session").at(-1);
+      assert.equal(replay.issueId, pending.issueId);
+      assert.equal(replay.submissionKey, pending.submissionKey);
+      const sessions = await admin.query(
+        "select count(*)::integer n from private.checkout_sessions where restaurant_id=$1 and submission_key=$2",
+        [restaurant, replay.submissionKey],
+      );
+      assert.equal(sessions.rows[0].n, 1);
+      report.cases.push({
+        id: "O3-T35",
+        result: "PASS",
+        evidence:
+          "actual HTTPS issue reply destroyed after session commit; explicit same-UUID/key retry; exactly one PG intent",
+      });
+    }
     await page
       .getByText(
         "Bestellversuch vorbereitet. Du kannst die Bestellung jetzt ausdrücklich absenden.",
@@ -387,11 +480,14 @@ try {
       await countEffects(intent.submissionKey);
       assert.equal(
         await page
-          .getByRole("button", { name: "Lieferbestellung absenden", exact: true })
+          .getByRole("button", {
+            name: mode === "pickup" ? "Abholbestellung absenden" : "Lieferbestellung absenden",
+            exact: true,
+          })
           .isDisabled(),
         true,
       );
-      await page.screenshot({ path: join(output, "delivery-response-lost.png"), fullPage: true });
+      await page.screenshot({ path: join(output, `${mode}-response-lost.png`), fullPage: true });
       await page.reload();
     }
     await page.getByText(/Bestellnummer: BS-/).waitFor();

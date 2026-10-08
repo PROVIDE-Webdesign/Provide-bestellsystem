@@ -140,6 +140,49 @@ function setup() {
   return { repo, challenge, logger, writers, delegate, run };
 }
 describe("O3 actual dispatcher / protected handler units (repository doubles)", () => {
+  it("O3-T24 prior gateway secrets require a bounded absolute deadline and expire independently of fresh signatures", async () => {
+    const x = setup();
+    const prior = "synthetic-prior-gateway-secret-at-least-32";
+    for (const until of [undefined, "invalid", new Date(Date.now() + 60000).toISOString()]) {
+      expect(
+        (
+          await x.run(
+            "orders",
+            { sessionId: session, command },
+            {
+              CHECKOUT_GATEWAY_SECRET_PREVIOUS: prior,
+              ...(until ? { CHECKOUT_GATEWAY_SECRET_PREVIOUS_UNTIL: until } : {}),
+            },
+          )
+        ).status,
+      ).toBe(503);
+    }
+    expect(x.repo.guard).not.toHaveBeenCalled();
+    const request = await signed("orders", { sessionId: session, command });
+    const text = await request.clone().text();
+    const metadata = JSON.parse(request.headers.get("x-provide-checkout")!) as CheckoutAttestation;
+    const oldSigned = new Request(request, {
+      headers: await signCheckoutRequest(request, text, metadata, prior),
+    });
+    const runOld = (until: string) =>
+      handleProtectedStorefront(
+        oldSigned.clone(),
+        { ...scope, name: "orders" },
+        {
+          ...env,
+          CHECKOUT_GATEWAY_SECRET_PREVIOUS: prior,
+          CHECKOUT_GATEWAY_SECRET_PREVIOUS_UNTIL: until,
+        },
+        x.repo,
+        x.challenge,
+        x.writers,
+        { requestId: "rotation-unit" },
+        new Headers(),
+        x.delegate,
+      );
+    expect((await runOld(new Date(Date.now() + 10000).toISOString())).status).toBe(201);
+    expect((await runOld(new Date(Date.now() - 1).toISOString())).status).toBe(403);
+  });
   it.each([
     "orders",
     "delivery-orders",

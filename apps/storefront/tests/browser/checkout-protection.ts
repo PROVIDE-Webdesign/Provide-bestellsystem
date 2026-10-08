@@ -244,11 +244,11 @@ export async function verifyCheckoutProtectionBrowser(browser: Browser, output: 
         await page.evaluate(() => {
           document.documentElement.style.zoom = "2";
         });
+        await page.screenshot({ path: output + `o3-${scenario}-${width}.png`, fullPage: true });
         assert.equal(
           await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
           false,
         );
-        await page.screenshot({ path: output + `o3-${scenario}-${width}.png`, fullPage: true });
         console.log(
           `O3 UI transport-double ${scenario} ${width}px keyboard/focus/live/200%-zoom PASS`,
         );

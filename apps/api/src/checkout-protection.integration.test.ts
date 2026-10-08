@@ -332,28 +332,39 @@ describe.skipIf(!database)(
         b.intent.sessionId,
       ]);
       const submit = post("orders", { sessionId: b.intent.sessionId, command: c }, b.hash);
-      const deadline = Date.now() + 3000;
-      for (;;) {
-        const waiting = await admin.query<{ n: number }>(
-          "select count(*)::integer n from pg_stat_activity where query like '%private.checkout_submit(%' and wait_event_type='Lock'",
+      const observer = new Client({ connectionString: database! });
+      await observer.connect();
+      let locked = true;
+      let renew: Promise<Response> | undefined;
+      try {
+        const deadline = Date.now() + 3000;
+        for (;;) {
+          const waiting = await observer.query<{ n: number }>(
+            "select count(*)::integer n from pg_stat_activity where query like '%private.checkout_submit(%' and wait_event_type='Lock'",
+          );
+          if (waiting.rows[0]!.n > 0) break;
+          if (Date.now() > deadline) throw Error("Commit did not reach the native session lock");
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        renew = post(
+          "checkout-session",
+          {
+            issueId: crypto.randomUUID(),
+            submissionKey: crypto.randomUUID(),
+            challenge: "local-renew-" + crypto.randomUUID(),
+            renewSessionId: b.intent.sessionId,
+          },
+          b.hash,
         );
-        if (waiting.rows[0]!.n > 0) break;
-        if (Date.now() > deadline) throw Error("Commit did not reach the native session lock");
-        await new Promise((resolve) => setTimeout(resolve, 20));
+        await admin.query("COMMIT");
+        locked = false;
+        expect((await submit).status).toBe(201);
+        expect((await renew).status).toBe(409);
+      } finally {
+        if (locked) await admin.query("ROLLBACK");
+        await Promise.allSettled([submit, ...(renew ? [renew] : [])]);
+        await observer.end();
       }
-      const renew = post(
-        "checkout-session",
-        {
-          issueId: crypto.randomUUID(),
-          submissionKey: crypto.randomUUID(),
-          challenge: "local-renew-" + crypto.randomUUID(),
-          renewSessionId: b.intent.sessionId,
-        },
-        b.hash,
-      );
-      await admin.query("COMMIT");
-      expect((await submit).status).toBe(201);
-      expect((await renew).status).toBe(409);
       expect((await receipt(b)).status).toBe(200);
       expect(
         (
