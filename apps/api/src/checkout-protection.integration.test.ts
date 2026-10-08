@@ -24,11 +24,13 @@ interface Binding {
   intent: CheckoutIntent;
 }
 function cloneFixture(sql: string): string {
-  return sql
-    .replace(/\bf([0-9a-f]{7}-)/g, "d$1")
-    .replaceAll("storefront-restaurant-", "o3-native-restaurant-")
-    .replaceAll("storefront-a-mitte", "o3-native-a-mitte")
-    .replaceAll("storefront-b-mitte", "o3-native-b-mitte");
+  return (
+    sql
+      .replace(/\bf([0-9a-f]{7}-)/g, "d$1")
+      // Auth emails are globally unique, not scoped by the cloned UUIDs. Keep all
+      // synthetic identities/slugs independent from the subsequent legacy suite.
+      .replaceAll("storefront-", "o3-native-")
+  );
 }
 describe.skipIf(!database)(
   "O3 native dispatcher / real PG (local challenge and payment adapters)",
