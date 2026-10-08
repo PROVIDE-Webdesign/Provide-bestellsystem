@@ -227,7 +227,7 @@ export async function verifyMenuSelectionIntegration(admin: Client, baseEnv: Env
     [restaurant, location, menu, oldVersion, owner],
   );
   const retry = await post("orders", order);
-  expect(retry.status).toBe(201);
+  expect(retry.status).toBe(200); // O3 returns the committed receipt without another write.
   expect(parseGuestPickupOrderConfirmation(await responseData(retry))?.orderId).toBe(
     pickup.orderId,
   );

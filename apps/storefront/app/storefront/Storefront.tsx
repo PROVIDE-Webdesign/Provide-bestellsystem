@@ -144,6 +144,20 @@ export default function Storefront(scope: StorefrontProps) {
     !!intent &&
     !client.needsReceipt &&
     Date.parse(intent.writeExpiresAt) > Date.now();
+  useEffect(() => {
+    if (!intent) return;
+    const timeout = setTimeout(
+      () => {
+        setProtectionTick((n) => n + 1);
+        setCartMessage(
+          "Der Schreibzeitraum ist abgelaufen. Prüfe zuerst den bisherigen Bestellversuch, bevor du ihn ausdrücklich erneuerst.",
+        );
+        protectionMessage.current?.focus();
+      },
+      Math.max(0, Date.parse(intent.writeExpiresAt) - Date.now() + 1),
+    );
+    return () => clearTimeout(timeout);
+  }, [intent]);
   void protectionTick;
   const validScope = isStorefrontScope(scope);
   const totalQuantity = cartItemCount(cart);
@@ -662,6 +676,10 @@ export default function Storefront(scope: StorefrontProps) {
       await checkExistingIntent();
       return;
     }
+    if (client.hasPendingIssue) {
+      await prepareIntent(() => client.retryIssue());
+      return;
+    }
     renewIntent.current = !!client.currentIntent;
     if (client.currentIntent) {
       if (await checkExistingIntent()) return;
@@ -672,9 +690,12 @@ export default function Storefront(scope: StorefrontProps) {
   }
   async function challengeAnswered(token: string | null) {
     if (!token || !challengeId || preparingIntent) return;
+    await prepareIntent(() => client.issue(token, challengeId, renewIntent.current));
+  }
+  async function prepareIntent(issue: () => Promise<unknown>) {
     setPreparingIntent(true);
     try {
-      await client.issue(token, challengeId, renewIntent.current);
+      await issue();
       setCartMessage(
         "Bestellversuch vorbereitet. Du kannst die Bestellung jetzt ausdrücklich absenden.",
       );

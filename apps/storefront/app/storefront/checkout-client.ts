@@ -65,6 +65,17 @@ export class CheckoutClient {
   get missingMetadataWarning(): boolean {
     return this.missingMetadata;
   }
+  get hasPendingIssue(): boolean {
+    return this.issueAttempt !== null;
+  }
+  async retryIssue(): Promise<CheckoutIntent> {
+    if (!this.issueAttempt) throw new CheckoutClientError(409);
+    return this.issue(
+      this.issueAttempt.challenge,
+      this.issueAttempt.issueId,
+      !!this.issueAttempt.renewSessionId,
+    );
+  }
   async bootstrap(): Promise<void> {
     if (this.csrf) return;
     if (this.boot) return this.boot;
@@ -124,7 +135,11 @@ export class CheckoutClient {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(attempt),
     });
-    if (!response.ok) throw await this.error(response);
+    if (!response.ok) {
+      const error = await this.error(response);
+      if (response.status !== 503 && response.status !== 429) this.issueAttempt = null;
+      throw error;
+    }
     const intent = parseCheckoutIntent(record(await response.json())?.data);
     if (!intent) throw new CheckoutClientError(503);
     this.intent = intent;

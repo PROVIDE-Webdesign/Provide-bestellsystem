@@ -1,4 +1,5 @@
 import { verifySupportBrowser } from "./support.ts";
+import { verifyCheckoutProtectionBrowser } from "./checkout-protection.ts";
 import { verifyRecoveryBrowser } from "./recovery.ts";
 import { verifyLocationOperationsBrowser } from "./location-operations.ts";
 import assert from "node:assert/strict";
@@ -511,6 +512,7 @@ try {
     await context.close();
     console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);
   }
+  await verifyCheckoutProtectionBrowser(browser, output);
 } finally {
   await browser.close();
   await server.close();
