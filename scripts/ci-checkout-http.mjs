@@ -82,6 +82,21 @@ async function webResponse(response, res) {
   res.writeHead(response.status, Object.fromEntries(response.headers));
   res.end(Buffer.from(await response.arrayBuffer()));
 }
+/** Lose the response body after headers arrived: Chromium may transparently retry a socket
+ * closed before any headers. A truncated HTTP body deterministically reaches the client's
+ * uncertain-result path while the production transaction is already committed. */
+async function loseCommittedResponse(response, res) {
+  const body = Buffer.from(await response.arrayBuffer());
+  assert.ok(body.length > 1);
+  res.writeHead(response.status, {
+    ...Object.fromEntries(response.headers),
+    "content-length": String(body.length),
+  });
+  res.flushHeaders();
+  res.write(body.subarray(0, 1));
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  res.destroy();
+}
 async function listen(server) {
   await new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -245,7 +260,7 @@ try {
       observed.status = response.status;
       if (dropIssueReply && resource === "checkout-session" && response.status === 201) {
         dropIssueReply = false;
-        res.destroy();
+        await loseCommittedResponse(response, res);
         return;
       }
       if (
@@ -254,7 +269,7 @@ try {
         response.status === 201
       ) {
         dropCommittedWrite = false;
-        res.destroy();
+        await loseCommittedResponse(response, res);
         return;
       }
       await webResponse(response, res);
