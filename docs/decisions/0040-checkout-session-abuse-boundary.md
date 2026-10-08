@@ -55,6 +55,12 @@ Sitzung -> Claim ist die gemeinsame Sperrfolge. Ein parallel laufender Commit wi
 verhindert die Erneuerung in eine zweite Bestellung. DB-Zeit wird nach Sperren erneut geprüft.
 Globale Kapazitätssperren liegen vor den zugehörigen Zeilensperren.
 
+Die eigenen Status-/Zahlungszugänge benötigen keinen aktiven Checkout-Intent. Bei einem eindeutig
+bestätigten Cookieablauf (410) darf ausschließlich für diese beiden Routen einmal ein neuer
+CSRF-Kontext bootstrapped und dieselbe Capability unverändert erneut geprüft werden. Dies erzeugt
+keinen Intent und erneuert keine Bestell-/Status-/Zahlungsfrist. Bestellung, Receipt und Quote
+werden nicht automatisch wiederholt.
+
 ## Ein Auftrag, ein Receipt
 
 Strikt normalisierte Bestellung einschließlich Kontakt, Adresse, Lieferquote, Menüauswahl,

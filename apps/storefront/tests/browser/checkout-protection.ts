@@ -222,7 +222,19 @@ export async function verifyCheckoutProtectionBrowser(browser: Browser, output: 
             );
             if (scenario === "receipt-expiry") {
               await page.clock.fastForward(3600000);
+              assert.ok(
+                await page.evaluate(() =>
+                  Object.entries(sessionStorage).some(([key]) =>
+                    key.startsWith("provide-checkout-intent:"),
+                  ),
+                ),
+              );
+              const receiptResponse = page.waitForResponse(
+                (response) =>
+                  response.url().endsWith("checkout-receipt") && response.status() === 410,
+              );
               await page.reload();
+              await receiptResponse;
               await page.getByText(/Der Bestellversuch ist abgelaufen/).waitFor();
               assert.ok(receiptReads > 0);
               assert.equal(
@@ -265,6 +277,22 @@ export async function verifyCheckoutProtectionBrowser(browser: Browser, output: 
             }, base),
             true,
           );
+      } catch (error) {
+        await page.screenshot({
+          path: output + `o3-failure-${scenario}-${width}.png`,
+          fullPage: true,
+        });
+        console.log(
+          "O3 browser failure",
+          JSON.stringify({
+            scenario,
+            width,
+            receiptReads,
+            issues: issues.length,
+            status: await page.getByRole("status").allTextContents(),
+          }),
+        );
+        throw error;
       } finally {
         await context.close();
       }

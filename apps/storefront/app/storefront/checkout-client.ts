@@ -106,14 +106,30 @@ export class CheckoutClient {
   }
   async request(resource: string, init: RequestInit): Promise<Response> {
     await this.bootstrap();
-    const headers = new Headers(init.headers);
-    headers.set("x-provide-checkout-csrf", this.csrf!);
-    return this.fetcher(this.base + "/" + resource, {
-      ...init,
-      headers,
-      cache: "no-store",
-      credentials: "same-origin",
-    });
+    const send = () => {
+      const headers = new Headers(init.headers);
+      headers.set("x-provide-checkout-csrf", this.csrf!);
+      return this.fetcher(this.base + "/" + resource, {
+        ...init,
+        headers,
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+    };
+    const response = await send();
+    // Existing status/payment capabilities outlive the checkout cookie. Only these
+    // independent routes may refresh the CSRF context once after a definite 410.
+    // Never renew an intent or repeat a checkout/receipt/quote automatically.
+    if (
+      response.status === 410 &&
+      ["order-status", "payment-session"].includes(resource) &&
+      (await this.error(response)).code === "checkout_session_expired"
+    ) {
+      this.csrf = null;
+      await this.bootstrap();
+      return send();
+    }
+    return response;
   }
   async issue(challenge: string, issueId: string, renew = false): Promise<CheckoutIntent> {
     if (this.mustCheck) throw new CheckoutClientError(409, null, "checkout_result_unknown");

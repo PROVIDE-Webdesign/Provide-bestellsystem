@@ -525,7 +525,7 @@ try {
         },
         { modulePath, otherBase, intent },
       );
-      assert.equal(foreign, 403);
+      assert.equal(foreign, 410, "A foreign scope is denied without exposing the other intent");
       assert.equal(
         requests.filter((r) => ["orders", "delivery-orders", "online-orders"].includes(r.resource))
           .length,
@@ -600,6 +600,27 @@ try {
       false,
     );
     await page.screenshot({ path: join(output, `${mode}-confirmed.png`), fullPage: true });
+    const beforeStatus = requests.length;
+    await context.clearCookies();
+    await page.getByRole("button", { name: "Status aktualisieren", exact: true }).click();
+    await page.getByRole("button", { name: "Status aktualisieren", exact: true }).waitFor();
+    const statusRefresh = requests.slice(beforeStatus);
+    assert.ok(statusRefresh.some((r) => r.resource === "order-status" && r.status === 410));
+    assert.ok(statusRefresh.some((r) => r.resource === "checkout-context" && r.status === 200));
+    assert.ok(statusRefresh.some((r) => r.resource === "order-status" && r.status === 200));
+    assert.ok(
+      !statusRefresh.some((r) =>
+        ["checkout-session", "orders", "delivery-orders", "online-orders"].includes(r.resource),
+      ),
+    );
+    await countEffects(intent.submissionKey);
+    report.cases.push({
+      id: "O3-T46",
+      mode,
+      result: "PASS",
+      evidence:
+        "actual HTTPS status refresh after deleting checkout cookie; renewed CSRF context only, unchanged own capability, no issue/order/provider",
+    });
     report.cases.push({
       id: "O3-T39",
       mode,

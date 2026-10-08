@@ -50,6 +50,74 @@ function setup(storage: Storage = store()) {
   return { client: new CheckoutClient(base, fetcher, storage), requests, storage };
 }
 describe("O3 client recovery state (unit)", () => {
+  it.each(["order-status", "payment-session"])(
+    "O3-T46 %s retains its capability after cookie expiry without issuing an intent",
+    async (resource) => {
+      const calls: { resource: string; body: string; csrf: string | null }[] = [];
+      let boots = 0,
+        attempts = 0;
+      const body = JSON.stringify({
+        orderId: crypto.randomUUID(),
+        accessToken: "synthetic-capability",
+        paymentDeadline: "2026-10-08T22:00:00Z",
+      });
+      const fetcher: typeof fetch = (input, init) => {
+        const name = (input instanceof Request ? input.url : input.toString()).split("/").at(-1)!;
+        calls.push({
+          resource: name,
+          body: typeof init?.body === "string" ? init.body : "",
+          csrf: new Headers(init?.headers).get("x-provide-checkout-csrf"),
+        });
+        if (name === "checkout-context")
+          return Promise.resolve(
+            Response.json({ data: { ready: true, csrf: (++boots === 1 ? "a" : "b").repeat(43) } }),
+          );
+        return Promise.resolve(
+          ++attempts === 1
+            ? Response.json({ error: { code: "checkout_session_expired" } }, { status: 410 })
+            : Response.json({ data: { ready: true } }),
+        );
+      };
+      const client = new CheckoutClient(base, fetcher, store());
+      expect(
+        (
+          await client.request(resource, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body,
+          })
+        ).status,
+      ).toBe(200);
+      expect(calls.map((c) => c.resource)).toEqual([
+        "checkout-context",
+        resource,
+        "checkout-context",
+        resource,
+      ]);
+      expect(calls.filter((c) => c.resource === resource).map((c) => c.body)).toEqual([body, body]);
+      expect(calls[1]?.csrf).toBe("a".repeat(43));
+      expect(calls[3]?.csrf).toBe("b".repeat(43));
+      expect(client.currentIntent).toBeNull();
+    },
+  );
+  it.each(["orders", "checkout-receipt", "cart-quote"])(
+    "O3-T40/T46 %s never retries or renews after cookie expiry",
+    async (resource) => {
+      const calls: string[] = [];
+      const fetcher: typeof fetch = (input) => {
+        const name = (input instanceof Request ? input.url : input.toString()).split("/").at(-1)!;
+        calls.push(name);
+        return Promise.resolve(
+          name === "checkout-context"
+            ? Response.json({ data: { ready: true, csrf: "a".repeat(43) } })
+            : Response.json({ error: { code: "checkout_session_expired" } }, { status: 410 }),
+        );
+      };
+      const client = new CheckoutClient(base, fetcher, store());
+      expect((await client.request(resource, { method: "POST", body: "{}" })).status).toBe(410);
+      expect(calls).toEqual(["checkout-context", resource]);
+    },
+  );
   it("O3-T39 browser fetch is invoked with its global receiver", async () => {
     const fetcher: typeof fetch = function (this: unknown) {
       expect(this).toBe(globalThis);
