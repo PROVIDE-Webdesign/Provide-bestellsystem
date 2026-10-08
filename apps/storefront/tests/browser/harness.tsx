@@ -5,7 +5,7 @@ import { ProvideAdmin } from "../../../dashboard/app/components/ProvideAdmin";
 import { Personnel } from "../../../dashboard/app/components/Personnel";
 import { InvitationInbox } from "../../../dashboard/app/components/InvitationInbox";
 import { DashboardClient } from "../../../dashboard/app/components/DashboardClient";
-import { StrictMode } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import Storefront from "../../app/storefront/Storefront";
 import { MenuEditor } from "../../../dashboard/app/components/MenuEditor";
@@ -27,6 +27,32 @@ const dashboard = new URLSearchParams(location.search).has("dashboard");
 const board = new URLSearchParams(location.search).has("board");
 const live = new URLSearchParams(location.search).has("live");
 const viewer = new URLSearchParams(location.search).has("viewer");
+/** Native browser regression changes props on the SAME production component. */
+function StorefrontHarness() {
+  const [scope, setScope] = useState({
+    restaurant: new URLSearchParams(location.search).get("restaurant") ?? "storefront-restaurant-a",
+    location: new URLSearchParams(location.search).get("location") ?? "storefront-a-mitte",
+    mounted: true,
+  });
+  useEffect(() => {
+    const change = (event: Event) => {
+      if (event instanceof CustomEvent) setScope(event.detail as typeof scope);
+    };
+    window.addEventListener("synthetic-storefront-scope", change);
+    return () => window.removeEventListener("synthetic-storefront-scope", change);
+  }, []);
+  return scope.mounted ? (
+    <Storefront
+      checkoutProtectionEnabled
+      checkoutTurnstileSiteKey="synthetic-local-widget"
+      restaurantSlug={scope.restaurant}
+      locationSlug={scope.location}
+      privacyNoticeVersion="preview-v1"
+    />
+  ) : (
+    <p>Storefront geschlossen</p>
+  );
+}
 // Synthetic transport only for the native browser harness. Production uses the real SDK.
 const syntheticLive: OrderLiveSubscriber = (_restaurant, _location, onChange, onState) => {
   const receive = createInvalidationReceiver(onChange);
@@ -126,15 +152,7 @@ createRoot(document.getElementById("root")!).render(
         locations={[{ id: "f3000000-0000-0000-0000-000000000001", displayName: "Synthetic Mitte" }]}
       />
     ) : (
-      <Storefront
-        checkoutProtectionEnabled
-        checkoutTurnstileSiteKey="synthetic-local-widget"
-        restaurantSlug={
-          new URLSearchParams(location.search).get("restaurant") ?? "storefront-restaurant-a"
-        }
-        locationSlug={new URLSearchParams(location.search).get("location") ?? "storefront-a-mitte"}
-        privacyNoticeVersion="preview-v1"
-      />
+      <StorefrontHarness />
     )}
   </StrictMode>,
 );

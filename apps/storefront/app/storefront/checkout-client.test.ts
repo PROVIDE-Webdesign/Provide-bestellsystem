@@ -50,6 +50,171 @@ function setup(storage: Storage = store()) {
   return { client: new CheckoutClient(base, fetcher, storage), requests, storage };
 }
 describe("O3 client recovery state (unit)", () => {
+  it.each(["committed", "unsubmitted", "410", "503"])(
+    "R23-01 guards late %s body parsing after response headers arrived",
+    async (outcome) => {
+      const storage = store(JSON.stringify({ scope: base, intent }));
+      let body!: (value: unknown) => void;
+      let entered!: () => void;
+      const parsing = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      const response = Response.json({}, { status: Number(outcome) || 200 });
+      response.clone = () => response;
+      response.json = () => {
+        entered();
+        return new Promise((resolve) => {
+          body = resolve;
+        });
+      };
+      const client = new CheckoutClient(
+        base,
+        (input) =>
+          Promise.resolve(
+            (input instanceof Request ? input.url : input.toString()).endsWith("checkout-context")
+              ? Response.json({ data: { ready: true, csrf: "a".repeat(43) } })
+              : response,
+          ),
+        storage,
+      );
+      const controller = new AbortController();
+      const pending = client.receipt(controller.signal);
+      const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      await parsing;
+      controller.abort();
+      body({ data: { state: outcome }, error: { code: "service_unavailable" } });
+      await rejected;
+      expect(client.needsReceipt).toBe(true);
+      expect(storage.getItem(client.storageKey)).toBe(JSON.stringify({ scope: base, intent }));
+    },
+  );
+  it("R23-01 does not apply a late issue body after scope invalidation", async () => {
+    let body!: (value: unknown) => void, entered!: () => void;
+    const parsing = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const response = Response.json({});
+    response.json = () => {
+      entered();
+      return new Promise((resolve) => {
+        body = resolve;
+      });
+    };
+    const storage = store();
+    const client = new CheckoutClient(
+      base,
+      (input) =>
+        Promise.resolve(
+          (input instanceof Request ? input.url : input.toString()).endsWith("checkout-context")
+            ? Response.json({ data: { ready: true, csrf: "a".repeat(43) } })
+            : response,
+        ),
+      storage,
+    );
+    const pending = client.issue("synthetic", crypto.randomUUID());
+    const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    await parsing;
+    client.invalidatePending();
+    body({ data: intent });
+    await rejected;
+    expect(client.currentIntent).toBeNull();
+    expect(storage.length).toBe(0);
+  });
+  it("R23-01 superseded receipt cannot overwrite the current receipt result", async () => {
+    const replies: ((response: Response) => void)[] = [];
+    const client = new CheckoutClient(
+      base,
+      (input) =>
+        (input instanceof Request ? input.url : input.toString()).endsWith("checkout-context")
+          ? Promise.resolve(Response.json({ data: { ready: true, csrf: "a".repeat(43) } }))
+          : new Promise((resolve) => {
+              replies.push(resolve);
+            }),
+      store(JSON.stringify({ scope: base, intent })),
+    );
+    await client.bootstrap();
+    const oldController = new AbortController();
+    const old = client.receipt(oldController.signal);
+    const rejected = expect(old).rejects.toMatchObject({ name: "AbortError" });
+    await Promise.resolve();
+    oldController.abort();
+    const current = client.receipt(new AbortController().signal);
+    await Promise.resolve();
+    replies[1]!(Response.json({ data: { state: "unsubmitted" } }));
+    await expect(current).resolves.toMatchObject({ state: "unsubmitted" });
+    replies[0]!(Response.json({ error: { code: "service_unavailable" } }, { status: 503 }));
+    await rejected;
+    expect(client.needsReceipt).toBe(false);
+  });
+  it.each(["committed", "unsubmitted", "410", "503"])(
+    "R23-01 ignores late %s receipt even when transport ignores abort",
+    async (outcome) => {
+      const storage = store(JSON.stringify({ scope: base, intent }));
+      let answer!: (response: Response) => void;
+      const fetcher: typeof fetch = (input) =>
+        (input instanceof Request ? input.url : input.toString()).endsWith("checkout-context")
+          ? Promise.resolve(Response.json({ data: { ready: true, csrf: "a".repeat(43) } }))
+          : new Promise((resolve) => {
+              answer = resolve;
+            });
+      const client = new CheckoutClient(base, fetcher, storage);
+      await client.bootstrap();
+      const controller = new AbortController();
+      const pending = client.receipt(controller.signal);
+      const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      await Promise.resolve();
+      controller.abort();
+      answer(
+        outcome === "410" || outcome === "503"
+          ? Response.json({ error: { code: "service_unavailable" } }, { status: Number(outcome) })
+          : Response.json({ data: { state: outcome } }),
+      );
+      await rejected;
+      expect(client.needsReceipt).toBe(true);
+      expect(storage.getItem(client.storageKey)).toBe(JSON.stringify({ scope: base, intent }));
+    },
+  );
+  it("R23-01 scope invalidation prevents a late issue from saving metadata", async () => {
+    const storage = store();
+    let answer!: (response: Response) => void;
+    const fetcher: typeof fetch = (input) =>
+      (input instanceof Request ? input.url : input.toString()).endsWith("checkout-context")
+        ? Promise.resolve(Response.json({ data: { ready: true, csrf: "a".repeat(43) } }))
+        : new Promise((resolve) => {
+            answer = resolve;
+          });
+    const client = new CheckoutClient(base, fetcher, storage);
+    await client.bootstrap();
+    const pending = client.issue("synthetic", crypto.randomUUID());
+    const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    await Promise.resolve();
+    client.invalidatePending();
+    answer(Response.json({ data: intent }));
+    await rejected;
+    expect(client.currentIntent).toBeNull();
+    expect(storage.getItem(client.storageKey)).toBeNull();
+  });
+  it("R23-01 invalidated bootstrap cannot update context or erase a newer pending bootstrap", async () => {
+    const replies: ((response: Response) => void)[] = [];
+    const fetcher: typeof fetch = () =>
+      new Promise((resolve) => {
+        replies.push(resolve);
+      });
+    const client = new CheckoutClient(base, fetcher, store());
+    const old = client.bootstrap();
+    const rejected = expect(old).rejects.toMatchObject({ name: "AbortError" });
+    client.invalidatePending();
+    const current = client.bootstrap();
+    replies[0]!(
+      Response.json({ data: { ready: true, csrf: "a".repeat(43), hasExistingIntents: true } }),
+    );
+    await rejected;
+    expect(client.missingMetadataWarning).toBe(false);
+    const shared = client.bootstrap();
+    expect(replies).toHaveLength(2);
+    replies[1]!(Response.json({ data: { ready: true, csrf: "b".repeat(43) } }));
+    await Promise.all([current, shared]);
+  });
   it.each(["order-status", "payment-session"])(
     "O3-T46 %s retains its capability after cookie expiry without issuing an intent",
     async (resource) => {

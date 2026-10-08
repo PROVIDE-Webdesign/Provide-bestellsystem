@@ -6,6 +6,13 @@ Getrennter Draft-PR23 basiert ausschließlich auf dem freigegebenen PR22-Head
 
 ## Browsernachweis und Gateway
 
+R23-01 ergänzt die clientseitige Fortsetzungsgrenze: Receipt, Bootstrap und Intent-Ausstellung
+dürfen nach Scopewechsel oder Unmount keine Zustände oder Recoverymetadaten mehr verändern.
+AbortSignal allein genügt nicht; Clientgeneration und Identität des aktuellen Schutzvorgangs werden
+auch nach asynchroner Bodyverarbeitung geprüft. Nur aktuelle Fortsetzungen dürfen Bestätigung,
+Warenkorb, Fehlermeldung und Fokus übernehmen. Der gültige aktuelle Restorepfad bleibt erhalten;
+Bestellschreiben erfordert weiterhin den ausdrücklichen Benutzerauftrag.
+
 Der eigene Bootstrap erzeugt serverseitig einen kryptografisch zufälligen 256-Bit-Verifier. Nur
 `__Host-provide-checkout` enthält ihn: Secure, HttpOnly, SameSite=Lax, Path=/, ohne Domain. Die
 Datenbank erhält ausschließlich SHA-256. Ein unbekannter mitgebrachter Cookie darf keinen neuen

@@ -85,6 +85,26 @@ PR23-Head, Tree und den vollständigen Pflichtlauf. Lokale Integrations-Skips z�
 
 ## Ausführung und offene Grenzen
 
+### R23-01: verspätete Fortsetzungen nach Scopewechsel
+
+Der E33-Befund erweitert O3-T42 sowie die Regressionen T40/T43/T44: Ein noch ausstehendes Receipt A
+darf nach einem Propswechsel derselben Storefront-Instanz auf B weder Bestellung A anzeigen noch
+Warenkorb, Formular, Status-/Payment-Zustand, Storage oder Fokus von B ändern.
+`tests/browser/receipt-scope.ts` prüft committed, unsubmitted, 410 und 503, Unmount, verspäteten
+Bootstrap/Issue und eine gültige Wiederherstellung im aktuellen Scope. Je acht Szenarien bei
+390/1440 px laufen in Chromium, Firefox und WebKit. Die native Fetch-Hülle ignoriert hier
+absichtlich AbortSignal; HTTP, Widget und Storageinhalte bleiben synthetische Fixtures. Dies ist
+kein zusätzlicher echter HTTPS-/PG- oder physischer Gerätenachweis.
+
+Die Client-Units prüfen außerdem überholte Abfragen, JSON-Verarbeitung nach bereits empfangenen
+Headern, unveränderte Recoverymetadaten sowie die Identität eines neueren Bootstrap-Promises.
+Scopecleanup invalidiert die Clientgeneration; jede relevante asynchrone Fortsetzung und die
+UI-Abschluss-/Fehler-/Fokusverarbeitung verlangen zusätzlich den aktuellen Vorgang. Auch
+StrictMode-Cleanup darf einen danach neu gestarteten Vorgang nicht verwerfen. Keine Antwort löst
+eine automatische Bestellabgabe aus. Nur der vollständige erfolgreiche Pflichtlauf am neuen Head und
+dessen erneute technische Prüfung schließen R23-01; diese Quellenzuordnung allein ist keine
+Freigabe.
+
 Fehlerhafte Vorläufe werden getrennt dokumentiert: mobile Formular-Mindestbreite bei 200% Zoom,
 PG-Sperrbeobachtung, HTTP-Antwortverlust vor statt nach Headern, geteilte Testidentitäten/Queues und
 alte 201-Replay-Erwartungen wurden gezielt korrigiert. Ein echter WebKit-Befund beim Reload betraf

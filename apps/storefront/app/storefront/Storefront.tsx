@@ -136,6 +136,19 @@ export default function Storefront(scope: StorefrontProps) {
     }
     return new CheckoutClient(base, fetch, store);
   }, [base]);
+  const protection = useMemo(
+    () => ({ active: false, request: null as AbortController | null }),
+    [client],
+  );
+  function beginProtection(): AbortController {
+    protection.request?.abort();
+    const controller = new AbortController();
+    protection.request = controller;
+    return controller;
+  }
+  function currentProtection(controller: AbortController): boolean {
+    return protection.active && protection.request === controller && !controller.signal.aborted;
+  }
   const protectionConfigured =
     scope.checkoutProtectionEnabled === true && !!scope.checkoutTurnstileSiteKey;
   const intent = client.currentIntent;
@@ -153,7 +166,7 @@ export default function Storefront(scope: StorefrontProps) {
     const delay = Date.parse(intent.writeExpiresAt) - Date.now() + 1;
     if (delay <= 0) return;
     const timeout = setTimeout(() => {
-      if (client.currentIntent !== intent || client.needsReceipt) return;
+      if (!protection.active || client.currentIntent !== intent || client.needsReceipt) return;
       setProtectionTick((n) => n + 1);
       setCartMessage(
         "Der Schreibzeitraum ist abgelaufen. Prüfe zuerst den bisherigen Bestellversuch, bevor du ihn ausdrücklich erneuerst.",
@@ -161,7 +174,7 @@ export default function Storefront(scope: StorefrontProps) {
       protectionMessage.current?.focus();
     }, delay);
     return () => clearTimeout(timeout);
-  }, [client, intent, needsReceipt]);
+  }, [client, intent, needsReceipt, protection]);
   void protectionTick;
   const validScope = isStorefrontScope(scope);
   const totalQuantity = cartItemCount(cart);
@@ -608,10 +621,12 @@ export default function Storefront(scope: StorefrontProps) {
     setQuoteAccepted(false);
     setPrivacyAccepted(false);
   }
-  async function checkExistingIntent(): Promise<boolean> {
+  async function checkExistingIntent(controller = beginProtection()): Promise<boolean> {
+    if (!currentProtection(controller)) return false;
     setPreparingIntent(true);
     try {
-      const receipt = record(await client.receipt());
+      const receipt = record(await client.receipt(controller.signal));
+      if (!currentProtection(controller)) return false;
       if (receipt?.state === "committed") {
         const result =
           receipt.mode === "online-orders"
@@ -632,6 +647,7 @@ export default function Storefront(scope: StorefrontProps) {
       setCheckoutState("idle");
       return false;
     } catch (error) {
+      if (!currentProtection(controller)) return false;
       setCartMessage(
         error instanceof CheckoutClientError
           ? error.message
@@ -639,12 +655,15 @@ export default function Storefront(scope: StorefrontProps) {
       );
       return false;
     } finally {
-      setPreparingIntent(false);
-      setProtectionTick((n) => n + 1);
-      protectionMessage.current?.focus();
+      if (currentProtection(controller)) {
+        setPreparingIntent(false);
+        setProtectionTick((n) => n + 1);
+        protectionMessage.current?.focus();
+      }
     }
   }
   useEffect(() => {
+    protection.active = true;
     setChallengeId(null);
     setPreparingIntent(false);
     setMissingIntentAcknowledged(false);
@@ -653,13 +672,23 @@ export default function Storefront(scope: StorefrontProps) {
       setCartMessage(
         "Die Sitzungsablage ist nicht verfügbar oder ungültig. Nach einem Neuladen kann ein unklarer Bestellversuch nicht automatisch wiederhergestellt werden. Prüfe dann zuerst den Bestellstatus oder kontaktiere das Restaurant.",
       );
-    // Recovery is a read only operation on the newly selected scope.
-  }, [client]);
+    // Invalidate old reads AND client/storage continuations, even if their
+    // transport ignores abort. StrictMode may start a new generation on this client.
+    return () => {
+      protection.active = false;
+      protection.request?.abort();
+      client.invalidatePending();
+    };
+  }, [client, protection]);
   async function startProtection() {
-    if (!protectionConfigured || preparingIntent) return;
+    if (!protection.active || !protectionConfigured || preparingIntent) return;
+    const controller = beginProtection();
+    setPreparingIntent(true);
     try {
       await client.bootstrap();
+      if (!currentProtection(controller)) return;
     } catch (error) {
+      if (!currentProtection(controller)) return;
       setCartMessage(
         error instanceof CheckoutClientError
           ? error.message
@@ -667,6 +696,8 @@ export default function Storefront(scope: StorefrontProps) {
       );
       protectionMessage.current?.focus();
       return;
+    } finally {
+      if (currentProtection(controller)) setPreparingIntent(false);
     }
     if (client.missingMetadataWarning && !missingIntentAcknowledged) {
       setMissingIntentAcknowledged(true);
@@ -677,47 +708,57 @@ export default function Storefront(scope: StorefrontProps) {
       return;
     }
     if (client.needsReceipt) {
-      await checkExistingIntent();
+      await checkExistingIntent(controller);
       return;
     }
     if (client.hasPendingIssue) {
-      await prepareIntent(() => client.retryIssue());
+      await prepareIntent((signal) => client.retryIssue(signal), controller);
       return;
     }
     renewIntent.current = !!client.currentIntent;
     if (client.currentIntent) {
-      if (await checkExistingIntent()) return;
+      if (await checkExistingIntent(controller)) return;
+      if (!currentProtection(controller)) return;
       if (client.needsReceipt) return;
     }
     setChallengeId(crypto.randomUUID());
     setCartMessage("Bitte schließe die Sicherheitsprüfung für diesen Bestellversuch ab.");
   }
   async function challengeAnswered(token: string | null) {
-    if (!token || !challengeId || preparingIntent) return;
-    await prepareIntent(() => client.issue(token, challengeId, renewIntent.current));
+    if (!protection.active || !token || !challengeId || preparingIntent) return;
+    await prepareIntent((signal) => client.issue(token, challengeId, renewIntent.current, signal));
   }
-  async function prepareIntent(issue: () => Promise<unknown>) {
+  async function prepareIntent(
+    issue: (signal: AbortSignal) => Promise<unknown>,
+    controller = beginProtection(),
+  ) {
+    if (!currentProtection(controller)) return;
     setPreparingIntent(true);
     try {
-      await issue();
+      await issue(controller.signal);
+      if (!currentProtection(controller)) return;
       setCartMessage(
         "Bestellversuch vorbereitet. Du kannst die Bestellung jetzt ausdrücklich absenden.",
       );
     } catch (error) {
+      if (!currentProtection(controller)) return;
       setCartMessage(
         error instanceof CheckoutClientError
           ? error.message
           : "Die Sicherheitsprüfung konnte gerade nicht abgeschlossen werden. Dein Warenkorb bleibt erhalten.",
       );
     } finally {
-      setPreparingIntent(false);
-      setProtectionTick((n) => n + 1);
-      protectionMessage.current?.focus();
+      if (currentProtection(controller)) {
+        setPreparingIntent(false);
+        setProtectionTick((n) => n + 1);
+        protectionMessage.current?.focus();
+      }
     }
   }
 
   async function submitCheckout() {
-    if (!catalog || cart.length === 0 || checkoutState === "submitting") return;
+    if (!protection.active || !catalog || cart.length === 0 || checkoutState === "submitting")
+      return;
     setConfirmation(null);
     if (!reviewIsAccepted) {
       setCartMessage("Bitte prüfe und bestätige zuerst den Warenkorb.");
@@ -796,25 +837,29 @@ export default function Storefront(scope: StorefrontProps) {
       );
       if (controller.signal.aborted) return;
       if (!response.ok) {
-        if (await checkExistingIntent()) return;
+        const receiptController = beginProtection();
+        if (await checkExistingIntent(receiptController)) return;
+        if (!currentProtection(receiptController) || controller.signal.aborted) return;
         setCheckoutState("error");
         if (response.status === 409) setReview(null);
         if (response.status === 409 && fulfillmentType === "delivery") {
           setDeliveryQuote(null);
           setQuoteAccepted(false);
         }
-        setCartMessage(
+        const message =
           response.status === 429
             ? (await client.error(response)).message
             : response.status === 410
               ? "Der Bestellversuch ist abgelaufen. Prüfe zuerst den vorhandenen Versuch."
               : response.status === 409
                 ? "Die Bestellung konnte nicht angenommen werden. Bitte prüfe Speisekarte, Bestellzeit und gegebenenfalls die Lieferkosten erneut."
-                : "Der Checkout ist derzeit nicht verfügbar. Es wurde keine bestätigte Bestellung angezeigt.",
-        );
+                : "Der Checkout ist derzeit nicht verfügbar. Es wurde keine bestätigte Bestellung angezeigt.";
+        if (!currentProtection(receiptController) || controller.signal.aborted) return;
+        setCartMessage(message);
         return;
       }
       const payload = (await response.json()) as { data?: unknown };
+      if (!protection.active || controller.signal.aborted) return;
       const result = onlinePayment
         ? parseOnlineOrderConfirmation(payload.data)
         : fulfillmentType === "delivery"
@@ -823,7 +868,7 @@ export default function Storefront(scope: StorefrontProps) {
       if (!result) throw new Error("Invalid confirmation");
       acceptConfirmation(result);
     } catch {
-      if (!controller.signal.aborted) {
+      if (protection.active && !controller.signal.aborted) {
         setCheckoutState("error");
         setProtectionTick((n) => n + 1);
         setCartMessage(

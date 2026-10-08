@@ -24,6 +24,7 @@ export class CheckoutClient {
   private mustCheck = false;
   private storageWarning = false;
   private missingMetadata = false;
+  private generation = 0;
   private issueAttempt: {
     issueId: string;
     challenge: string;
@@ -68,26 +69,40 @@ export class CheckoutClient {
   get hasPendingIssue(): boolean {
     return this.issueAttempt !== null;
   }
-  async retryIssue(): Promise<CheckoutIntent> {
+  /** Scope/unmount cleanup also invalidates transports that ignore AbortSignal. */
+  invalidatePending(): void {
+    this.generation++;
+    this.csrf = null;
+    this.boot = null;
+  }
+  private assertCurrent(generation: number, signal?: AbortSignal | null): void {
+    if (generation !== this.generation || signal?.aborted)
+      throw new DOMException("Checkout operation is no longer current", "AbortError");
+  }
+  async retryIssue(signal?: AbortSignal): Promise<CheckoutIntent> {
     if (!this.issueAttempt) throw new CheckoutClientError(409);
     return this.issue(
       this.issueAttempt.challenge,
       this.issueAttempt.issueId,
       !!this.issueAttempt.renewSessionId,
+      signal,
     );
   }
   async bootstrap(): Promise<void> {
     if (this.csrf) return;
     if (this.boot) return this.boot;
-    this.boot = (async () => {
+    const generation = this.generation;
+    const boot = (async () => {
       const response = await this.fetcher(this.base + "/checkout-context", {
         method: "POST",
         headers: { "content-type": "application/json", "x-provide-checkout-bootstrap": "1" },
         body: "{}",
         cache: "no-store",
       });
+      this.assertCurrent(generation);
       if (!response.ok) throw await this.error(response);
       const data = record(record(await response.json())?.data);
+      this.assertCurrent(generation);
       if (
         data?.ready !== true ||
         typeof data.csrf !== "string" ||
@@ -99,13 +114,19 @@ export class CheckoutClient {
         this.missingMetadata = true;
         this.storageWarning = true;
       }
-    })().finally(() => {
-      this.boot = null;
-    });
-    return this.boot;
+    })();
+    this.boot = boot;
+    try {
+      await boot;
+    } finally {
+      if (this.boot === boot) this.boot = null;
+    }
   }
   async request(resource: string, init: RequestInit): Promise<Response> {
+    const generation = this.generation;
+    this.assertCurrent(generation, init.signal);
     await this.bootstrap();
+    this.assertCurrent(generation, init.signal);
     const send = () => {
       const headers = new Headers(init.headers);
       headers.set("x-provide-checkout-csrf", this.csrf!);
@@ -117,6 +138,7 @@ export class CheckoutClient {
       });
     };
     const response = await send();
+    this.assertCurrent(generation, init.signal);
     // Existing status/payment capabilities outlive the checkout cookie. Only these
     // independent routes may refresh the CSRF context once after a definite 410.
     // Never renew an intent or repeat a checkout/receipt/quote automatically.
@@ -125,13 +147,25 @@ export class CheckoutClient {
       ["order-status", "payment-session"].includes(resource) &&
       (await this.error(response)).code === "checkout_session_expired"
     ) {
+      this.assertCurrent(generation, init.signal);
       this.csrf = null;
       await this.bootstrap();
-      return send();
+      this.assertCurrent(generation, init.signal);
+      const retried = await send();
+      this.assertCurrent(generation, init.signal);
+      return retried;
     }
+    this.assertCurrent(generation, init.signal);
     return response;
   }
-  async issue(challenge: string, issueId: string, renew = false): Promise<CheckoutIntent> {
+  async issue(
+    challenge: string,
+    issueId: string,
+    renew = false,
+    signal?: AbortSignal,
+  ): Promise<CheckoutIntent> {
+    const generation = this.generation;
+    this.assertCurrent(generation, signal);
     if (this.mustCheck) throw new CheckoutClientError(409, null, "checkout_result_unknown");
     const previous = this.intent;
     if (previous && !renew && Date.parse(previous.writeExpiresAt) > Date.now()) return previous;
@@ -150,13 +184,16 @@ export class CheckoutClient {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(attempt),
+      ...(signal ? { signal } : {}),
     });
     if (!response.ok) {
       const error = await this.error(response);
+      this.assertCurrent(generation, signal);
       if (response.status !== 503 && response.status !== 429) this.issueAttempt = null;
       throw error;
     }
     const intent = parseCheckoutIntent(record(await response.json())?.data);
+    this.assertCurrent(generation, signal);
     if (!intent) throw new CheckoutClientError(503);
     this.intent = intent;
     this.issueAttempt = null;
@@ -164,7 +201,9 @@ export class CheckoutClient {
     this.save();
     return intent;
   }
-  async receipt(): Promise<unknown> {
+  async receipt(signal?: AbortSignal): Promise<unknown> {
+    const generation = this.generation;
+    this.assertCurrent(generation, signal);
     if (!this.intent) throw new CheckoutClientError(410);
     const response = await this.request("checkout-receipt", {
       method: "POST",
@@ -173,12 +212,16 @@ export class CheckoutClient {
         sessionId: this.intent.sessionId,
         submissionKey: this.intent.submissionKey,
       }),
+      ...(signal ? { signal } : {}),
     });
     if (!response.ok) {
+      const error = await this.error(response);
+      this.assertCurrent(generation, signal);
       this.mustCheck = true;
-      throw await this.error(response);
+      throw error;
     }
     const result = record(record(await response.json())?.data);
+    this.assertCurrent(generation, signal);
     if (result?.state !== "unsubmitted" && result?.state !== "committed")
       throw new CheckoutClientError(503);
     this.mustCheck = false;
