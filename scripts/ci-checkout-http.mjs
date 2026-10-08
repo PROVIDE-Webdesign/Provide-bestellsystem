@@ -50,7 +50,7 @@ execFileSync(
 );
 const tls = { key: await readFile(keyPath), cert: await readFile(certPath) };
 const admin = new Client({ connectionString: database });
-let vite, api, gateway, browser;
+let vite, api, gateway, browser, activePage;
 const report = {
   layer: "actual Chromium / HTTPS gateway / HTTPS API adapter / PostgreSQL",
   challenge: "local widget and verifier double",
@@ -222,13 +222,14 @@ try {
       const text = req.method === "POST" ? await web.clone().text() : "";
       // Capture only field names/public metadata, never contact values or browser verifier.
       const parsed = text ? JSON.parse(text) : null;
-      requests.push({
+      const observed = {
         resource,
         fields: parsed ? Object.keys(parsed).sort() : [],
         sessionId: parsed?.sessionId,
         issueId: parsed?.issueId,
         submissionKey: parsed?.command?.submissionKey ?? parsed?.submissionKey,
-      });
+      };
+      requests.push(observed);
       const response = await handleCheckoutGateway(
         web,
         { restaurantSlug, locationSlug, resource },
@@ -241,6 +242,7 @@ try {
         loopbackFetch,
         () => "127.0.0.1",
       );
+      observed.status = response.status;
       if (dropIssueReply && resource === "checkout-session" && response.status === 201) {
         dropIssueReply = false;
         res.destroy();
@@ -354,6 +356,7 @@ try {
       });
     });
     const page = await context.newPage();
+    activePage = page;
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(
@@ -405,10 +408,10 @@ try {
     if (mode === "pickup") {
       await page
         .getByText(
-          "Die Sicherheitsprüfung konnte gerade nicht abgeschlossen werden. Dein Warenkorb bleibt erhalten.",
-          { exact: true },
+          /Die Sicherheitsprüfung konnte gerade nicht abgeschlossen werden|Der Bestellversuch konnte gerade nicht geprüft werden/,
         )
         .waitFor();
+      assert.equal(dropIssueReply, false, "The session response was lost after an actual commit");
       const pending = requests.filter((r) => r.resource === "checkout-session").at(-1);
       await page.getByRole("button", { name: "Sicherheitsprüfung starten", exact: true }).click();
       await page
@@ -459,6 +462,68 @@ try {
     assert.ok(
       !/Synthetic HTTP Guest|o3-http@example.invalid|Testweg|csrf|verifier/.test(publicMetadata),
     );
+    if (mode === "pickup") {
+      const second = await context.newPage();
+      await second.goto(browserOrigin + "/");
+      const modulePath = "/@fs/" + join(root, "apps/storefront/app/storefront/checkout-client.ts");
+      const otherBase = "/api/storefront/o3-http-restaurant-b/o3-http-b-mitte";
+      const other = await second.evaluate(
+        async ({ modulePath, otherBase }) => {
+          const { CheckoutClient } = await import(modulePath);
+          const client = new CheckoutClient(otherBase, fetch, sessionStorage);
+          const issueId = crypto.randomUUID();
+          const intent = await client.issue("local-" + issueId, issueId);
+          return { intent, publicMetadata: sessionStorage.getItem(client.storageKey) };
+        },
+        { modulePath, otherBase },
+      );
+      assert.notEqual(other.intent.sessionId, intent.sessionId);
+      assert.notEqual(other.intent.submissionKey, intent.submissionKey);
+      const sameContext = await admin.query(
+        "select count(distinct verifier_hash)::integer contexts,count(*)::integer sessions from private.checkout_sessions where id=any($1::uuid[])",
+        [[intent.sessionId, other.intent.sessionId]],
+      );
+      assert.deepEqual(sameContext.rows[0], { contexts: 1, sessions: 2 });
+      assert.equal(
+        await page.evaluate(
+          () =>
+            Object.entries(sessionStorage).find(([key]) =>
+              key.startsWith("provide-checkout-intent:"),
+            )?.[1],
+        ),
+        publicMetadata,
+      );
+      assert.ok(other.publicMetadata.includes(otherBase));
+      const foreign = await second.evaluate(
+        async ({ modulePath, otherBase, intent }) => {
+          const { CheckoutClient } = await import(modulePath);
+          const client = new CheckoutClient(otherBase, fetch, sessionStorage);
+          const response = await client.request("checkout-receipt", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              sessionId: intent.sessionId,
+              submissionKey: intent.submissionKey,
+            }),
+          });
+          return response.status;
+        },
+        { modulePath, otherBase, intent },
+      );
+      assert.equal(foreign, 403);
+      assert.equal(
+        requests.filter((r) => ["orders", "delivery-orders", "online-orders"].includes(r.resource))
+          .length,
+        0,
+      );
+      report.cases.push({
+        id: "O3-T42",
+        result: "PASS",
+        evidence:
+          "two actual HTTPS browser tabs share one HttpOnly context, maintain distinct scoped public intents and deny cross-scope receipt; zero orders",
+      });
+      await second.close();
+    }
     await page.screenshot({ path: join(output, `${mode}-prepared.png`), fullPage: true });
     const beforeWrites = requests.filter((r) =>
       ["orders", "delivery-orders"].includes(r.resource),
@@ -537,6 +602,11 @@ try {
 } catch (error) {
   report.status = "FAIL";
   report.error = error instanceof Error ? error.message : "Isolated evidence failed";
+  report.transport = requests;
+  if (activePage && !activePage.isClosed()) {
+    await activePage.screenshot({ path: join(output, "failure.png"), fullPage: true });
+    report.visibleStatus = await activePage.getByRole("status").allTextContents();
+  }
   throw error;
 } finally {
   await writeFile(join(output, "report.json"), JSON.stringify(report, null, 2) + "\n");

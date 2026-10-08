@@ -34,6 +34,11 @@ Cloudflare-/Supabase-Konfigurationsänderung. F01-F03 eingefroren. Defaults blei
 
 ## Nachweisstand
 
-Noch keine neuen Fälle ausgeführt. Geplante Belegschichten, 56 IDs und die bestätigten Empfehlungen
-bleiben in E30 nachvollziehbar. Nach Umsetzung werden tatsächliche Belege und Grenzen je Fall
-ergänzt; ein Unit-/Adapter-PASS ist kein echter DB-/Browser-/Provider-PASS.
+Die Umsetzung und gezielten Korrekturen laufen im getrennten Draft-PR23. Die
+[56-Fälle-Matrix](../testing/checkout-session-abuse.md),
+[ADR0040](../decisions/0040-checkout-session-abuse-boundary.md), das
+[Runbook](../runbooks/checkout-session-abuse.md) und
+[Arbeitsblock 3.25](../work-blocks/3.25-checkout-session-abuse.md) trennen tatsächliche Nachweise
+von den sechs weiterhin offenen externen/fachlichen/physisch zu prüfenden Grenzen. Ein
+Unit-/Adapter-PASS ist kein echter DB-/HTTPS-/Provider-PASS. Der abschließende Umsetzungsnachweis
+wird an einen vollständig geprüften Head gebunden; technische Endfreigabe bleibt separat.

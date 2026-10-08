@@ -196,10 +196,13 @@ address {
 }
 .side-column {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 20px;
 }
 .availability-panel,
 .cart-panel {
+  min-width: 0;
   background: white;
   border: 1px solid #d5dacf;
   border-radius: 12px;

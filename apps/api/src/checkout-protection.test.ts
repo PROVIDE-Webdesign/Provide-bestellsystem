@@ -62,6 +62,8 @@ async function signed(
   body: unknown,
   context: string | null = "a".repeat(64),
   freshContext = false,
+  routeScope = scope,
+  network = ["b".repeat(64), "c".repeat(64)],
 ) {
   const at = Date.now();
   const a: CheckoutAttestation = {
@@ -69,11 +71,11 @@ async function signed(
     nonce: crypto.randomUUID(),
     context,
     freshContext,
-    network: ["b".repeat(64), "c".repeat(64)],
+    network,
     epoch: Math.floor(at / 600000),
   };
   const r = new Request(
-    `https://api.test/v1/storefront/${scope.restaurantSlug}/${scope.locationSlug}/${name === "orderStatus" ? "order-status" : name}`,
+    `https://api.test/v1/storefront/${routeScope.restaurantSlug}/${routeScope.locationSlug}/${name === "orderStatus" ? "order-status" : name}`,
     { method: "POST" },
   );
   const text = JSON.stringify(body);
@@ -125,10 +127,12 @@ function setup() {
     overrides: Partial<CheckoutProtectionEnvironment> = {},
     aContext: string | null = "a".repeat(64),
     fresh = false,
+    routeScope = scope,
+    network = ["b".repeat(64), "c".repeat(64)],
   ) =>
     handleProtectedStorefront(
-      await signed(name, body, aContext, fresh),
-      { ...scope, name },
+      await signed(name, body, aContext, fresh, routeScope, network),
+      { ...routeScope, name },
       { ...env, ...overrides },
       repo,
       challenge,
@@ -372,6 +376,20 @@ describe("O3 actual dispatcher / protected handler units (repository doubles)", 
     );
     expect(budgets[2]?.capacity).toBe(6);
     expect(budgets[2]?.key).toContain(await checkoutDigest(`${"a".repeat(64)}:${session}`));
+    await x.run("orders", { sessionId: session, command }, {}, "d".repeat(64), false, {
+      restaurantSlug: "storefront-restaurant-b",
+      locationSlug: "storefront-b-mitte",
+    });
+    const sharedNat = x.repo.guard.mock.calls[1]![3];
+    expect(sharedNat.slice(0, 2)).toEqual(budgets.slice(0, 2));
+    expect(sharedNat[2]?.key).not.toBe(budgets[2]?.key);
+    await x.run("orders", { sessionId: session, command }, {}, "a".repeat(64), false, scope, [
+      "e".repeat(64),
+      "f".repeat(64),
+    ]);
+    const switchedNetwork = x.repo.guard.mock.calls[2]![3];
+    expect(switchedNetwork[2]).toEqual(budgets[2]);
+    expect(switchedNetwork.slice(0, 2)).not.toEqual(budgets.slice(0, 2));
   });
   it("O3-T30/T46 status primary counters require their own capability, independent of active checkout sessions", async () => {
     const x = setup();

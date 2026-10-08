@@ -59,6 +59,14 @@ Staging-Pilot.
   vollständigem Nachweis am aktuellen Head: **69,477513 % (69 %)**, zehn technische Lücken
   einschließlich des weitergehenden O1-Umfangs aus A2 §10. Technische Endfreigabeprüfung bleibt
   separat; kein Ready-Wechsel, Merge oder Deployment.
+- O3 Checkout-Sitzung und Missbrauchsschutz wird nach fachlicher Bestätigung von O3-D01-D12 im
+  getrennten Draft-PR23 umgesetzt:
+  [Arbeitsblock 3.25](docs/work-blocks/3.25-checkout-session-abuse.md),
+  [56-Fälle-Matrix](docs/testing/checkout-session-abuse.md),
+  [Sicherheitsvertrag](docs/decisions/0040-checkout-session-abuse-boundary.md) und
+  [Runbook](docs/runbooks/checkout-session-abuse.md). Sechs externe/fachliche/physische Abnahmen
+  bleiben offen; Fortschrittswert und bestehende Endfreigabe-Heads werden nicht automatisch
+  geändert.
 - Das Deployment der kundenbezogenen Arbeitsblöcke steht aus.
 - Livezahlungen, echte Kundendaten und produktive Restaurantbestellungen sind nicht freigegeben.
 
