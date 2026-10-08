@@ -74,14 +74,22 @@ Abschnitt und die Fortsetzung; eine terminale Antwort beendet sie ausdrücklich.
 Browserregressionen für T14/T39 prüfen 100 + 1 synthetische Quellen, alle genannten Lesewege,
 verlorene Fortsetzungsantwort mit identischem Request-Replay, Cursor-Konflikt, 401, 403,
 manage-Rechteverlust und Standortwechsel einschließlich Rückwechsel. Fehlerhafte/abgelaufene
-Fortsetzung wird ausdrücklich verworfen, nicht als erfolgreicher Abschluss dargestellt. Die
-bestehende Abort-/Sequenzprüfung verwirft verspätete Antworten; Logout/Sessionwechsel unmountet die
-Ansicht. Scan-Metadaten werden nicht in Storage persistiert. Serverseitige Actor-/Scope-/AAL2- und
-aktuelle Sitzungsprüfungen, Cursor-Einmaligkeit und Ablauf bleiben unverändert.
+Fortsetzung wird zusätzlich in S40 direkt gegen PostgreSQL mit anderem berechtigten Actor, anderem
+berechtigten Scope, fehlendem und abgelaufenem Cursor geprüft (vier neue Assertions; S40 nun 30, O1
+zusammen 90). SQL-Auth-Fixtures bleiben synthetisch. Die zusätzliche Browserprüfung weist
+Unmount/Remount und eine verspätete Scan-Antwort nach. Fehlerhafte/abgelaufene Fortsetzung wird
+ausdrücklich verworfen, nicht als erfolgreicher Abschluss dargestellt. Die bestehende
+Abort-/Sequenzprüfung verwirft verspätete Antworten; Logout/Sessionwechsel unmountet die Ansicht.
+Scan-Metadaten werden nicht in Storage persistiert. Serverseitige Actor-/Scope-/AAL2- und aktuelle
+Sitzungsprüfungen, Cursor-Einmaligkeit und Ablauf bleiben unverändert.
 
 Der erneute Nachweis ist ausschließlich am neuen Head zu bewerten. Frühere CI163 und E25 bleiben
-historische Belege. Der Korrekturauftrag enthält keine technische Endfreigabe, keinen Ready-Wechsel,
-Merge oder Deployment; die erneute separate Endfreigabeprüfung folgt erst danach.
+historische Belege. CI164 brach in bestehenden Checkout-Browserfällen vor O1 ab: die synthetische
+Statusreferenz lief am 04.10.2026 ab. Der Harness fixiert nun ausschließlich die Beobachtungszeit
+auf den konsistenten Fixture-Tag 03.10.2026; Timer laufen weiter, produktive Ablaufregeln bleiben
+unverändert. Fehlgeschlagene Vorläufe zählen nicht als finaler Browsernachweis. Frühere Belege
+bleiben historische Belege. Der Korrekturauftrag enthält keine technische Endfreigabe, keinen
+Ready-Wechsel, Merge oder Deployment; die erneute separate Endfreigabeprüfung folgt erst danach.
 
 CI161 (Run 37119368549) am Head `6945c37affce039d98d4ca435e937ed72de1461d` bestand mit allen fünf
 Pflichtjobs: 496 Unit-Tests, 40 SQL-Dateien / 1.760 pgTAP-Prüfungen, Security Advisors, zehn

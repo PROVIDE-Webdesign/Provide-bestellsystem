@@ -23,6 +23,20 @@ insert into scan_results values(1,pg_temp.support(jsonb_build_object('action','s
 select is(result->>'outcome','allowed','T14 bounded scan permitted') from scan_results where n=1;
 select is((result#>>'{data,scanned}')::integer,100,'T14 first step consumes exactly 100 stable source entries') from scan_results where n=1;
 select ok(result#>>'{data,scanCursor}' is not null,'T14 opaque continuation is present') from scan_results where n=1;
+-- R22-01: the retained UI cursor never weakens server actor/scope/expiry checks.
+insert into private.support_grants(user_id,can_read,can_manage) values('f1000000-0000-0000-000000000005',true,true);
+select is(private.support_command('f1000000-0000-0000-000000000005','f1000000-0000-0000-000000000005','aal2',
+ jsonb_build_object('action','scan','restaurantId','f2000000-0000-0000-0000-000000000001','locationId','f3000000-0000-0000-0000-000000000001','requestId',gen_random_uuid(),'cursor',result#>>'{data,scanCursor}'))->>'outcome',
+ 'forbidden','R22-01 another authorized actor cannot use the cursor') from scan_results where n=1;
+select is(pg_temp.support(jsonb_build_object('action','scan','restaurantId','f2000000-0000-0000-0000-000000000002','locationId','f3000000-0000-0000-0000-000000000002','requestId',gen_random_uuid(),'cursor',result#>>'{data,scanCursor}'))->>'outcome',
+ 'forbidden','R22-01 another authorized scope cannot use the cursor') from scan_results where n=1;
+select is(pg_temp.support(jsonb_build_object('action','scan','requestId',gen_random_uuid(),'cursor',gen_random_uuid()))->>'outcome',
+ 'forbidden','R22-01 nonexistent cursor denied');
+create temporary table cursor_expiry as select id,expires_at from private.support_scan_cursors;
+update private.support_scan_cursors set expires_at=clock_timestamp()-interval '1 second';
+select is(pg_temp.support(jsonb_build_object('action','scan','requestId',gen_random_uuid(),'cursor',result#>>'{data,scanCursor}'))->>'outcome',
+ 'forbidden','R22-01 expired cursor denied') from scan_results where n=1;
+update private.support_scan_cursors c set expires_at=e.expires_at from cursor_expiry e where c.id=e.id;
 insert into scan_results select 2,pg_temp.support(jsonb_build_object('action','scan','requestId',gen_random_uuid(),'cursor',result#>>'{data,scanCursor}')) from scan_results where n=1;
 select is(result->>'outcome','allowed','T14 continuation succeeds') from scan_results where n=2;
 select ok((result#>>'{data,scanned}')::integer<=100,'T14 every continuation remains bounded') from scan_results where n=2;

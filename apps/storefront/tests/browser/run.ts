@@ -62,6 +62,9 @@ try {
   ]) {
     const context = await browser.newContext({ viewport });
     const page = await context.newPage();
+    // Synthetic fixture access expires on Oct 4; keep its observation date
+    // deterministic without freezing timers or changing production expiry.
+    await page.clock.setFixedTime(new Date("2026-10-03T10:00:00.000Z"));
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     let quoted = 0,
