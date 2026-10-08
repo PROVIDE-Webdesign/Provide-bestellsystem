@@ -11,7 +11,7 @@ import {
   parseOrderInvalidation,
   parseDashboardAcceptance,
 } from "@provide/contracts";
-import { createApiWorker } from "./index.js";
+import { createProtectedIntegrationWorker as createApiWorker } from "./checkout-integration-fixture.js";
 import { postgresDashboardOrdersReader } from "./dashboard-orders-database.js";
 const url = process.env.TEST_REALTIME_URL,
   db = process.env.TEST_DATABASE_URL;
