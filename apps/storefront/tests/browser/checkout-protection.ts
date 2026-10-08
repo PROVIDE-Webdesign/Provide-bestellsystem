@@ -126,7 +126,14 @@ export async function verifyCheckoutProtectionBrowser(browser: Browser, output: 
           await route.fulfill(
             scenario === "receipt-expiry"
               ? { status: 410, json: { error: { code: "checkout_session_expired" } } }
-              : { json: { data: { state: "unsubmitted", writeExpired: true } } },
+              : {
+                  json: {
+                    data: {
+                      state: "unsubmitted",
+                      writeExpired: scenario !== "write-expiry",
+                    },
+                  },
+                },
           );
           return;
         }
@@ -207,6 +214,20 @@ export async function verifyCheckoutProtectionBrowser(browser: Browser, output: 
             )
             .waitFor();
           if (scenario === "write-expiry" || scenario === "receipt-expiry") {
+            if (scenario === "write-expiry") {
+              // A restored, checked and still-valid intent must regain its
+              // remaining deadline timer without creating another issue/write.
+              const restored = page.waitForResponse(
+                (response) =>
+                  response.url().endsWith("checkout-receipt") && response.status() === 200,
+              );
+              await page.reload();
+              await restored;
+              await page
+                .getByText(/Bisher ist für diesen Versuch keine bestätigte Bestellung hinterlegt/)
+                .waitFor();
+              assert.equal(issues.length, 1);
+            }
             await page.clock.pauseAt(new Date(now + 1800001));
             await page
               .getByText(
@@ -235,6 +256,10 @@ export async function verifyCheckoutProtectionBrowser(browser: Browser, output: 
               );
               await page.reload();
               await receiptResponse;
+              await page.getByText(/Der Bestellversuch ist abgelaufen/).waitFor();
+              // Process pending mount/expiry timers as well: recovery feedback
+              // must remain visible after the timer, not just for one frame.
+              await page.clock.runFor(1000);
               await page.getByText(/Der Bestellversuch ist abgelaufen/).waitFor();
               assert.ok(receiptReads > 0);
               assert.equal(

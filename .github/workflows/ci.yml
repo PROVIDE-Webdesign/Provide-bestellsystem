@@ -70,27 +70,6 @@ jobs:
       - name: Build shared contracts
         run: pnpm --filter @provide/contracts build
 
-      - name: Test O3 real PostgreSQL concurrency and protected dispatcher
-        run: pnpm --filter @provide/api exec vitest run src/checkout-protection.integration.test.ts
-        env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
-
-      - name: Install Chromium for the integrated HTTPS checkout evidence
-        run: pnpm --filter @provide/storefront exec playwright install --with-deps chromium
-
-      - name: Test actual HTTPS browser, gateway, API and PostgreSQL checkout recovery
-        run: node scripts/ci-checkout-http.mjs
-        env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
-
-      - name: Retain integrated checkout browser evidence
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: checkout-http-browser
-          path: output/checkout-http-browser
-          if-no-files-found: ignore
-
       - name: Test public API against the migrated database
         run: pnpm --filter @provide/api exec vitest run src/storefront.integration.test.ts
         env:
@@ -121,6 +100,29 @@ jobs:
         run: pnpm --filter @provide/api exec vitest run src/support.integration.test.ts
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+      # Legacy scenarios require their fresh queue fixture. Run them before the
+      # O3 suites intentionally retain committed orders/outbox effects.
+      - name: Test O3 real PostgreSQL concurrency and protected dispatcher
+        run: pnpm --filter @provide/api exec vitest run src/checkout-protection.integration.test.ts
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+      - name: Install Chromium for the integrated HTTPS checkout evidence
+        run: pnpm --filter @provide/storefront exec playwright install --with-deps chromium
+
+      - name: Test actual HTTPS browser, gateway, API and PostgreSQL checkout recovery
+        run: node scripts/ci-checkout-http.mjs
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+      - name: Retain integrated checkout browser evidence
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: checkout-http-browser
+          path: output/checkout-http-browser
+          if-no-files-found: ignore
 
   browser:
     strategy:

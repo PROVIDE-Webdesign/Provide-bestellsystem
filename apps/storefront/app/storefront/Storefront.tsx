@@ -139,25 +139,29 @@ export default function Storefront(scope: StorefrontProps) {
   const protectionConfigured =
     scope.checkoutProtectionEnabled === true && !!scope.checkoutTurnstileSiteKey;
   const intent = client.currentIntent;
+  const needsReceipt = client.needsReceipt;
   const readyToSubmit =
     protectionConfigured &&
     !!intent &&
-    !client.needsReceipt &&
+    !needsReceipt &&
     Date.parse(intent.writeExpiresAt) > Date.now();
   useEffect(() => {
-    if (!intent) return;
-    const timeout = setTimeout(
-      () => {
-        setProtectionTick((n) => n + 1);
-        setCartMessage(
-          "Der Schreibzeitraum ist abgelaufen. Prüfe zuerst den bisherigen Bestellversuch, bevor du ihn ausdrücklich erneuerst.",
-        );
-        protectionMessage.current?.focus();
-      },
-      Math.max(0, Date.parse(intent.writeExpiresAt) - Date.now() + 1),
-    );
+    // An outstanding receipt/uncertain result owns the recovery message. A
+    // zero-delay timer after reload must not replace its server result. Once a
+    // still-valid restored intent is checked, arm its remaining write deadline.
+    if (!intent || needsReceipt) return;
+    const delay = Date.parse(intent.writeExpiresAt) - Date.now() + 1;
+    if (delay <= 0) return;
+    const timeout = setTimeout(() => {
+      if (client.currentIntent !== intent || client.needsReceipt) return;
+      setProtectionTick((n) => n + 1);
+      setCartMessage(
+        "Der Schreibzeitraum ist abgelaufen. Prüfe zuerst den bisherigen Bestellversuch, bevor du ihn ausdrücklich erneuerst.",
+      );
+      protectionMessage.current?.focus();
+    }, delay);
     return () => clearTimeout(timeout);
-  }, [intent]);
+  }, [client, intent, needsReceipt]);
   void protectionTick;
   const validScope = isStorefrontScope(scope);
   const totalQuantity = cartItemCount(cart);
