@@ -143,7 +143,7 @@ async function countEffects(key) {
   const r = await admin.query(
     `select (select count(*)::integer from public.orders where restaurant_id=$1 and submission_key=$2) orders,
     (select count(*)::integer from public.order_payments p join public.orders o on o.id=p.order_id where o.restaurant_id=$1 and o.submission_key=$2) payments,
-    (select count(*)::integer from public.ordering_capacity_claims c join public.orders o on o.id=c.order_id where o.restaurant_id=$1 and o.submission_key=$2) claims`,
+    (select count(*)::integer from public.ordering_capacity_claims c join public.orders o on o.capacity_claim_id=c.id where o.restaurant_id=$1 and o.submission_key=$2) claims`,
     [restaurant, key],
   );
   assert.deepEqual(r.rows[0], { orders: 1, payments: 1, claims: 1 });
