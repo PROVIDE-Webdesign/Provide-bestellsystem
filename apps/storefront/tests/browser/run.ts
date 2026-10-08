@@ -1,3 +1,4 @@
+import { verifySupportBrowser } from "./support.ts";
 import { verifyRecoveryBrowser } from "./recovery.ts";
 import { verifyLocationOperationsBrowser } from "./location-operations.ts";
 import assert from "node:assert/strict";
@@ -61,6 +62,9 @@ try {
   ]) {
     const context = await browser.newContext({ viewport });
     const page = await context.newPage();
+    // Synthetic fixture access expires on Oct 4; keep its observation date
+    // deterministic without freezing timers or changing production expiry.
+    await page.clock.setFixedTime(new Date("2026-10-03T10:00:00.000Z"));
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     let quoted = 0,
@@ -456,6 +460,7 @@ try {
     await verifyLocationOperationsBrowser(page, output, viewport.width);
     await verifyHistoryBrowser(page, output, viewport.width);
     await verifyProvideBrowser(page, output, viewport.width);
+    await verifySupportBrowser(page, output, viewport.width);
     await verifyPersonnelBrowser(page, output, viewport.width);
     await verifyViewerBrowser(page, output, viewport.width);
     await verifyRecoveryBrowser(page, output, viewport.width);

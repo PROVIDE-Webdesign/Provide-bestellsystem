@@ -1,4 +1,7 @@
 import {
+  parseSupportCommand,
+  parseSupportState,
+  type SupportCommand,
   parseProvideAdminCommand,
   parseProvideAdminState,
   type ProvideAdminCommand,
@@ -45,6 +48,46 @@ function safeApiBase(value: string | undefined): URL | undefined {
     return url;
   } catch {
     return undefined;
+  }
+}
+
+export async function readSupportBody(request: Request): Promise<SupportCommand> {
+  const q = parseSupportCommand(await boundedJson(request, 4096));
+  if (!q) throw Error("Invalid support request");
+  return q;
+}
+export async function fetchSupport(
+  token: string,
+  apiBase: string | undefined,
+  q: SupportCommand,
+  fetcher: typeof fetch = fetch,
+): Promise<Response> {
+  const base = safeApiBase(apiBase),
+    command = parseSupportCommand(q);
+  if (!base || !command || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token))
+    return operationalFailure(400);
+  try {
+    const response = await fetcher(new URL("/v1/provide/support", base), {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify(command),
+      cache: "no-store",
+      redirect: "manual",
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok)
+      return operationalFailure(
+        [400, 401, 403, 404, 409].includes(response.status)
+          ? (response.status as OperationalFailureStatus)
+          : 503,
+      );
+    const envelope = (await boundedJson(response, 512 * 1024)) as { data?: unknown };
+    const data = parseSupportState(envelope.data);
+    if (!data || data.restaurantId !== q.restaurantId || data.locationId !== q.locationId)
+      return operationalFailure(503);
+    return Response.json({ data }, { headers });
+  } catch {
+    return operationalFailure(503);
   }
 }
 

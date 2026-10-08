@@ -507,3 +507,41 @@ a:focus-visible {
 .personnel-list {
   padding-left: 1.25rem;
 }
+.support-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+  margin-block: 1rem;
+}
+.support-form label {
+  display: grid;
+  gap: 0.3rem;
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.support-form input,
+.support-form select {
+  width: 100%;
+  min-width: 0;
+}
+.support-form h2 {
+  flex-basis: 100%;
+}
+.support-list {
+  list-style: none;
+  padding: 0;
+}
+.support-list li {
+  padding: 1rem 0;
+  border-bottom: 1px solid #ddd;
+}
+.support-cases p,
+.support-cases li {
+  overflow-wrap: anywhere;
+}
+.support-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
