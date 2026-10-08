@@ -86,7 +86,7 @@ begin
  insert into private.checkout_gateway_nonces values(n,issued_at+interval '30 seconds',issued_at+interval '10 minutes 30 seconds') on conflict do nothing;
  if not found then return jsonb_build_object('outcome','forbidden');end if;
  -- Acquire capacity lock BEFORE any bucket row lock, preventing lock-order inversion.
- if exists(select 1 from jsonb_array_elements(budgets) b where not exists(select 1 from private.checkout_rate_buckets r where r.bucket_key=b->>'key')) then
+ if exists(select 1 from jsonb_array_elements(budgets) as candidate(value) where not exists(select 1 from private.checkout_rate_buckets r where r.bucket_key=candidate.value->>'key')) then
    perform pg_advisory_xact_lock(hashtextextended('o3-rate-capacity',0));
  end if;
  for b in select value from jsonb_array_elements(budgets) order by value->>'key' loop
@@ -144,6 +144,7 @@ begin
  insert into private.checkout_issue_claims(challenge_hash,issue_id,binding_hmac) values(ch,i,binding) on conflict do nothing;
  select * into c from private.checkout_issue_claims where challenge_hash=ch for update;
  t:=clock_timestamp();
+ if not exists(select 1 from private.checkout_browser_contexts where verifier_hash=h and expires_at>t) then return jsonb_build_object('outcome','expired');end if;
  if c.challenge_hash is null or c.issue_id<>i or c.binding_hmac<>binding or c.expires_at<=t or c.outcome='rejected' then return jsonb_build_object('outcome','forbidden');end if;
  if c.outcome='issued' then
    select * into s from private.checkout_sessions where id=c.session_id and verifier_hash=h;

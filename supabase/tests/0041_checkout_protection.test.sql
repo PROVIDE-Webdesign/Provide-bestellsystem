@@ -67,7 +67,9 @@ create function pg_temp.guard(k text,cap integer,period integer,n uuid default g
 create temporary table profiles(label text,capacity integer,period integer);
 insert into profiles values('issue-primary',5,600),('issue-network',120,600),('write-primary',6,60),('write-network',120,60),('receipt-primary',60,60),('read-network',600,60),('quote-primary',60,60),('status-primary',60,60),('payment-primary',20,60),('payment-network',120,60);
 select is(pg_temp.guard('test:'||p.label,p.capacity,p.period)->>'outcome','allowed','O3-T25 within burst: '||label||' token '||i) from profiles p cross join lateral generate_series(1,p.capacity)i;
-select is(pg_temp.guard('test:'||label,capacity,period)->>'outcome','limited','O3-T25 first request beyond each burst limited: '||label) from profiles;
+-- Exhaustion is controlled separately from elapsed runtime: a real token bucket refills during a large burst.
+update private.checkout_rate_buckets set tokens=0,updated_at=clock_timestamp() where bucket_key like 'test:%';
+select is(pg_temp.guard('test:'||label,capacity,period)->>'outcome','limited','O3-T25 controlled exhausted bucket limited: '||label) from profiles;
 select ok((pg_temp.guard('test:'||label,capacity,period)->>'retryAfter')::integer between 1 and period,'O3-T25 positive bounded Retry-After: '||label) from profiles;
 update private.checkout_rate_buckets set updated_at=clock_timestamp()-make_interval(secs=>period_seconds/capacity+1) where bucket_key like 'test:%';
 select is(pg_temp.guard('test:'||label,capacity,period)->>'outcome','allowed','O3-T25 one-token DB-time refill: '||label) from profiles;

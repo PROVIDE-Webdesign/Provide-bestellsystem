@@ -30,11 +30,13 @@ export class CheckoutClient {
     renewSessionId?: string;
   } | null = null;
   readonly storageKey: string;
+  private readonly fetcher: typeof fetch;
   constructor(
     readonly base: string,
-    readonly fetcher: typeof fetch = fetch,
+    fetcher: typeof fetch = fetch,
     private readonly storage: Storage | null = null,
   ) {
+    this.fetcher = fetcher.bind(globalThis);
     this.storageKey = `provide-checkout-intent:${base}`;
     try {
       const raw = storage?.getItem(this.storageKey);

@@ -1,5 +1,6 @@
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { readFile } from "node:fs/promises";
+import { URL } from "node:url";
 import { Client } from "pg";
 import {
   checkoutDigest,

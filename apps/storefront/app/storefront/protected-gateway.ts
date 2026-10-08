@@ -225,9 +225,7 @@ export async function handleCheckoutGateway(
       if (!response.ok) {
         let code = "service_unavailable";
         try {
-          const error = record(
-            record(JSON.parse(await readCheckoutBody(response.clone(), 4096)))?.error,
-          );
+          const error = record(record(JSON.parse(await readCheckoutBody(response, 4096)))?.error);
           if (typeof error?.code === "string" && errorCodes.has(error.code)) code = error.code;
         } catch {
           /* safe closed default */
