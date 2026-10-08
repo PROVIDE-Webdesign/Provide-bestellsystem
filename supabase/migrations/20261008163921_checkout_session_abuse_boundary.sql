@@ -35,7 +35,7 @@ create table private.checkout_issue_claims (
   issue_id uuid not null unique,
   binding_hmac text not null check (binding_hmac ~ '^[A-Za-z0-9_-]{43}$'),
   expires_at timestamptz not null default clock_timestamp()+interval '5 minutes',
-  purge_at timestamptz not null default clock_timestamp()+interval '15 minutes',
+  purge_at timestamptz not null default clock_timestamp()+interval '14 minutes',
   outcome text not null default 'pending' check (outcome in ('pending','rejected','issued')),
   session_id uuid references private.checkout_sessions(id) on delete cascade
 );
@@ -83,7 +83,7 @@ begin
  end if;
  perform pg_advisory_xact_lock(hashtextextended('o3-nonce-capacity',0));
  if (select count(*) from(select 1 from private.checkout_gateway_nonces limit 100000)x)>=100000 then return jsonb_build_object('outcome','unavailable');end if;
- insert into private.checkout_gateway_nonces values(n,issued_at+interval '30 seconds',issued_at+interval '10 minutes 30 seconds') on conflict do nothing;
+ insert into private.checkout_gateway_nonces values(n,issued_at+interval '30 seconds',issued_at+interval '9 minutes 30 seconds') on conflict do nothing;
  if not found then return jsonb_build_object('outcome','forbidden');end if;
  -- Acquire capacity lock BEFORE any bucket row lock, preventing lock-order inversion.
  if exists(select 1 from jsonb_array_elements(budgets) as candidate(value) where not exists(select 1 from private.checkout_rate_buckets r where r.bucket_key=candidate.value->>'key')) then
@@ -100,13 +100,13 @@ begin
         (select count(*) from (select 1 from private.checkout_rate_buckets limit 100000) x)>=100000 then
        return jsonb_build_object('outcome','unavailable');
      end if;
-     insert into private.checkout_rate_buckets values(k,cap,period,cap,t,t+make_interval(secs=>period+600)) on conflict do nothing;
+     insert into private.checkout_rate_buckets values(k,cap,period,cap,t,t+make_interval(secs=>period+540)) on conflict do nothing;
    end if;
    select * into current from private.checkout_rate_buckets where bucket_key=k for update;
    t:=clock_timestamp();
    if current.capacity<>cap or current.period_seconds<>period then raise exception 'Inconsistent checkout rate profile';end if;
    available:=least(cap::numeric,current.tokens+greatest(0,extract(epoch from(t-current.updated_at)))*cap/period);
-   update private.checkout_rate_buckets set tokens=available,updated_at=t,purge_at=t+make_interval(secs=>period+600) where bucket_key=k;
+   update private.checkout_rate_buckets set tokens=available,updated_at=t,purge_at=t+make_interval(secs=>period+540) where bucket_key=k;
    if available<1 then retry:=greatest(retry,ceil((1-available)*period/cap)::integer);end if;
  end loop;
  if retry>0 then return jsonb_build_object('outcome','limited','retryAfter',retry);end if;
@@ -114,7 +114,7 @@ begin
  return jsonb_build_object('outcome','allowed');
 end;
 $$;
-create function private.checkout_context(h text,create_new boolean) returns jsonb
+create function private.checkout_context(h text,create_new boolean,rs text default null,ls text default null) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare t timestamptz:=clock_timestamp(); c private.checkout_browser_contexts;
 begin
@@ -127,9 +127,10 @@ begin
    if create_new is not true then return jsonb_build_object('outcome','forbidden');end if;
    perform pg_advisory_xact_lock(hashtextextended('o3-context-capacity',0));
    if (select count(*) from(select 1 from private.checkout_browser_contexts limit 10000)x)>=10000 then return jsonb_build_object('outcome','unavailable');end if;
-   insert into private.checkout_browser_contexts values(h,t,t+interval '90 minutes',t+interval '25 hours 25 minutes');
+   insert into private.checkout_browser_contexts values(h,t,t+interval '90 minutes',t+interval '25 hours 24 minutes');
  end if;
- return jsonb_build_object('outcome','allowed','contextExpiresAt',to_char((select expires_at from private.checkout_browser_contexts where verifier_hash=h) at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
+ return jsonb_build_object('outcome','allowed','contextExpiresAt',to_char((select expires_at from private.checkout_browser_contexts where verifier_hash=h) at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+   'hasExistingIntents',exists(select 1 from private.checkout_sessions s join public.restaurants r on r.id=s.restaurant_id join public.locations l on l.id=s.location_id where s.verifier_hash=h and r.slug=rs and l.slug=ls and s.receipt_expires_at>t and s.revoked_at is null));
 end;
 $$;
 create function private.checkout_issue_begin(ch text,i uuid,binding text,h text) returns jsonb
@@ -169,6 +170,7 @@ begin
  end if;
  select * into c from private.checkout_issue_claims where challenge_hash=ch for update;
  t:=clock_timestamp();
+ if not exists(select 1 from private.checkout_browser_contexts where verifier_hash=h and expires_at>t) then return jsonb_build_object('outcome','expired');end if;
  if c.challenge_hash is null or c.issue_id<>i or c.binding_hmac<>binding or c.expires_at<=t or c.outcome='rejected' then return jsonb_build_object('outcome','forbidden');end if;
  if c.outcome='issued' then
    select * into s from private.checkout_sessions where id=c.session_id;
@@ -187,8 +189,8 @@ begin
  if (select count(*) from(select 1 from private.checkout_sessions limit 10000)x)>=10000 then return jsonb_build_object('outcome','unavailable');end if;
  if renew is not null then update private.checkout_sessions set revoked_at=t where id=renew;end if;
  insert into private.checkout_sessions(verifier_hash,restaurant_id,location_id,submission_key,created_at,write_expires_at,receipt_expires_at,purge_at)
- values(h,r,l,submission,t,t+interval '30 minutes',t+interval '90 minutes',t+interval '25 hours 25 minutes') returning * into s;
- update private.checkout_browser_contexts set expires_at=t+interval '90 minutes',purge_at=t+interval '25 hours 25 minutes' where verifier_hash=h;
+ values(h,r,l,submission,t,t+interval '30 minutes',t+interval '90 minutes',t+interval '25 hours 24 minutes') returning * into s;
+ update private.checkout_browser_contexts set expires_at=t+interval '90 minutes',purge_at=t+interval '25 hours 24 minutes' where verifier_hash=h;
  update private.checkout_issue_claims set outcome='issued',session_id=s.id where challenge_hash=ch;
  return jsonb_build_object('outcome','issued','intent',private.checkout_intent(s));
 end;

@@ -1,4 +1,9 @@
-import { record, validCheckoutSecret } from "@provide/contracts";
+import {
+  isCheckoutTestHostname,
+  readCheckoutBody,
+  record,
+  validCheckoutSecret,
+} from "@provide/contracts";
 export interface CheckoutChallengeConfig {
   secret: string;
   hostname: string;
@@ -19,8 +24,7 @@ export const turnstileCheckoutChallenge: CheckoutChallengeVerifier = {
     });
     if (!response.ok || !response.headers.get("content-type")?.includes("application/json"))
       throw new Error("Challenge unavailable");
-    const text = await response.text();
-    if (text.length > 8192) throw new Error("Challenge unavailable");
+    const text = await readCheckoutBody(response, 8192);
     const result = record(JSON.parse(text));
     const timestamp =
       typeof result?.challenge_ts === "string" ? Date.parse(result.challenge_ts) : NaN;
@@ -41,7 +45,7 @@ export function checkoutChallengeConfig(env: {
 }): CheckoutChallengeConfig | undefined {
   if (!validCheckoutSecret(env.CHECKOUT_TURNSTILE_SECRET)) return;
   // Published test keys cannot be accepted by a production configuration.
-  if (env.APP_ENV === "production" && env.CHECKOUT_TURNSTILE_SECRET.startsWith("1x")) return;
+  if (env.APP_ENV === "production" && /^[123]x0/.test(env.CHECKOUT_TURNSTILE_SECRET)) return;
   try {
     const u = new URL(env.CHECKOUT_STOREFRONT_ORIGIN ?? "");
     if (
@@ -51,7 +55,7 @@ export function checkoutChallengeConfig(env: {
       u.password
     )
       return;
-    if (env.APP_ENV === "production" && ["localhost", "127.0.0.1"].includes(u.hostname)) return;
+    if (env.APP_ENV === "production" && isCheckoutTestHostname(u.hostname)) return;
     return { secret: env.CHECKOUT_TURNSTILE_SECRET, hostname: u.hostname };
   } catch {
     return;

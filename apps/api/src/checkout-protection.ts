@@ -1,5 +1,6 @@
 import {
   isStorefrontScope,
+  isCheckoutTestHostname,
   CheckoutBodyError,
   checkoutDigest,
   checkoutMac,
@@ -52,6 +53,7 @@ export interface CheckoutProtectionEnvironment extends OnlineEnvironment {
   CHECKOUT_PROTECTION_ENABLED?: string;
   CHECKOUT_GATEWAY_SECRET?: string;
   CHECKOUT_GATEWAY_SECRET_PREVIOUS?: string;
+  CHECKOUT_GATEWAY_SECRET_PREVIOUS_UNTIL?: string;
   CHECKOUT_FINGERPRINT_SECRET?: string;
   CHECKOUT_STOREFRONT_ORIGIN?: string;
   CHECKOUT_TURNSTILE_SECRET?: string;
@@ -79,7 +81,7 @@ export function checkoutProtectionConfigured(env: CheckoutProtectionEnvironment)
       u.protocol === "https:" &&
       !u.username &&
       !u.password &&
-      !(env.APP_ENV === "production" && ["localhost", "127.0.0.1"].includes(u.hostname))
+      !(env.APP_ENV === "production" && isCheckoutTestHostname(u.hostname))
     );
   } catch {
     return false;
@@ -186,10 +188,19 @@ export async function handleProtectedStorefront(
     const text = isRead
       ? ""
       : await readCheckoutBody(request, route.name === "checkout-context" ? 1024 : 64 * 1024);
-    const a = await verifyCheckoutRequest(request, text, [
-      env.CHECKOUT_GATEWAY_SECRET,
-      env.CHECKOUT_GATEWAY_SECRET_PREVIOUS,
-    ]);
+    let previous: string | undefined;
+    if (env.CHECKOUT_GATEWAY_SECRET_PREVIOUS !== undefined) {
+      const until = Date.parse(env.CHECKOUT_GATEWAY_SECRET_PREVIOUS_UNTIL ?? "");
+      if (
+        !validCheckoutSecret(env.CHECKOUT_GATEWAY_SECRET_PREVIOUS) ||
+        !Number.isFinite(until) ||
+        until > Date.now() + 30_000 ||
+        env.CHECKOUT_GATEWAY_SECRET_PREVIOUS === env.CHECKOUT_GATEWAY_SECRET
+      )
+        return fail(503);
+      if (until > Date.now()) previous = env.CHECKOUT_GATEWAY_SECRET_PREVIOUS;
+    }
+    const a = await verifyCheckoutRequest(request, text, [env.CHECKOUT_GATEWAY_SECRET, previous]);
     if (!a || (a.freshContext && route.name !== "checkout-context")) return fail(403, "forbidden");
     const body = isRead ? undefined : record(JSON.parse(text));
     if (!isRead && !body) return fail(400, "bad_request");
@@ -298,10 +309,14 @@ export async function handleProtectedStorefront(
       );
     if (route.name === "checkout-context") {
       if (!a.context || !body || !onlyKeys(body, [])) return fail(400, "bad_request");
-      const result = record(await repo.context(connection, a.context, a.freshContext));
+      const result = record(await repo.context(connection, a.context, a.freshContext, route));
       return result?.outcome === "allowed"
         ? jsonSuccess(
-            { ready: true, contextExpiresAt: result.contextExpiresAt },
+            {
+              ready: true,
+              contextExpiresAt: result.contextExpiresAt,
+              hasExistingIntents: result.hasExistingIntents === true,
+            },
             ctx.requestId,
             200,
             cors,

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { CheckoutClient } from "./checkout-client";
 const base = "/api/storefront/restaurant/location";
+const issuedAt = Date.now();
 const intent = {
   sessionId: crypto.randomUUID(),
   submissionKey: crypto.randomUUID(),
-  writeExpiresAt: new Date(Date.now() + 1800000).toISOString(),
-  receiptExpiresAt: new Date(Date.now() + 5400000).toISOString(),
+  writeExpiresAt: new Date(issuedAt + 1800000).toISOString(),
+  receiptExpiresAt: new Date(issuedAt + 5400000).toISOString(),
 };
 function store(seed: string | null = null): Storage {
   const m = new Map<string, string>();
@@ -49,6 +50,28 @@ function setup(storage: Storage = store()) {
   return { client: new CheckoutClient(base, fetcher, storage), requests, storage };
 }
 describe("O3 client recovery state (unit)", () => {
+  it("O3-T39 browser fetch is invoked with its global receiver", async () => {
+    const fetcher: typeof fetch = function (this: unknown) {
+      expect(this).toBe(globalThis);
+      return Promise.resolve(Response.json({ data: { ready: true, csrf: "a".repeat(43) } }));
+    };
+    await new CheckoutClient(base, fetcher, store()).bootstrap();
+  });
+  it("O3-T41 missing public metadata warns about a scoped existing intent without automatic issue or submit", async () => {
+    let calls = 0;
+    const fetcher: typeof fetch = () => {
+      calls++;
+      return Promise.resolve(
+        Response.json({ data: { ready: true, csrf: "a".repeat(43), hasExistingIntents: true } }),
+      );
+    };
+    const client = new CheckoutClient(base, fetcher, store());
+    await client.bootstrap();
+    expect(client.missingMetadataWarning).toBe(true);
+    expect(client.persistenceWarning).toBe(true);
+    expect(client.currentIntent).toBeNull();
+    expect(calls).toBe(1);
+  });
   it("O3-T40 reload reads the existing intent before any write, with no repeated contacts", async () => {
     const x = setup(store(JSON.stringify({ scope: base, intent })));
     expect(x.client.needsReceipt).toBe(true);

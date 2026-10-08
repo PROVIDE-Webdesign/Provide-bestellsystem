@@ -1,6 +1,7 @@
 import { isIP } from "node:net";
 import {
   isStorefrontScope,
+  isCheckoutTestHostname,
   CheckoutBodyError,
   checkoutCookieName,
   checkoutDigest,
@@ -10,6 +11,9 @@ import {
   onlyKeys,
   parseCheckoutIssue,
   parseCheckoutIntent,
+  parseGuestPickupOrderConfirmation,
+  parseGuestDeliveryOrderConfirmation,
+  parseOnlineOrderConfirmation,
   readCheckoutBody,
   record,
   signCheckoutRequest,
@@ -113,6 +117,9 @@ export async function handleCheckoutGateway(
     "payment-session",
   ];
   const base = safeApiBase(env.PUBLIC_API_URL);
+  // Existing public menu/availability remain readable while the new checkout is disabled.
+  if (request.method === "GET" && env.CHECKOUT_PROTECTION_ENABLED !== "true" && base)
+    return fetchPublicStorefront(request, params, base.toString(), fetcher);
   if (
     !base ||
     env.CHECKOUT_PROTECTION_ENABLED !== "true" ||
@@ -131,7 +138,7 @@ export async function handleCheckoutGateway(
       origin.username ||
       origin.password ||
       new URL(request.url).origin !== origin.origin ||
-      (env.APP_ENV === "production" && ["localhost", "127.0.0.1"].includes(origin.hostname))
+      (env.APP_ENV === "production" && isCheckoutTestHostname(origin.hostname))
     )
       return failure(503);
     const isRead = request.method === "GET";
@@ -275,6 +282,7 @@ export async function handleCheckoutGateway(
             data: {
               csrf: await checkoutMac(env.CHECKOUT_GATEWAY_SECRET, "csrf-v1", hash!),
               ready: true,
+              hasExistingIntents: info.hasExistingIntents === true,
             },
           },
           { headers },
@@ -289,15 +297,26 @@ export async function handleCheckoutGateway(
         result = Response.json({ data: intent }, { status: response.status, headers });
       } else {
         const receipt = record(data);
-        if (
-          !receipt ||
-          !["unsubmitted", "committed"].includes(String(receipt.state)) ||
-          (receipt.state === "committed" &&
-            (!record(receipt.confirmation) ||
-              !["orders", "delivery-orders", "online-orders"].includes(String(receipt.mode))))
-        )
-          return failure(503);
-        result = Response.json({ data: receipt }, { headers });
+        if (receipt?.state === "unsubmitted" && typeof receipt.writeExpired === "boolean")
+          result = Response.json(
+            { data: { state: "unsubmitted", writeExpired: receipt.writeExpired } },
+            { headers },
+          );
+        else if (receipt?.state === "committed") {
+          const confirmation =
+            receipt.mode === "orders"
+              ? parseGuestPickupOrderConfirmation(receipt.confirmation)
+              : receipt.mode === "delivery-orders"
+                ? parseGuestDeliveryOrderConfirmation(receipt.confirmation)
+                : receipt.mode === "online-orders"
+                  ? parseOnlineOrderConfirmation(receipt.confirmation)
+                  : undefined;
+          if (!confirmation) return failure(503);
+          result = Response.json(
+            { data: { state: "committed", mode: receipt.mode, confirmation } },
+            { headers },
+          );
+        } else return failure(503);
       }
     } else {
       const filteredRequest = isRead

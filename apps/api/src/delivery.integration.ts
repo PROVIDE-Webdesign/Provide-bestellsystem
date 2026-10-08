@@ -131,7 +131,12 @@ export async function verifyDeliveryIntegration(
     },
   });
   await publish(450);
-  expect((await post("delivery-orders", winner)).status).toBe(201);
+  // O3 replays an already committed receipt as a read, including after a policy change.
+  const replay = await post("delivery-orders", winner);
+  expect(replay.status).toBe(200);
+  expect(parseGuestDeliveryOrderConfirmation(envelopeData(await replay.json()))).toEqual(
+    confirmation,
+  );
   expect(
     (
       await post("delivery-orders", {

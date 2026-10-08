@@ -12,7 +12,12 @@ export interface CheckoutProtectionRepository {
     at: number,
     budgets: readonly CheckoutBudget[],
   ): Promise<unknown>;
-  context(connection: string, hash: string, createNew: boolean): Promise<unknown>;
+  context(
+    connection: string,
+    hash: string,
+    createNew: boolean,
+    scope: StorefrontScope,
+  ): Promise<unknown>;
   beginIssue(
     connection: string,
     challengeHash: string,
@@ -78,7 +83,13 @@ export const postgresCheckoutProtection: CheckoutProtectionRepository = {
       new Date(a).toISOString(),
       JSON.stringify(b),
     ]),
-  context: (c, h, n) => query(c, "select private.checkout_context($1,$2) as data", [h, n]),
+  context: (c, h, n, s) =>
+    query(c, "select private.checkout_context($1,$2,$3,$4) as data", [
+      h,
+      n,
+      s.restaurantSlug,
+      s.locationSlug,
+    ]),
   beginIssue: (c, ch, i, b, h) =>
     query(c, "select private.checkout_issue_begin($1,$2::uuid,$3,$4) as data", [
       ch,

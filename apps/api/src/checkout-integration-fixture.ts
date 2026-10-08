@@ -1,6 +1,6 @@
 /** Isolated native integration fixture: production dispatcher + real PG + local challenge double.
  * It provides an attested transport for older domain regression scenarios, never a runtime bypass.
- * Actual browser/gateway/TLS evidence is in checkout-protection.integration.test.ts.
+ * Actual browser/gateway/TLS evidence is in scripts/ci-checkout-http.mjs.
  */
 import {
   checkoutDigest,
@@ -24,7 +24,7 @@ export function createProtectedIntegrationWorker(
 ): ReturnType<typeof createApiWorker> {
   args[25] = { verify: () => Promise.resolve(true) };
   const worker = createApiWorker(...args);
-  const bindings = new Map<string, { hash: string; session: string }>();
+  const bindings = new Map<string, Promise<{ hash: string; session: string }>>();
   const network = [crypto.randomUUID(), crypto.randomUUID()];
   async function signed(
     url: string,
@@ -83,40 +83,43 @@ export function createProtectedIntegrationWorker(
             request.headers,
           );
         const bindingKey = `${route.restaurantSlug}/${route.locationSlug}/${key}`;
-        let binding = bindings.get(bindingKey);
-        if (!binding) {
-          const hash = await checkoutDigest(crypto.randomUUID());
-          const base = new URL(
-            `/v1/storefront/${route.restaurantSlug}/${route.locationSlug}/`,
-            request.url,
-          ).toString();
-          const issueEnv = { ...env, CHECKOUT_WRITE_ENABLED: "true" };
-          const context = await signed(
-            base + "checkout-context",
-            "POST",
-            "{}",
-            hash,
-            issueEnv,
-            true,
-          );
-          if (context.status !== 200)
-            throw new Error(`Isolated context fixture failed: ${context.status}`);
-          const response = await signed(
-            base + "checkout-session",
-            "POST",
-            JSON.stringify({
-              issueId: crypto.randomUUID(),
-              submissionKey: key,
-              challenge: `synthetic-${crypto.randomUUID()}`,
-            }),
-            hash,
-            issueEnv,
-          );
-          const intent = parseCheckoutIntent(record(await response.json())?.data);
-          if (!intent) throw new Error(`Isolated intent fixture failed: ${response.status}`);
-          binding = { hash, session: intent.sessionId };
-          bindings.set(bindingKey, binding);
+        let pending = bindings.get(bindingKey);
+        if (!pending) {
+          pending = (async () => {
+            const hash = await checkoutDigest(crypto.randomUUID());
+            const base = new URL(
+              `/v1/storefront/${route.restaurantSlug}/${route.locationSlug}/`,
+              request.url,
+            ).toString();
+            const issueEnv = { ...env, CHECKOUT_WRITE_ENABLED: "true" };
+            const context = await signed(
+              base + "checkout-context",
+              "POST",
+              "{}",
+              hash,
+              issueEnv,
+              true,
+            );
+            if (context.status !== 200)
+              throw new Error(`Isolated context fixture failed: ${context.status}`);
+            const response = await signed(
+              base + "checkout-session",
+              "POST",
+              JSON.stringify({
+                issueId: crypto.randomUUID(),
+                submissionKey: key,
+                challenge: `synthetic-${crypto.randomUUID()}`,
+              }),
+              hash,
+              issueEnv,
+            );
+            const intent = parseCheckoutIntent(record(await response.json())?.data);
+            if (!intent) throw new Error(`Isolated intent fixture failed: ${response.status}`);
+            return { hash, session: intent.sessionId };
+          })();
+          bindings.set(bindingKey, pending);
         }
+        const binding = await pending;
         return signed(
           request.url,
           request.method,

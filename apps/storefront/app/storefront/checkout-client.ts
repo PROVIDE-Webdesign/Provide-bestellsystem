@@ -23,6 +23,7 @@ export class CheckoutClient {
   private intent: CheckoutIntent | null = null;
   private mustCheck = false;
   private storageWarning = false;
+  private missingMetadata = false;
   private issueAttempt: {
     issueId: string;
     challenge: string;
@@ -37,6 +38,7 @@ export class CheckoutClient {
     private readonly storage: Storage | null = null,
   ) {
     this.fetcher = fetcher.bind(globalThis);
+    this.storageWarning = storage === null;
     this.storageKey = `provide-checkout-intent:${base}`;
     try {
       const raw = storage?.getItem(this.storageKey);
@@ -60,6 +62,9 @@ export class CheckoutClient {
   get persistenceWarning(): boolean {
     return this.storageWarning;
   }
+  get missingMetadataWarning(): boolean {
+    return this.missingMetadata;
+  }
   async bootstrap(): Promise<void> {
     if (this.csrf) return;
     if (this.boot) return this.boot;
@@ -79,6 +84,10 @@ export class CheckoutClient {
       )
         throw new CheckoutClientError(503);
       this.csrf = data.csrf;
+      if (data.hasExistingIntents === true && !this.intent) {
+        this.missingMetadata = true;
+        this.storageWarning = true;
+      }
     })().finally(() => {
       this.boot = null;
     });

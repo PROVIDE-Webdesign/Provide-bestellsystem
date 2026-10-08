@@ -428,5 +428,146 @@ describe.skipIf(!database)(
       );
       expect(providerCalls).toBe(0);
     }, 15000);
+    it("O3-T35 real concurrent issue claims produce one session and return its identical public receipt", async () => {
+      const hash = await checkoutDigest(crypto.randomUUID());
+      expect((await post("checkout-context", {}, hash, true)).status).toBe(200);
+      const issue = {
+        issueId: crypto.randomUUID(),
+        submissionKey: crypto.randomUUID(),
+        challenge: "local-issue-race-" + crypto.randomUUID(),
+      };
+      const responses = await Promise.all([
+        post("checkout-session", issue, hash),
+        post("checkout-session", issue, hash),
+      ]);
+      expect(responses.every((r) => r.ok)).toBe(true);
+      const intents = await Promise.all(responses.map(async (r) => record(await r.json())?.data));
+      expect(intents[0]).toEqual(intents[1]);
+      expect(
+        (
+          await admin.query<{ n: number }>(
+            "select count(*)::integer n from private.checkout_sessions where verifier_hash=$1",
+            [hash],
+          )
+        ).rows[0]?.n,
+      ).toBe(1);
+      expect(
+        (
+          await admin.query<{ n: number }>(
+            "select count(*)::integer n from public.orders where restaurant_id=$1 and submission_key=$2",
+            [restaurant, issue.submissionKey],
+          )
+        ).rows[0]?.n,
+      ).toBe(0);
+    }, 15000);
+    it("O3-T32/T49 retained capacities fail closed without evicting a committed receipt; physical cleanup is bounded", async () => {
+      const committed = (
+        await admin.query<{ verifier_hash: string; id: string; submission_key: string }>(
+          "select verifier_hash,id,submission_key from private.checkout_sessions where restaurant_id=$1 and order_id is not null limit 1",
+          [restaurant],
+        )
+      ).rows[0]!;
+      const fresh = await checkoutDigest(crypto.randomUUID());
+      const started = Date.now();
+      await admin.query("BEGIN");
+      try {
+        await admin.query("select private.checkout_context($1,true)", [fresh]);
+        const count = (
+          await admin.query<{ n: number }>(
+            "select count(*)::integer n from private.checkout_sessions",
+          )
+        ).rows[0]!.n;
+        await admin.query(
+          `insert into private.checkout_sessions(verifier_hash,restaurant_id,location_id,submission_key,created_at,write_expires_at,receipt_expires_at,purge_at)
+          select $1,$2,$3,'capacity-fixture-'||n,t,t+interval '30 minutes',t+interval '90 minutes',t+interval '25 hours 25 minutes' from generate_series(1,$4::integer)n cross join lateral (select clock_timestamp() t)clock`,
+          [committed.verifier_hash, restaurant, location, 10000 - count],
+        );
+        const challengeHash = await checkoutDigest(crypto.randomUUID()),
+          issue = crypto.randomUUID(),
+          bindingHmac = "b".repeat(43);
+        await admin.query("select private.checkout_issue_begin($1,$2,$3,$4)", [
+          challengeHash,
+          issue,
+          bindingHmac,
+          fresh,
+        ]);
+        const issueResult = await admin.query<{ data: { outcome: string } }>(
+          "select private.checkout_issue_finish($1,$2,$3,$4,$5,$6,$7,null,true) data",
+          [
+            challengeHash,
+            issue,
+            bindingHmac,
+            fresh,
+            scope.restaurantSlug,
+            scope.locationSlug,
+            crypto.randomUUID(),
+          ],
+        );
+        expect(issueResult.rows[0]!.data.outcome).toBe("unavailable");
+        const existing = await admin.query<{ data: { outcome: string } }>(
+          "select private.checkout_receipt($1,$2,$3,$4,$5) data",
+          [
+            committed.verifier_hash,
+            committed.id,
+            scope.restaurantSlug,
+            scope.locationSlug,
+            committed.submission_key,
+          ],
+        );
+        expect(existing.rows[0]!.data.outcome).toBe("committed");
+        // Separate capacity fixtures for rate and nonce stores; rollback restores every prior record.
+        await admin.query("delete from private.checkout_rate_buckets");
+        await admin.query(
+          "insert into private.checkout_rate_buckets select 'cap:'||n,5,600,5,clock_timestamp(),clock_timestamp()+interval '20 minutes' from generate_series(1,100000)n",
+        );
+        const limited = await admin.query<{ data: { outcome: string } }>(
+          'select private.checkout_guard(gen_random_uuid(),clock_timestamp(),\'[{"key":"new-over-cap","capacity":5,"period":600}]\') data',
+        );
+        expect(limited.rows[0]!.data.outcome).toBe("unavailable");
+        await admin.query("delete from private.checkout_gateway_nonces");
+        await admin.query(
+          "insert into private.checkout_gateway_nonces select gen_random_uuid(),clock_timestamp()+interval '30 seconds',clock_timestamp()+interval '10 minutes 30 seconds' from generate_series(1,100000)n",
+        );
+        const nonceCap = await admin.query<{ data: { outcome: string } }>(
+          'select private.checkout_guard(gen_random_uuid(),clock_timestamp(),\'[{"key":"cap:1","capacity":5,"period":600}]\') data',
+        );
+        expect(nonceCap.rows[0]!.data.outcome).toBe("unavailable");
+        await admin.query(
+          "update private.checkout_gateway_nonces set purge_at=clock_timestamp()-interval '1 second'",
+        );
+        await admin.query(
+          "update private.checkout_rate_buckets set purge_at=clock_timestamp()-interval '1 second'",
+        );
+        const cleanupStart = Date.now();
+        for (let n = 0; n < 100; n++) await admin.query("select private.checkout_cleanup(1000)");
+        expect(
+          (
+            await admin.query<{ n: number }>(
+              "select count(*)::integer n from private.checkout_gateway_nonces",
+            )
+          ).rows[0]!.n,
+        ).toBe(0);
+        expect(
+          (
+            await admin.query<{ n: number }>(
+              "select count(*)::integer n from private.checkout_rate_buckets",
+            )
+          ).rows[0]!.n,
+        ).toBe(0);
+        console.info(
+          "O3 bounded retained capacity",
+          JSON.stringify({
+            sessions: 10000,
+            rateKeys: 100000,
+            nonces: 100000,
+            batches: 100,
+            cleanupMs: Date.now() - cleanupStart,
+            elapsedMs: Date.now() - started,
+          }),
+        );
+      } finally {
+        await admin.query("ROLLBACK");
+      }
+    }, 30000);
   },
 );

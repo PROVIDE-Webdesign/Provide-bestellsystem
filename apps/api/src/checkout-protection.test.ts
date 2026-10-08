@@ -363,7 +363,10 @@ describe("O3 actual dispatcher / protected handler units (repository doubles)", 
   it("O3-T08 only a fresh server-issued bootstrap can create an unknown verifier hash", async () => {
     const x = setup();
     await x.run("checkout-context", {}, {}, "a".repeat(64), true);
-    expect(x.repo.context).toHaveBeenCalledWith(expect.any(String), "a".repeat(64), true);
+    expect(x.repo.context).toHaveBeenCalledWith(expect.any(String), "a".repeat(64), true, {
+      ...scope,
+      name: "checkout-context",
+    });
     expect(x.repo.guard.mock.calls[0]![3] as unknown[]).toHaveLength(2);
   });
 });

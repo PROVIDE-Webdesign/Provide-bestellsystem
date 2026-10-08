@@ -73,6 +73,17 @@ export function validCheckoutSecret(value: string | undefined): value is string 
   const n = new TextEncoder().encode(value).byteLength;
   return n >= 32 && n <= 256;
 }
+/** Reserved fixture and loopback hostnames are never a production origin. */
+export function isCheckoutTestHostname(host: string): boolean {
+  return (
+    host === "localhost" ||
+    host === "[::1]" ||
+    /^127\./.test(host) ||
+    /(?:^|\.)(?:test|invalid|example|localhost)$/.test(host) ||
+    /^(?:www\.)?example\.(?:com|net|org)$/.test(host) ||
+    /^(?:192\.0\.2\.|198\.51\.100\.|203\.0\.113\.)/.test(host)
+  );
+}
 function buffer(bytes: Uint8Array): ArrayBuffer {
   return Uint8Array.from(bytes).buffer;
 }

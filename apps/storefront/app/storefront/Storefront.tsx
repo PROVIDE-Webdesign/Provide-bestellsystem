@@ -120,6 +120,7 @@ export default function Storefront(scope: StorefrontProps) {
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [preparingIntent, setPreparingIntent] = useState(false);
   const renewIntent = useRef(false);
+  const [missingIntentAcknowledged, setMissingIntentAcknowledged] = useState(false);
   const protectionMessage = useRef<HTMLParagraphElement>(null);
   const availabilityRequest = useRef<AbortController | null>(null);
   const checkoutRequest = useRef<AbortController | null>(null);
@@ -628,6 +629,7 @@ export default function Storefront(scope: StorefrontProps) {
   useEffect(() => {
     setChallengeId(null);
     setPreparingIntent(false);
+    setMissingIntentAcknowledged(false);
     if (client.needsReceipt && client.currentIntent) void checkExistingIntent();
     else if (client.persistenceWarning)
       setCartMessage(
@@ -637,6 +639,25 @@ export default function Storefront(scope: StorefrontProps) {
   }, [client]);
   async function startProtection() {
     if (!protectionConfigured || preparingIntent) return;
+    try {
+      await client.bootstrap();
+    } catch (error) {
+      setCartMessage(
+        error instanceof CheckoutClientError
+          ? error.message
+          : "Die Sicherheitsprüfung ist gerade nicht verfügbar. Dein Warenkorb bleibt erhalten.",
+      );
+      protectionMessage.current?.focus();
+      return;
+    }
+    if (client.missingMetadataWarning && !missingIntentAcknowledged) {
+      setMissingIntentAcknowledged(true);
+      setCartMessage(
+        "Für diesen Browser gibt es einen bisherigen Bestellversuch, dessen lokale Angaben fehlen. Prüfe zuerst den Bestellstatus oder kontaktiere das Restaurant, um eine Doppelbestellung zu vermeiden. Ein neuer Versuch beginnt nur durch deinen nächsten ausdrücklichen Klick.",
+      );
+      protectionMessage.current?.focus();
+      return;
+    }
     if (client.needsReceipt) {
       await checkExistingIntent();
       return;
@@ -1316,7 +1337,11 @@ export default function Storefront(scope: StorefrontProps) {
                           disabled={preparingIntent}
                           onClick={() => void startProtection()}
                         >
-                          {intent ? "Bestellversuch erneuern" : "Sicherheitsprüfung starten"}
+                          {intent
+                            ? "Bestellversuch erneuern"
+                            : missingIntentAcknowledged
+                              ? "Neuen Bestellversuch bewusst starten"
+                              : "Sicherheitsprüfung starten"}
                         </button>
                       )}
                       {challengeId && !readyToSubmit && (
