@@ -61,6 +61,11 @@ CSRF-Kontext bootstrapped und dieselbe Capability unverändert erneut geprüft w
 keinen Intent und erneuert keine Bestell-/Status-/Zahlungsfrist. Bestellung, Receipt und Quote
 werden nicht automatisch wiederholt.
 
+Der UI-Schreibablauf-Timer ersetzt keinen laufenden oder fehlgeschlagenen Receipthinweis nach
+Reload. Erst nach einer erfolgreichen Prüfung eines noch gültigen unbestätigten Intents wird seine
+verbleibende Schreibfrist erneut überwacht. Ein bereits abgelaufener Intent bekommt keinen
+nachträglichen Nullzeit-Timer, der den serverseitigen Ablauf-/Recoveryhinweis überschreiben könnte.
+
 ## Ein Auftrag, ein Receipt
 
 Strikt normalisierte Bestellung einschließlich Kontakt, Adresse, Lieferquote, Menüauswahl,
@@ -68,6 +73,12 @@ Zeitpunkt, Zahlungs-/Abgabeart und Scope wird kanonisch mit einem eigenen Finger
 Scope, Cookie, Session und bestehender SubmissionKey müssen zusammenpassen. Andere Payload bei
 gleichem Schlüssel oder ein neuer Schlüssel für dieselbe Sitzung werden abgewiesen;
 Legacy-Bestellschlüssel werden nicht übernommen.
+
+Ein vor dem Writer erkannter bestätigter Replay antwortet ausschließlich lesend mit 200.
+Überlappende Erstrequests können beide vor dem ersten Commit validiert sein und den bisherigen
+201-Kommandostatus erhalten. Die gemeinsame DB-Sperre liefert trotzdem dasselbe Ergebnis und genau
+einen Auftrag/Claim/Payment-/Outboxeffekt. Ein nach dem Rennen ausdrücklich wiederholter Request
+muss 200 mit identischer Bestell-ID/-nummer liefern; diese Grenze wird separat geprüft.
 
 Eine neue private DB-Funktion führt bestehende Domainvalidierung, Bestellsnapshot, Zahlung,
 Kapazitätsclaim, Outbox beziehungsweise Paymentjob und minimiertes Receipt in derselben uncached

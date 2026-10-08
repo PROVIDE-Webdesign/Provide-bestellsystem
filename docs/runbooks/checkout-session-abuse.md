@@ -57,6 +57,13 @@ Aktivierung/Deployment bleiben ein eigener späterer Auftrag. Alle neuen Default
   Tastatur/Fokus/Livebereiche/reduzierte Bewegung/200%-Zoom. Keine physischen F03-Behauptungen.
 - Bestehende echte Auth-TOTP-/Realtime-/Personal-/A4-/O1-Nachweise bleiben im isolierten CI-DBjob.
 
+Im gemeinsamen disposable CI-Datenbanklauf werden zunächst die bisherigen öffentlichen
+API-/Queue-/Auth-/Realtime-/A1-/A4-/O1-Fälle auf ihrer frischen Fixture ausgeführt. Danach folgen
+die neun neuen O3-PG-Fälle und der HTTPS-Lauf. Die O3-Fälle speichern Bestellungen und
+Outboxwirkungen absichtlich dauerhaft für Commit-/Recovery-/Cleanupnachweise; sie dürfen keine
+spätere globale Benachrichtigungsfixture verändern. UUIDs, E-Mails und Slugs der nativen und
+HTTPS-Fixtures haben getrennte Präfixe. Sämtliche bisherigen Erwartungen bleiben erhalten.
+
 Nur einen vollständigen erfolgreichen Lauf aller fünf Pflichtjobtypen am tatsächlichen Head
 anrechnen. Ein früherer grüner Head, ein abgebrochener TAP-Lauf oder transportgemockter Browser ist
 kein Ersatz. Head, Tree, Lauf, Joblogs, Bildhashes und visuelle Prüfung gehören in den aktuellen

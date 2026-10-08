@@ -9,8 +9,8 @@ isoliert automatisierbar und sechs getrennte externe/fachliche/physische Freigab
 
 Getrennter Zweig `codex/o3-checkout-abuse-20261008`, Basis PR22 ausschließlich am freigegebenen Head
 `9d734c48c34fad2d07f592be085c898ca15c2e26`, Tree `940a724d957d6840ba170042b2c24376ee20e2ef`.
-Bestehende Endfreigaben werden nicht auf neue Heads übertragen. Umsetzung begonnen; kein
-Implementierungs-PASS oder technische Endfreigabe daraus.
+Bestehende Endfreigaben werden nicht auf neue Heads übertragen. Das begrenzte Paket ist
+implementiert; die Startbestätigung selbst ist weder Testnachweis noch technische Endfreigabe.
 
 Work / Sol / hoch. Start 18:33:08 Uhr, anfängliche Schätzung 90-150 Minuten einschließlich
 Nachweisen. Kein Ready-Wechsel, Merge, Deployment, neue Providerzahlung, reales Konto oder externe
@@ -34,11 +34,13 @@ Cloudflare-/Supabase-Konfigurationsänderung. F01-F03 eingefroren. Defaults blei
 
 ## Nachweisstand
 
-Die Umsetzung und gezielten Korrekturen laufen im getrennten Draft-PR23. Die
+Die Umsetzung und gezielten Korrekturen liegen im getrennten Draft-PR23. Die
 [56-Fälle-Matrix](../testing/checkout-session-abuse.md),
 [ADR0040](../decisions/0040-checkout-session-abuse-boundary.md), das
 [Runbook](../runbooks/checkout-session-abuse.md) und
 [Arbeitsblock 3.25](../work-blocks/3.25-checkout-session-abuse.md) trennen tatsächliche Nachweise
 von den sechs weiterhin offenen externen/fachlichen/physisch zu prüfenden Grenzen. Ein
 Unit-/Adapter-PASS ist kein echter DB-/HTTPS-/Provider-PASS. Der abschließende Umsetzungsnachweis
-wird an einen vollständig geprüften Head gebunden; technische Endfreigabe bleibt separat.
+wird ausschließlich nach vollständig erfolgreichem Pflichtlauf an dessen Head/Tree gebunden;
+technische Endfreigabe bleibt separat. NEXT: separate technische Endfreigabeprüfung von PR23 am im
+aktuellen Umsetzungsnachweis belegten Head.
