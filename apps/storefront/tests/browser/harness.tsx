@@ -53,6 +53,30 @@ function StorefrontHarness() {
     <p>Storefront geschlossen</p>
   );
 }
+function MenuEditorHarness() {
+  const [scope, setScope] = useState({
+    restaurantId: "f2000000-0000-0000-0000-000000000001",
+    mounted: true,
+  });
+  useEffect(() => {
+    const change = (event: Event) => {
+      if (event instanceof CustomEvent) setScope(event.detail as typeof scope);
+    };
+    window.addEventListener("synthetic-menu-scope", change);
+    return () => window.removeEventListener("synthetic-menu-scope", change);
+  }, []);
+  return scope.mounted ? (
+    <MenuEditor
+      restaurantId={scope.restaurantId}
+      locations={[
+        { id: "f3000000-0000-0000-0000-000000000001", displayName: "Synthetic Mitte" },
+        { id: "f3000000-0000-0000-0000-000000000002", displayName: "Synthetic West" },
+      ]}
+    />
+  ) : (
+    <p>Menüpflege geschlossen</p>
+  );
+}
 // Synthetic transport only for the native browser harness. Production uses the real SDK.
 const syntheticLive: OrderLiveSubscriber = (_restaurant, _location, onChange, onState) => {
   const receive = createInvalidationReceiver(onChange);
@@ -147,10 +171,7 @@ createRoot(document.getElementById("root")!).render(
         ]}
       />
     ) : dashboard ? (
-      <MenuEditor
-        restaurantId="f2000000-0000-0000-0000-000000000001"
-        locations={[{ id: "f3000000-0000-0000-0000-000000000001", displayName: "Synthetic Mitte" }]}
-      />
+      <MenuEditorHarness />
     ) : (
       <StorefrontHarness />
     )}

@@ -1,6 +1,6 @@
 "use client";
 import { MenuImport } from "./MenuImport";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   parseMenuAdminState,
   parseMenuAdminCommand,
@@ -46,12 +46,36 @@ export function MenuEditor({
   restaurantId: string;
   locations: readonly Location[];
 }) {
+  return (
+    <RestaurantMenuEditor key={restaurantId} restaurantId={restaurantId} locations={locations} />
+  );
+}
+function RestaurantMenuEditor({
+  restaurantId,
+  locations,
+}: {
+  restaurantId: string;
+  locations: readonly Location[];
+}) {
+  const live = useRef(true);
+  const generation = useRef(0);
+  const pending = useRef(false);
+  const authorized = useRef(false);
+  const controller = useRef<AbortController | null>(null);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
+    live.current = true;
     const timer = window.setInterval(() => setNow(Date.now()), 15000);
-    return () => window.clearInterval(timer);
+    return () => {
+      live.current = false;
+      generation.current++;
+      authorized.current = false;
+      controller.current?.abort();
+      window.clearInterval(timer);
+    };
   }, []);
   const [locationId, setLocation] = useState(locations[0]?.id ?? "");
+  const currentLocation = useRef(locationId);
   const [state, setState] = useState<MenuAdminState | null>(null);
   const [menuId, setMenu] = useState("");
   const [versionId, setVersion] = useState("");
@@ -73,6 +97,28 @@ export function MenuEditor({
   const [deliveryTaxRate, setDeliveryTaxRate] = useState("");
   const [deliveryTaxConfirmed, setDeliveryTaxConfirmed] = useState(false);
   const [deliveryTaxNote, setDeliveryTaxNote] = useState("");
+  function clearEditor() {
+    authorized.current = false;
+    setState(null);
+    setMenu("");
+    setVersion("");
+    setDraft(null);
+    setDirty(false);
+    setConfirmedInfo([]);
+    setName("");
+    setSlug("");
+    setEffective("");
+    setNote("");
+    setPreview(false);
+    setStopItem("");
+    setStopChoice("");
+    setStopEnd("");
+    setReason("");
+    setDeliveryTaxMode("fixed");
+    setDeliveryTaxRate("");
+    setDeliveryTaxConfirmed(false);
+    setDeliveryTaxNote("");
+  }
   const menu = state?.menus.find((m) => m.id === menuId);
   const location = locations.find((l) => l.id === locationId);
   const timezone = state?.timezone;
@@ -95,7 +141,18 @@ export function MenuEditor({
     setPreview(false);
   };
   async function request(command: MenuAdminCommand | null = null) {
-    if (busy) return;
+    if (
+      !live.current ||
+      locationId !== currentLocation.current ||
+      pending.current ||
+      (command !== null && !authorized.current)
+    )
+      return;
+    const requestGeneration = ++generation.current;
+    const current = () => live.current && requestGeneration === generation.current;
+    const abort = new AbortController();
+    controller.current = abort;
+    pending.current = true;
     setBusy(true);
     setMessage("");
     try {
@@ -106,8 +163,15 @@ export function MenuEditor({
           headers: command ? { "content-type": "application/json" } : {},
           ...(command ? { body: JSON.stringify(command) } : {}),
           cache: "no-store",
+          signal: abort.signal,
         },
       );
+      if (!current()) return;
+      if (response.status === 401 || response.status === 403) {
+        clearEditor();
+        setMessage("Zugriff nicht mehr bestätigt. Bitte Anmeldung und Standortrechte prüfen.");
+        return;
+      }
       if (response.status === 409) {
         setMessage(
           "Eine andere Bearbeitung war schneller. Lade den aktuellen Stand und übernimm deine Änderungen bewusst erneut.",
@@ -121,8 +185,10 @@ export function MenuEditor({
             : "Menüpflege ist gesperrt oder nicht verfügbar.",
         );
       const body = (await response.json()) as { data?: unknown };
+      if (!current()) return;
       const data = parseMenuAdminState(body.data);
       if (!data) throw Error("Menüstand konnte nicht sicher gelesen werden.");
+      authorized.current = true;
       setState(data);
       const chosen =
         (command?.action === "create_menu"
@@ -149,9 +215,14 @@ export function MenuEditor({
           : "Menüstand geladen.",
       );
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Menüpflege ist gerade nicht verfügbar.");
+      if (current())
+        setMessage(e instanceof Error ? e.message : "Menüpflege ist gerade nicht verfügbar.");
     } finally {
-      setBusy(false);
+      if (current()) {
+        pending.current = false;
+        controller.current = null;
+        setBusy(false);
+      }
     }
   }
   const itemChange = (id: string, update: Partial<MenuDraftItem>) => {
@@ -173,6 +244,7 @@ export function MenuEditor({
       ]
     : [];
   function submit(command: unknown) {
+    if (!live.current || locationId !== currentLocation.current || !authorized.current) return;
     if (
       command &&
       typeof command === "object" &&
@@ -202,10 +274,15 @@ export function MenuEditor({
             value={locationId}
             onChange={(e) => {
               if (dirty && !window.confirm("Ungespeicherte Änderungen verwerfen?")) return;
+              currentLocation.current = e.target.value;
+              generation.current++;
+              controller.current?.abort();
+              controller.current = null;
+              pending.current = false;
+              setBusy(false);
+              clearEditor();
+              setMessage("");
               setLocation(e.target.value);
-              setState(null);
-              setDraft(null);
-              setDirty(false);
             }}
           >
             {locations.map((l) => (
