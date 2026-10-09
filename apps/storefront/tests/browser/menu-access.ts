@@ -194,12 +194,12 @@ export async function verifyMenuAccessBrowser(page: Page, output: string, width:
     }
     await ready();
     await page.getByLabel("Änderungsnotiz").fill("Private Änderungsnotiz");
-    await page.getByLabel("Standort", { exact: true }).selectOption(locationB);
+    await page.locator(".menu-editor > fieldset > label select").selectOption(locationB);
     await empty();
     await load();
     await page.getByText("Menüstand geladen.", { exact: true }).waitFor();
     assert.equal(await page.getByText(privateDish, { exact: true }).count(), 0);
-    await page.getByLabel("Standort", { exact: true }).selectOption(locationA);
+    await page.locator(".menu-editor > fieldset > label select").selectOption(locationA);
     await load();
     await page.getByText("Menüstand geladen.", { exact: true }).waitFor();
     assert.equal(await page.getByLabel("Änderungsnotiz").inputValue(), "");
