@@ -1,0 +1,75 @@
+name: MG03 prerequisites only
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mg03-prerequisites
+  cancel-in-progress: false
+jobs:
+  prerequisites:
+    if: github.repository == 'PROVIDE-Webdesign/Provide-bestellsystem' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+    env:
+      MG03_JOB_DIR: ${{ runner.temp }}/provide-mg03-prerequisites-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Checkout reviewed controller revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: controller
+          persist-credentials: false
+      - name: Prepare private job directory and validate V003
+        run: python3 controller/tools/mg03-prerequisites/prerequisites.py init
+      - name: Checkout unchanged product candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: cbc78a2240eba05840b6cd712c89025bb6377635
+          path: product
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify candidate and original migrations
+        run: python3 controller/tools/mg03-prerequisites/prerequisites.py sources
+      - name: Set up Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Set up exact Supabase CLI
+        uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359
+        with:
+          version: 2.117.0
+      - name: Install exact pnpm and frozen candidate dependencies
+        working-directory: product
+        run: |
+          set -euo pipefail
+          npm install --global pnpm@11.19.0
+          pnpm install --frozen-lockfile
+          pnpm --filter @provide/contracts build
+          pnpm --filter @provide/storefront exec playwright install --with-deps chromium firefox webkit
+          python3 ../controller/tools/mg03-prerequisites/prerequisites.py installed
+      - name: Install VM-local trust utilities
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates libnss3-tools
+          python3 controller/tools/mg03-prerequisites/prerequisites.py utilities
+      - name: Create and trust disposable local CA
+        run: python3 controller/tools/mg03-prerequisites/prerequisites.py tls
+      - name: Verify runtime, imports, resources and strict TLS only
+        run: python3 controller/tools/mg03-prerequisites/prerequisites.py verify
+      - name: Remove only own keys and trust entries
+        if: always()
+        run: python3 controller/tools/mg03-prerequisites/prerequisites.py cleanup
+      - name: Retain safe prerequisite evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mg03-prerequisites-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.MG03_JOB_DIR }}/evidence
+          include-hidden-files: false
+          if-no-files-found: error
+          retention-days: 7

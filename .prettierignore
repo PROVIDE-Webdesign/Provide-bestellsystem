@@ -4,3 +4,8 @@ dist
 .next
 coverage
 pnpm-lock.yaml
+
+# Preserve byte-identical reviewed E75 MG03 prerequisite sources.
+/.github/workflows/mg03-prerequisites.yml
+/tools/mg03-prerequisites/firefox-trust.mjs
+/tools/mg03-prerequisites/imports.mjs
