@@ -14,8 +14,6 @@ jobs:
     defaults:
       run:
         shell: bash
-    env:
-      MG03_JOB_DIR: ${{ runner.temp }}/provide-mg03-prerequisites-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout reviewed controller revision
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -24,7 +22,12 @@ jobs:
           path: controller
           persist-credentials: false
       - name: Prepare private job directory and validate V003
-        run: python3 controller/tools/mg03-prerequisites/prerequisites.py init
+        env:
+          MG03_JOB_DIR: ${{ runner.temp }}/provide-mg03-prerequisites-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          echo "MG03_JOB_DIR=$MG03_JOB_DIR" >> "$GITHUB_ENV"
+          python3 controller/tools/mg03-prerequisites/prerequisites.py init
       - name: Checkout unchanged product candidate
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
