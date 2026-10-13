@@ -72,7 +72,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: mg03-prerequisites-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.MG03_JOB_DIR }}/evidence
+          path: ${{ runner.temp }}/provide-mg03-prerequisites-${{ github.run_id }}-${{ github.run_attempt }}/evidence
           include-hidden-files: false
           if-no-files-found: error
           retention-days: 7
