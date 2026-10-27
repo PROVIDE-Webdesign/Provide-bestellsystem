@@ -1,0 +1,1 @@
+{"error":{"accepted":false,"errorName":"TypeError","message":"Invalid redirect value, must be one of \"follow\" or \"manual\" (\"error\" won't be implemented since it does not make sense at the edge; use \"manual\" and check the response status code)."},"manual":{"accepted":true}}

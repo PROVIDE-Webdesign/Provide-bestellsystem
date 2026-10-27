@@ -17,7 +17,7 @@ describe("O3 server Siteverify adapter (local HTTP response doubles)", () => {
       expect(
         input instanceof Request ? input.url : typeof input === "string" ? input : input.href,
       ).toBe("https://challenges.cloudflare.com/turnstile/v0/siteverify");
-      expect(init?.redirect).toBe("error");
+      expect(init?.redirect).toBe("manual");
       expect(init?.signal).toBeInstanceOf(AbortSignal);
       expect(typeof init?.body).toBe("string");
       bodies.push(typeof init?.body === "string" ? init.body : "");
@@ -39,6 +39,27 @@ describe("O3 server Siteverify adapter (local HTTP response doubles)", () => {
       idempotency_key: issueId,
     });
   });
+  it.each([301, 302, 303, 307, 308])(
+    "O3-T36 rejects provider redirect HTTP %i without following it",
+    async (status) => {
+      const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(null, {
+          status,
+          headers: { location: "https://redirect-target.invalid/siteverify" },
+        }),
+      );
+      vi.stubGlobal("fetch", fetcher);
+      await expect(
+        turnstileCheckoutChallenge.verify(
+          { secret, hostname: "storefront.test" },
+          "local-token",
+          issueId,
+        ),
+      ).rejects.toThrow("Challenge unavailable");
+      expect(fetcher).toHaveBeenCalledOnce();
+      expect(fetcher.mock.calls[0]?.[1]?.redirect).toBe("manual");
+    },
+  );
   it.each([
     { success: false },
     { hostname: "other.test" },

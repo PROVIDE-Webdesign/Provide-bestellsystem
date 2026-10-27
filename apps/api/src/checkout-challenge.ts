@@ -18,7 +18,8 @@ export const turnstileCheckoutChallenge: CheckoutChallengeVerifier = {
     const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      redirect: "error",
+      // Workers supports manual redirects; the status check below rejects every redirect.
+      redirect: "manual",
       signal: AbortSignal.timeout(5000),
       body: JSON.stringify({ secret: config.secret, response: token, idempotency_key: issueId }),
     });
