@@ -160,7 +160,8 @@
   },
   "source_implementations": {
     "api": "84ed37b27a2f0390004518df7f3a2c3e166f5a69",
-    "frontends": "e6ffa3cc1ba66ed15a32fb13819e2a941f223337"
+    "frontends": "e6ffa3cc1ba66ed15a32fb13819e2a941f223337",
+    "storefront_cloud_git": "2b82753d58687f0acb4009f01acd23ae13cb8026"
   },
   "cloud_deployments": {
     "api": {
@@ -169,7 +170,7 @@
     },
     "storefront": {
       "url": "https://provide-bs-storefront-preview.alpaysey.workers.dev",
-      "version_id": "b906f537-86f5-4931-b3df-e8a43618b43e"
+      "version_id": "8b4d3dac-698d-4439-882d-9beaf3e657b4"
     },
     "dashboard": {
       "url": "https://provide-bs-dashboard-preview.alpaysey.workers.dev",
@@ -223,7 +224,7 @@
   },
   "tool_limitations": {
     "cloud_browser": "Supabase origin observation is blocked by a saved browser permission; no bypass or alternate private access attempted. Public GitHub source and official documentation remain usable.",
-    "native_tests": "Existing native smoke evidence remains valid; PC-dependent work paused. Supabase browser read-only check and GitHub connector remain usable.",
+    "native_tests": "Existing native pilot smoke remains historical evidence. Current changes use GitHub source and local Node tests; remote PC quota and Supabase browser access remain blocked.",
     "remote_pc": "Desktop Commander monthly quota exhausted; calls paused, device remains paired; do not retry/reconnect."
   },
   "pilot_ready": true,
@@ -380,7 +381,7 @@
     "code_or_deployment_changes": false
   },
   "asian_kitchen_integration": {
-    "status": "IMPLEMENTED_LOCAL_CHECKS_PASS_AWAITING_DEPLOYMENT",
+    "status": "PUBLISHED_MENU_VERIFIED_MAPPING_UPDATED_AWAITING_CLOUD_RETRY_AND_ACTIVATION",
     "user_authorization": "2026-10-27: connect the new ordering system while preserving the menu and cart on the supplied completed Asian Kitchen demo; user then instructed to continue.",
     "source_commit": "b8408575c6167e12bad739b15e11d22f1f37ce66",
     "original_source": {
@@ -399,35 +400,47 @@
     ],
     "local_evidence": "docs/planning/evidence/asian-kitchen-integration-local-20261027.json",
     "verification": {
-      "targeted_tests": "11 PASS / 0 FAIL, isolated synthetic counterpart",
+      "targeted_tests": "13 PASS / 0 FAIL against actual published catalog snapshot and isolated synthetic checkout counterpart",
       "syntax": "17 browser modules PASS",
-      "source_binding": "13 runtime/source/build/test files match Git blobs",
+      "source_binding": "Existing runtime modules unchanged. Runtime mapping updated to actual published IDs; tests compare source fixture semantics independently.",
       "asset_build": "PASS",
-      "full_vinext_build": "FIRST_CLOUD_ATTEMPT_FAILED_MISSING_CONTRACTS_DIST; corrected build order awaiting automatic retry",
-      "new_page_browser_ui": "NOT_RUN",
-      "new_page_live_checkout_and_dashboard": "NOT_RUN"
+      "full_vinext_build": "PASS_CLOUD_2b82753; fresh mapping change will receive automatic Cloudflare build",
+      "new_page_browser_ui": "PASS_USER_VIDEO_SCOPED: page, images, menu categories/variants visible; cart empty; no claim of checkout completion",
+      "new_page_live_checkout_and_dashboard": "NOT_RUN",
+      "test_fixture_fix": "Use one issuedAt timestamp for the isolated mock intent. Two Date.now calls could differ by 1 ms and violate the exact 60-minute intent receipt/write interval; initial targeted test failed before reaching transport uncertainty, fixed fixture and all 13 passed. Runtime security parsers unchanged."
     },
-    "deployment": "NOT_RUN; original published demo and currently deployed workers unchanged",
-    "catalog_import": "NOT_RUN; import and explicitly publish full synthetic Asian Kitchen menu for existing pilot restaurant/location before activation",
+    "deployment": "Code deployed successfully via GitHub/Cloudflare at 2b82753, version 8b4d3dac-698d-4439-882d-9beaf3e657b4. This commit updates the menu-ID binding and requests the next automatic build; its outcome is not yet claimed.",
+    "catalog_import": "PASS_USER_EXPORT: one published menu, version a64cd93a-4200-41d6-871a-637c756f71e1, 12 available synthetic products, 3 categories, 8 active variants; uploaded public catalog is current user-supplied evidence, not a fresh agent database query.",
     "scope": "internal synthetic pickup only; payment on fulfillment; delivery, online payment and email remain disabled",
     "known_limit": "free-text special wishes hidden/disabled; nonempty values rejected rather than silently dropped",
     "activation_flag": "ASIAN_KITCHEN_DEMO_ENABLED=true in approved preview runtime only; existing checkout protection, network/gateway secrets and Turnstile remain required",
     "proposed_preview_path": "/asian-kitchen/ (not yet live or verified)",
     "current_blockers": [
-      "User reported ready after planned additional 10 EUR credit. One necessary batched PC call was attempted and still returned monthly quota pause. No worktree inspection/build/deploy executed. Do not retry or reconnect.",
-      "Cloudflare Google sign-in failed; subsequent user-approved direct email/password sign-in returned API login HTTP 403. No authenticated Cloudflare browser state confirmed; do not repeat that failed route.",
-      "Do not observe blocked supabase.com origin or use wrong native Supabase project."
+      "Desktop Commander monthly quota remains paused; no retry/reconnect or extra spend.",
+      "Cloudflare direct browser auth previously returned HTTP403; no retry of that failed login route.",
+      "Dashboard Cloud Browser handoff/read was blocked before fresh MFA and user reports ended browser; user chose normal-browser public catalog export instead. Do not restart this browser loop without a new explicit user request.",
+      "Supabase origin observation remains blocked; wrong inactive native project must not be used."
     ],
     "next": [
-      "Cloudflare Git connection is user-UI confirmed; observe first full build/deployment and fix concrete failures. No extra spend.",
-      "Preserve local worktree changes, inspect actual preview deployment configuration, and use the existing authorized path.",
-      "Publish the full synthetic menu and complete one same-order demo/dashboard/status run with real human verification; no broad regression matrix."
-    ]
+      "Observe automatic Cloudflare mapping deployment.",
+      "Set ASIAN_KITCHEN_DEMO_ENABLED=true only in existing storefront preview runtime; activation not yet observed.",
+      "Complete one normal human-verified pickup order and correlate its same order number with dashboard and customer status."
+    ],
+    "published_catalog": {
+      "date": "2026-10-28",
+      "path": "docs/pilot/asian-kitchen-published-catalog-20261028.json",
+      "menu_id": "f4000000-0000-0000-0000-000000000001",
+      "version_id": "a64cd93a-4200-41d6-871a-637c756f71e1",
+      "source": "User downloaded existing public same-origin catalog route in normal browser and supplied JSON; no credentials, order contacts or session data included.",
+      "binding": "All twelve item IDs differ from the original import fixture because MenuImport generates new IDs. Manifest now uses the twelve published IDs explicitly; all eight variant IDs retained.",
+      "semantics": "All twelve categories, names, descriptions, prices and full configurations match the synthetic import fixture. Source import file remains unchanged.",
+      "new_import_rule": "Every fresh import requires a deliberate review of published IDs and a manifest update. Browser product names/prices never select runtime product identity."
+    }
   },
   "next_actions": [
-    "Observe Cloudflare retry after explicit contracts dependency build; resolve only concrete build/deploy errors.",
-    "Observe first full cloud build/deployment; diagnose concrete errors only.",
-    "Publish full synthetic Asian Kitchen menu, consciously activate demo flag and perform one same-order acceptance run."
+    "Observe cloud build/deploy for published catalog mapping.",
+    "Consciously enable Asian Kitchen preview runtime flag.",
+    "Run one same-order pickup acceptance with real human Turnstile and dashboard/status correlation."
   ],
   "remote_access_usage_policy": {
     "user_instruction_date": "2026-10-27",
@@ -448,7 +461,7 @@
     "alternative_plan": {
       "user_need": "Continue from iPhone throughout 28.10.2026 while PC stays at home.",
       "phone_to_pc": "Chrome Remote Desktop in iPhone browser is a proposed user-operated fallback; no installation or access grant performed by agent.",
-      "deployment": "Existing storefront Worker is connected to the repository and pilot branch in the user's normal browser; first cloud build/deploy not yet verified.",
+      "deployment": "Existing storefront Worker is connected to repository/pilot branch; automatic cloud build and deploy succeeded for 2b82753. Published menu binding update now requests the next deployment.",
       "cost": "No extra spend, purchases, subscriptions or paid resources. Workers Builds official Free allowance verified as 3000 build minutes/month; actual account allowance and compatibility still require inspection.",
       "important_limit": "Chrome Remote Desktop would let the user operate the PC, not give this agent Desktop Commander tool access.",
       "auth": "Existing Chat-browser Cloudflare direct login returned HTTP403. No repeat, fingerprint/network change or assumed shared session from user's own PC browser.",
@@ -456,7 +469,7 @@
     }
   },
   "cloudflare_git_builds": {
-    "status": "CONNECTED_FIRST_BUILD_FAILED_BUILD_ORDER_FIX_PREPARED",
+    "status": "CONNECTED_CLOUD_DEPLOY_PASS_PUBLISHED_MENU_BINDING_RETRY_PENDING",
     "user_decision": "User accepted the Cloudflare-to-GitHub deployment route; no extra spend.",
     "scope": {
       "worker": "provide-bs-storefront-preview",
@@ -492,8 +505,8 @@
     "preservation": "Generated deployment config has empty vars and keep_vars=true; CLI also passes --keep-vars; existing remote runtime variables and encrypted secrets retained. Source placeholders cannot overwrite working checkout config. New Asian Kitchen runtime flag is not changed automatically.",
     "local_verification": "3 scoped tests PASS: remove repository placeholders, enforce preview worker/account and flags, preserve bindings/idempotence. Full Vinext and cloud deployment still NOT_RUN.",
     "configuration_steps": "docs/runbooks/cloudflare-git-preview.md",
-    "missing": "First full cloud build/deploy result, full synthetic menu publication, conscious runtime activation and one same-order acceptance run. Existing agent Cloudflare login remains HTTP403; remote PC quota paused.",
-    "next": "Observe automatic build for this atomic build-order fix; obtain concrete Cloudflare logs if it fails. No further settings changes currently required.",
+    "missing": "Successful automatic build/deploy for latest published item-ID binding, conscious storefront demo activation, and same-order acceptance. First full cloud deployment and menu publication are already confirmed.",
+    "next": "Observe automatic build/deploy for the actual published item-ID binding, then consciously enable ASIAN_KITCHEN_DEMO_ENABLED in storefront preview runtime and complete one same-order acceptance run.",
     "user_setup_review": {
       "date": "2026-10-27",
       "source": "private user-provided 16.5-second screen recording; no video or screenshots copied to public repository",
@@ -535,6 +548,24 @@
       "cause": "Contracts package exports dist/index.js; standalone storefront build omitted dependency compilation that root Turbo normally orders via ^build.",
       "fix": "Storefront build now explicitly runs pnpm --filter @provide/contracts build before existing asset and Vinext build.",
       "validation": "Full retry will be performed by Cloudflare after this commit. No import externalization, new dependencies, runtime secrets or source menu changes."
+    },
+    "successful_deployment": {
+      "source_commit": "2b82753d58687f0acb4009f01acd23ae13cb8026",
+      "build_id": "14db5e97-318c-4736-9b7a-0376d8d991ff",
+      "version_id": "8b4d3dac-698d-4439-882d-9beaf3e657b4",
+      "proof": "Cloudflare GitHub check concluded success with version ID; subsequent user video confirms Asian Kitchen page/menu/images rendered on iPhone.",
+      "browser_smoke_scope": "User navigation and visible menu only; no new checkout acceptance yet."
     }
+  },
+  "dashboard_menu_activation": {
+    "status": "PASS_USER_UI_AND_IMPORT",
+    "scope": "User set DASHBOARD_MENU_ENABLED=true in dashboard and API preview workers; subsequent recording confirms menu editor and successful import. Uploaded catalog proves publication."
+  },
+  "mfa_policy_request": {
+    "status": "NOT_IMPLEMENTED",
+    "date": "2026-10-27",
+    "user_request": "Temporarily disable MFA for testing.",
+    "finding": "API AAL checks, database functions and menu publication/check constraints enforce MFA. Removing a verified factor also activates account recovery blocking. No MFA factor, AAL claim, policy, schema or runtime enforcement changed.",
+    "continuation": "User continued through normal MFA on own browser; later recording visibly shows owner at AAL2. Do not claim MFA was disabled."
   }
 }

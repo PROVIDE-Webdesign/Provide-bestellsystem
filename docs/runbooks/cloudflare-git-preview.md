@@ -1,8 +1,9 @@
 # Cloudflare Workers Builds: bestehender Storefront-Pilot
 
-Stand 27.10.2026: Git-Verbindung zum bestehenden Worker ist bestätigt. Der erste Cloud-Build
-startete und scheiterte am noch nicht gebauten Paket `@provide/contracts`; Deployment ist
-noch nicht erfolgreich nachgewiesen. Dieser Weg benötigt nach erfolgreicher Einrichtung keinen
+Stand 28.10.2026: Git-Verbindung zum bestehenden Worker ist bestätigt. Nach Korrektur der
+Contracts-Buildreihenfolge wurde Commit `2b82753` erfolgreich gebaut und veröffentlicht.
+Die neue Menüzuordnung verwendet jetzt die vom Nutzer exportierten veröffentlichten Artikel-IDs;
+ihren eigenen automatischen Build anschließend beobachten. Checkout-Abnahme steht noch aus. Dieser Weg benötigt nach erfolgreicher Einrichtung keinen
 laufenden Nutzer-PC und keinen bezahlten Desktop-Commander-Zugriff.
 
 ## Einmalige Verknüpfung
@@ -83,12 +84,17 @@ und anschließend Vinext. Das Contracts-Paket exportiert `dist/index.js`; bei ei
 Cloud-Checkout existiert diese Datei vor seinem TypeScript-Build nicht. Die bisherige lokale
 Monorepo-Buildreihenfolge über Turbo hatte diesen Schritt bereits vorgeschaltet.
 
-Nach der Korrektur den vollständigen Cloud-Build und Deploy auswerten. Ein erfolgreicher
-Cloud-Build ist noch nicht belegt; das lokale Executor-Abbild besitzt die Vinext-Abhängigkeiten
-nicht. Den API-Katalog zunächst unverändert lassen, wenn der neue Build fehlschlägt.
-Der vorhandene Worker bleibt bis zu einem erfolgreichen Deployment beim bisherigen Stand.
+Der Cloud-Build für `2b82753` war erfolgreich (Build `14db5e97-318c-4736-9b7a-0376d8d991ff`,
+Worker-Version `8b4d3dac-698d-4439-882d-9beaf3e657b4`). Der Nutzer bestätigte durch ein iPhone-Video,
+dass die zusätzliche Asian-Kitchen-Seite samt Menü und Bildern lädt.
 
-Danach synthetisches Menü importieren/veröffentlichen und genau einen echten Durchlauf mit
+Der Nutzer hat inzwischen das vollständige synthetische Menü veröffentlicht. Der unter
+`docs/pilot/asian-kitchen-published-catalog-20261028.json` festgehaltene öffentliche Katalog
+enthält 12 verfügbare Artikel und 8 Varianten. Nach jedem neuen Import die tatsächlichen
+veröffentlichten IDs bewusst prüfen; die Importoberfläche vergibt neue Artikel-IDs.
+Die neue Manifeständerung benötigt ihren eigenen erfolgreichen automatischen Build.
+
+Nach erfolgreicher Zuordnungsbereitstellung den Storefront-Laufzeitschalter aktivieren und genau einen echten Durchlauf mit
 Variante, Turnstile, Dashboard-Bearbeitung und demselben Kundenstatus unter `/asian-kitchen/`
 belegen. Keine echte Restaurantfreigabe, Lieferung, Onlinezahlungen oder Mail aktivieren.
 

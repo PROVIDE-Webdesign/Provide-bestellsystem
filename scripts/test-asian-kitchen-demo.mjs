@@ -7,14 +7,30 @@ import { parseGuestPickupOrderRequest } from '../apps/storefront/public/asian-ki
 import { taxAmount } from '../apps/storefront/public/asian-kitchen/contracts/tax.js';
 
 const manifest=JSON.parse(await readFile(new URL('../apps/storefront/demo/manifest.json',import.meta.url)));
-const fixture=JSON.parse(await readFile(new URL('../docs/pilot/asian-kitchen-staging-synthetic.json',import.meta.url)));
+const originalFixture=JSON.parse(await readFile(new URL('../docs/pilot/asian-kitchen-staging-synthetic.json',import.meta.url)));
+const published=JSON.parse(await readFile(new URL('../docs/pilot/asian-kitchen-published-catalog-20261028.json',import.meta.url))).data;
+const fixture={items:published.menus.flatMap(m=>m.sections.flatMap(s=>s.items))};
+const expectedNames={
+  "dish-1": "TEST Frühlingsrollen",
+  "dish-2": "TEST Gyoza",
+  "dish-3": "TEST Edamame Meersalz",
+  "dish-4": "TEST Tempura Garnelen",
+  "dish-5": "TEST Crispy Duck",
+  "dish-6": "TEST Beef Teriyaki",
+  "dish-7": "TEST Miso Lachs",
+  "dish-8": "TEST Thai Green Curry",
+  "dish-17": "TEST Mochi Trio",
+  "dish-18": "TEST Matcha Cheesecake",
+  "dish-19": "TEST Mango Sticky Rice",
+  "dish-20": "TEST Yuzu Crème Brûlée"
+};
 const clock=() => new Date('2026-10-27T18:00:00Z');
 const config={privacyNoticeVersion:'preview-v1'};
 const customer={contactName:'Synthetic Pilot',phoneE164:'+4915112345678',email:'synthetic@example.invalid'};
-const menuId='f4000000-0000-0000-0000-000000000001';
-const versionId='f5000000-0000-0000-0000-000000000001';
+const menuId=published.menus[0].id;
+const versionId=published.menus[0].versionId;
 function catalog() {
-  return {restaurant:{slug:manifest.restaurantSlug,name:'Synthetic pilot'},location:{slug:manifest.locationSlug,name:'Synthetic',timezone:'Europe/Berlin',address:{line1:'Testweg 1',line2:null,postalCode:'52062',city:'Aachen',countryCode:'DE'}},menus:[{id:menuId,versionId,name:'Synthetic Asian Kitchen',currency:'EUR',sections:fixture.sections.map(section => ({key:section.key,name:section.name,items:fixture.items.filter(i => i.sectionKey===section.key).map(i => ({id:i.id,name:i.name,description:i.description,priceAmountMinor:i.priceAmountMinor,availability:'available',configuration:i.configuration}))}))}]};
+  return structuredClone(published);
 }
 function draft() {
   return {fulfilment:'pickup',requestedPickupTime:'22:00',items:[{id:'dish-2',name:'Gyoza',variant:'Hähnchen',quantity:2,unitPriceCents:790,specialRequest:''},{id:'dish-1',name:'Frühlingsrollen',variant:'',quantity:1,unitPriceCents:690,specialRequest:''}]};
@@ -31,7 +47,7 @@ function backend({uncertain=false,quoteMismatch=false,issueFailure=false}={}) {
     if(resource==='checkout-context')return reply({ready:true,csrf:'a'.repeat(43),hasExistingIntents:false});
     assert.equal(new Headers(init.headers).get('x-provide-checkout-csrf'),'a'.repeat(43));
     if(resource==='checkout-session'){
-      if(!issue)issue={sessionId:crypto.randomUUID(),submissionKey:body.submissionKey,writeExpiresAt:new Date(Date.now()+1800000).toISOString(),receiptExpiresAt:new Date(Date.now()+5400000).toISOString()};
+      if(!issue){const issuedAt=Date.now();issue={sessionId:crypto.randomUUID(),submissionKey:body.submissionKey,writeExpiresAt:new Date(issuedAt+1800000).toISOString(),receiptExpiresAt:new Date(issuedAt+5400000).toISOString()};}
       if(issueFailure&&!issueFailed){issueFailed=true;return Response.json({error:{code:'service_unavailable'}},{status:503});}
       return reply(issue);
     }
@@ -138,4 +154,31 @@ test('completed order metadata remains recoverable after reload until an explici
   const receipt=await reopened.receipt();assert.equal(receipt.confirmation.orderNumber,'BS-00000099');
   await assert.rejects(reopened.submit(d,customer,'token',crypto.randomUUID()));
   assert.equal(b.calls.filter(x=>x.resource==='orders').length,1);
+});
+
+test('published import keeps twelve source products and eight variants with new item IDs',()=>{
+  assert.equal(published.restaurant.slug,'storefront-restaurant-a');
+  assert.equal(published.location.slug,'storefront-a-mitte');
+  assert.equal(published.location.timezone,'Europe/Berlin');
+  assert.equal(published.menus.length,1);
+  assert.equal(fixture.items.length,12);
+  assert.equal(fixture.items.reduce((n,i)=>n+i.configuration.variants.length,0),8);
+  const ids=new Set();
+  for(const [dish,name] of Object.entries(expectedNames)){
+    const mapped=manifest.items[dish],product=fixture.items.find(i=>i.id===mapped.menuItemId);
+    assert.ok(product,dish+' has a published product');assert.equal(product.name,name);
+    const source=originalFixture.items.find(i=>i.name===name);
+    assert.notEqual(product.id,source.id);assert.equal(product.description,source.description);
+    assert.equal(product.priceAmountMinor,source.priceAmountMinor);
+    assert.deepEqual(product.configuration,source.configuration);
+    assert.ok(!ids.has(product.id));ids.add(product.id);
+    for(const variant of mapped.variants){
+      assert.equal(product.configuration.variants.find(v=>v.id===variant.id)?.name,'TEST '+variant.label);
+    }
+  }
+});
+test('obsolete import IDs cannot select items from the published version',()=>{
+  const stale=structuredClone(manifest);
+  for(const [dish,name] of Object.entries(expectedNames))stale.items[dish].menuItemId=originalFixture.items.find(i=>i.name===name).id;
+  assert.throws(()=>mapDraft(draft(),catalog(),stale,clock()),/veröffentlicht/);
 });

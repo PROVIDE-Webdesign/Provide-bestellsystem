@@ -9,8 +9,12 @@ Speisekarte, ihrer Bilder, Varianten und des Warenkorbs. Die Integration erzeugt
 - Originalquelle: `asian-kitchen.html`, SHA-256 in `manifest.json`.
 - 12 Gerichte, 8 Varianten; der Extraktor bestätigt dieselben Inhalte wie der bisherige
   Asian-Kitchen-12.0-R1-Import. Der Export selbst hat einen anderen Dateihash.
-- Das Manifest ordnet `dish-*` ausschließlich expliziten IDs aus
-  `docs/pilot/asian-kitchen-staging-synthetic.json` zu. Keine Namen-/Preisheuristik.
+- Das Manifest ordnet `dish-*` expliziten IDs des am 28.10.2026 vom Nutzer exportierten,
+  veröffentlichten Testkatalogs `docs/pilot/asian-kitchen-published-catalog-20261028.json` zu.
+  Der Import vergibt neue Artikel-IDs; die IDs der Importdatei dürfen daher nicht direkt als
+  Laufzeitzuordnung verwendet werden. Die 12 Produkte wurden beim Abgleich über Quelle,
+  Kategorie, Beschreibung, Preise und vollständige Konfiguration geprüft; alle 8 Varianten-IDs
+  blieben erhalten. Keine automatische Namen-/Preisheuristik im Bestellablauf.
 - Ausschließlich internes fiktives Restaurant, Testdaten, Abholung und Zahlung bei Abholung.
   Kein echter Restaurantstart und keine fachliche Bestätigung echter Deklarationen.
 - Freie Sonderwünsche fehlen im aktuellen serverseitigen Bestellvertrag. Die Eingabe wird in
@@ -45,6 +49,8 @@ Kontaktdaten, CSRF und Challenge werden nicht im Browserspeicher abgelegt.
    neuen Entwurf für Restaurant `storefront-restaurant-a`, Standort `storefront-a-mitte`
    übernehmen, kontrollieren und bewusst veröffentlichen. Der bisherige Zwei-Artikel-Katalog
    ist dafür nicht ausreichend. Alte Bestellungen behalten ihre bisherigen Snapshots.
+   Nach einem erneuten Import die tatsächlich veröffentlichten Artikel-IDs erneut prüfen und
+   das Manifest bewusst aktualisieren. Die Testdatei allein belegt keine ID-Bindung.
 3. `pnpm --filter @provide/storefront build` erzeugt auch die Asian-Kitchen-Dateien.
 4. Bestehende private Deploymentkonfiguration/Secrets weiterverwenden; zusätzlich ausschließlich
    im Preview-Worker `ASIAN_KITCHEN_DEMO_ENABLED=true` setzen. Keine Secrets ausgeben/committen.

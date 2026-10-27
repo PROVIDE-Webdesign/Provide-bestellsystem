@@ -6,11 +6,11 @@
   "locationSlug": "storefront-a-mitte",
   "items": {
     "dish-1": {
-      "menuItemId": "1b8648a2-23f4-5dc5-abb0-93104ecde3ee",
+      "menuItemId": "31e20d85-5dc1-48e7-9627-fea8af3d454b",
       "variants": []
     },
     "dish-2": {
-      "menuItemId": "414f183b-6c0a-5403-9e9b-52a5ed0f2a5e",
+      "menuItemId": "7f65385f-74bf-4e02-b350-d63639952f08",
       "variants": [
         {
           "label": "Hähnchen",
@@ -23,27 +23,27 @@
       ]
     },
     "dish-3": {
-      "menuItemId": "f93c0a5a-ccfd-51fc-bb23-240a5ee21319",
+      "menuItemId": "bfa10317-2c34-4fa9-94fb-05af65661fdd",
       "variants": []
     },
     "dish-4": {
-      "menuItemId": "9fdfa9dd-1aa4-5c2e-8521-58809760c10b",
+      "menuItemId": "7b329124-be5c-4f0a-8f10-2acf95d563ee",
       "variants": []
     },
     "dish-5": {
-      "menuItemId": "85bf81ee-3d7b-5392-9079-0c6dae0d17e0",
+      "menuItemId": "297fd10e-e63f-4c69-b40a-f5f95d2f2940",
       "variants": []
     },
     "dish-6": {
-      "menuItemId": "facf68b0-da4e-50b9-8510-3f8df91bd18c",
+      "menuItemId": "1a4acbd0-e84f-4443-8172-da35e5cfe0cc",
       "variants": []
     },
     "dish-7": {
-      "menuItemId": "a0682f4b-e991-513a-93a2-fa39bdd15ddf",
+      "menuItemId": "599f3c7f-2778-47cb-81f3-2480ee2748be",
       "variants": []
     },
     "dish-8": {
-      "menuItemId": "95bd31ff-5f51-5615-ab98-c87a0d9ceb53",
+      "menuItemId": "abcb718f-0c70-498b-8b88-499ec36f8bcc",
       "variants": [
         {
           "label": "Tofu",
@@ -60,7 +60,7 @@
       ]
     },
     "dish-17": {
-      "menuItemId": "db810d2d-0cbf-52c5-9a0d-7a6d509f5173",
+      "menuItemId": "fdc6d5e3-ca1e-40dd-bf7b-4d05f85dfd49",
       "variants": [
         {
           "label": "Mango",
@@ -77,15 +77,15 @@
       ]
     },
     "dish-18": {
-      "menuItemId": "c4bb238b-a16e-592b-972d-4de5b12a8c9f",
+      "menuItemId": "9ad69133-9818-41e2-8a92-867279a5a0d0",
       "variants": []
     },
     "dish-19": {
-      "menuItemId": "9d284e8e-7d9c-52b0-ae85-9cf7190a211f",
+      "menuItemId": "1b13fcfd-0d55-4a8c-9902-0743c4562660",
       "variants": []
     },
     "dish-20": {
-      "menuItemId": "71c52b2a-d41a-51e5-a652-6b4fe570edaa",
+      "menuItemId": "18db5977-0aa2-4e46-bc78-997cfcef2abb",
       "variants": []
     }
   }
