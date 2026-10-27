@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-27T19:27:19.845Z",
+  "recorded_at": "2026-10-27T19:42:58.626Z",
   "target_date": "2026-10-28",
   "target": "internal staging test pilot; real restaurant operation not assumed",
   "source_product_head": "cbc78a2240eba05840b6cd712c89025bb6377635",
@@ -66,7 +66,7 @@
     "Interrupted personal MFA setup UX: observed source gap, original runtime cause unconfirmed; defer follow-up because user now reports successful MFA."
   ],
   "next": [
-    "user tests the internal pickup pilot with the personal dashboard account",
+    "use the approved internal pickup pilot and report concrete defects",
     "keep online payments, delivery and business mail disabled; defer broad additional checks"
   ],
   "mfa_smoke": {
@@ -217,7 +217,9 @@
     "cloud_migrations": "PASS46 exact original versions",
     "cloud_normal_mfa": "PASS",
     "cloud_catalog_cart_quote": "PASS",
-    "cloud_customer_submit_duplicate_and_status": "PASS_SCOPED: actual customer submit/status + native owner UI transitions + cloud backend duplicate/conflict replay"
+    "cloud_customer_submit_duplicate_and_status": "PASS_SCOPED: actual customer submit/status + native owner UI transitions + cloud backend duplicate/conflict replay",
+    "personal_user_order_board": "PASS_USER_PHOTOS: normal personal access, order 2 accepted/preparing/ready, order 1 completed",
+    "user_customer_ready_display": "PASS_USER_SCREENSHOT: order 3 ready on iPhone; separate from order 2 dashboard evidence"
   },
   "tool_limitations": {
     "cloud_browser": "Supabase origin observation is blocked by a saved browser permission; no bypass or alternate private access attempted. Public GitHub source and official documentation remain usable.",
@@ -347,5 +349,34 @@
     }
   },
   "remote_worktree_last_verified_head": "561babb05a5fb48a03564dcfb0b7216116fee6d9",
-  "remote_worktree_sync_note": "This documentation update uses GitHub directly after PC quota exhaustion. Fetch and inspect before a later fast-forward of the PC worktree; preserve local changes."
+  "remote_worktree_sync_note": "This documentation update uses GitHub directly after PC quota exhaustion. Fetch and inspect before a later fast-forward of the PC worktree; preserve local changes.",
+  "user_pilot_test": {
+    "result": "PASS_SCOPED_USER_DASHBOARD_TRANSITIONS_AND_CUSTOMER_READY_DISPLAY",
+    "evidence_source": "private user-provided dashboard photos and iPhone customer screenshot",
+    "personal_dashboard": {
+      "order": "BS-00000002",
+      "observed_status_sequence": [
+        "Angenommen",
+        "In Zubereitung",
+        "Abholbereit"
+      ],
+      "other_order": {
+        "number": "BS-00000001",
+        "displayed_status": "Abgeschlossen"
+      }
+    },
+    "customer_status": {
+      "order": "BS-00000003",
+      "displayed_status": "Abholbereit",
+      "items": 2,
+      "amount_minor": 1550,
+      "payment": "Zahlung bei Abholung",
+      "displayed_pickup": "27.10.2026, 22:39 Uhr",
+      "displayed_last_update": "27.10.2026, 20:40:58"
+    },
+    "order_identity_scope": "Latest customer screenshot is order 3; preceding dashboard photos followed order 2. No claim that these user images correlate the same order across both clients. Native same-order proof for order 1 remains separately recorded.",
+    "duplicate_interpretation": "No duplicate classification or current database order count inferred from the new displayed order number.",
+    "live_connection_scope": "Dashboard photos show disconnected live channel with advertised 15-second reload fallback; no fresh WebSocket success claim.",
+    "code_or_deployment_changes": false
+  }
 }
