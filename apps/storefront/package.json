@@ -5,7 +5,7 @@
   "type": "module",
   "license": "UNLICENSED",
   "scripts": {
-    "build": "vinext build",
+    "build": "node ../../scripts/build-asian-kitchen-demo.mjs && vinext build",
     "deploy:preview": "vinext-cloudflare deploy --config dist/server/wrangler.json",
     "dev": "vinext dev",
     "lint": "eslint .",
