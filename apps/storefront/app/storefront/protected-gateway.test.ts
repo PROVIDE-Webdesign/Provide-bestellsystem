@@ -313,3 +313,37 @@ describe("O3 production gateway function units", () => {
     expect(r.headers.get("set-cookie")).toContain("Max-Age=0");
   });
 });
+
+describe("Local pilot catalog transport boundaries", () => {
+  it.each([
+    ["development", "http://127.0.0.1:18787", "GET", true],
+    ["development", "http://localhost:18787", "GET", true],
+    ["development", "http://192.168.1.2:18787", "GET", false],
+    ["development", "http://api.test", "GET", false],
+    ["preview", "http://127.0.0.1:18787", "GET", false],
+    ["production", "http://127.0.0.1:18787", "GET", false],
+    ["", "http://127.0.0.1:18787", "GET", false],
+    ["development", "http://127.0.0.1:18787", "POST", false],
+  ] as const)(
+    "only explicit development loopback reads reach the API (%s %s %s)",
+    async (APP_ENV, PUBLIC_API_URL, method, allowed) => {
+      const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 503 }));
+      const response = await handleCheckoutGateway(
+        new Request(origin + "/api/storefront/storefront-restaurant-a/storefront-a-mitte/catalog", {
+          method,
+        }),
+        { ...params, resource: "catalog" },
+        {
+          ...env,
+          ...(APP_ENV === undefined ? {} : { APP_ENV }),
+          PUBLIC_API_URL,
+          CHECKOUT_PROTECTION_ENABLED: "false",
+        },
+        fetcher,
+        network,
+      );
+      expect(response.status).toBe(503);
+      expect(fetcher).toHaveBeenCalledTimes(allowed ? 1 : 0);
+    },
+  );
+});

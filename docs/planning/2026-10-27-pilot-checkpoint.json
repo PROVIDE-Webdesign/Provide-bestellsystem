@@ -1,0 +1,73 @@
+{
+  "recorded_at": "2026-10-27T13:10:36.056158+00:00",
+  "target_date": "2026-10-28",
+  "target": "internal staging test pilot; real restaurant operation not assumed",
+  "source_product_head": "cbc78a2240eba05840b6cd712c89025bb6377635",
+  "pilot_branch": "codex/pilot-20261028",
+  "build": "PASS:5 build tasks",
+  "database": "isolated local Supabase project provide-bs-pilot-20261028;46 migrations applied",
+  "api_health": "200",
+  "database_health": "200",
+  "catalog_api": "200;two synthetic items",
+  "storefront_health": "200",
+  "dashboard_login_page": "200",
+  "browser_smoke": {
+    "browserBinary": "/home/provide/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell",
+    "layer": "local pilot, actual Chromium and workers, synthetic seeded DB",
+    "cases": [
+      {
+        "id": "PILOT-CATALOG-CART",
+        "dishLoaded": true,
+        "addedToCart": true,
+        "horizontalOverflow": false
+      },
+      {
+        "id": "PILOT-DASHBOARD-ENTRY",
+        "httpLoaded": true,
+        "inputFields": [
+          {
+            "type": "email",
+            "name": "email"
+          },
+          {
+            "type": "password",
+            "name": "password"
+          }
+        ]
+      }
+    ],
+    "result": "PASS_SCOPED_CATALOG_CART_AND_LOGIN_ENTRY"
+  },
+  "local_gateway_fix": "public GET to literal loopback allowed only with APP_ENV=development; production,preview and writes retain HTTPS requirement",
+  "gateway_tests": "PASS29 targeted gateway tests",
+  "storefront_typecheck": "PASS",
+  "login_smoke": {
+    "case": "PILOT-REAL-PASSWORD-LOGIN",
+    "scope": "synthetic local Auth user and actual dashboard; no MFA bypass",
+    "result": "PASS_PASSWORD_AND_MFA_PROMPT",
+    "authResponses": [
+      {
+        "path": "/auth/v1/token",
+        "status": 200
+      }
+    ],
+    "path": "/",
+    "configurationMissing": false,
+    "loginRejected": false,
+    "mfaPrompt": true,
+    "passwordAccepted": true
+  },
+  "real_order_write": "NOT_RUN; closed until checkout gateway and challenge configured",
+  "online_deployment": "BLOCKED:Cloudflare CLI not authenticated; visible Supabase cloud project inactive/unassigned",
+  "credentials": "runtime-only, ignored files; no credentials in Git",
+  "deferred": [
+    "general PR25 end-review",
+    "full fresh browser/restore/load/provider/audit matrices"
+  ],
+  "next": [
+    "complete client-side pilot wiring",
+    "Cloudflare login on existing account",
+    "resolve existing preview database association before any cloud mutation",
+    "configure checkout and run one full pilot order/status flow"
+  ]
+}

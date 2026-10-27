@@ -44,10 +44,13 @@ export const cloudflareCheckoutNetwork: TrustedCheckoutNetwork = (request) => {
   const ip = request.headers.get("cf-connecting-ip");
   return cf && typeof cf.colo === "string" && ip && isIP(ip) ? ip : undefined;
 };
-function safeApiBase(raw: string | undefined): URL | undefined {
+function safeApiBase(raw: string | undefined, allowLocalRead = false): URL | undefined {
   try {
     const u = new URL(raw ?? "");
-    return u.protocol === "https:" &&
+    return (u.protocol === "https:" ||
+      (allowLocalRead &&
+        u.protocol === "http:" &&
+        ["127.0.0.1", "localhost"].includes(u.hostname))) &&
       u.pathname === "/" &&
       !u.username &&
       !u.password &&
@@ -116,7 +119,10 @@ export async function handleCheckoutGateway(
     "online-orders",
     "payment-session",
   ];
-  const base = safeApiBase(env.PUBLIC_API_URL);
+  const base = safeApiBase(
+    env.PUBLIC_API_URL,
+    env.APP_ENV === "development" && request.method === "GET",
+  );
   // Existing public menu/availability remain readable while the new checkout is disabled.
   if (request.method === "GET" && env.CHECKOUT_PROTECTION_ENABLED !== "true" && base)
     return fetchPublicStorefront(request, params, base.toString(), fetcher);

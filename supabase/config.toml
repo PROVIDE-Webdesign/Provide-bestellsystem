@@ -1,11 +1,11 @@
 # Lokale, synthetische Supabase-Testumgebung. Keine entfernten Projektkennungen oder Secrets
 # eintragen. Die PostgreSQL-Hauptversion wird vor dem ersten Preview-Push mit dem entfernten Projekt
 # abgeglichen.
-project_id = "provide-bestellsystem-local"
+project_id = "provide-bs-pilot-20261028"
 
 [db]
-port = 54322
-shadow_port = 54320
+port = 16322
+shadow_port = 16320
 major_version = 15
 
 [db.seed]
@@ -19,3 +19,25 @@ verify_enabled = true
 [auth]
 site_url = "http://127.0.0.1:4321"
 additional_redirect_urls = ["http://127.0.0.1:4321/invitations", "http://127.0.0.1:4321/auth/recovery"]
+
+[api]
+port = 16321
+
+[studio]
+enabled = false
+port = 16323
+
+[inbucket]
+enabled = false
+port = 16324
+
+[analytics]
+enabled = false
+port = 16327
+
+[edge_runtime]
+enabled = false
+
+[db.pooler]
+enabled = false
+port = 16329
