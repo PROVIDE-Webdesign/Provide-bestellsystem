@@ -425,9 +425,9 @@
     ]
   },
   "next_actions": [
-    "No additional spending. Plan a user-operated phone-to-PC fallback and/or an existing-worker Cloudflare Git deployment path; neither is configured yet.",
-    "Preserve local worktree changes, inspect actual preview deployment configuration, and use the existing authorized path.",
-    "Publish the full synthetic menu and complete one same-order demo/dashboard/status run with real human verification; no broad regression matrix."
+    "Complete one-time existing-worker Cloudflare Git connection in user's own normal browser using the prepared settings.",
+    "Observe first full cloud build/deployment; diagnose concrete errors only.",
+    "Publish full synthetic Asian Kitchen menu, consciously activate demo flag and perform one same-order acceptance run."
   ],
   "remote_access_usage_policy": {
     "user_instruction_date": "2026-10-27",
@@ -454,5 +454,45 @@
       "auth": "Existing Chat-browser Cloudflare direct login returned HTTP403. No repeat, fingerprint/network change or assumed shared session from user's own PC browser.",
       "reset": "Monthly free allowance exists; exact 01.11.2026 reset not established."
     }
+  },
+  "cloudflare_git_builds": {
+    "status": "PREPARED_IN_PILOT_BRANCH_NOT_CONNECTED",
+    "user_decision": "User accepted the Cloudflare-to-GitHub deployment route; no extra spend.",
+    "scope": {
+      "worker": "provide-bs-storefront-preview",
+      "account": "46a54934872edeb8dc9197e1810aee86",
+      "repository": "PROVIDE-Webdesign/Provide-bestellsystem",
+      "branch": "codex/pilot-20261028"
+    },
+    "settings": {
+      "root_directory": "apps/storefront",
+      "build_command": "pnpm build",
+      "deploy_command": "pnpm deploy:cloud-preview",
+      "build_variables": {
+        "NODE_VERSION": "24.22.1",
+        "PNPM_VERSION": "11.19.0"
+      },
+      "additional_branch_preview_builds": "disabled",
+      "watch_includes": [
+        "apps/storefront/*",
+        "packages/contracts/*",
+        "scripts/build-asian-kitchen-demo.mjs",
+        "scripts/prepare-storefront-cloud-build.mjs",
+        "pnpm-lock.yaml",
+        "pnpm-workspace.yaml",
+        "package.json",
+        "tsconfig.base.json"
+      ],
+      "watch_excludes": [
+        "docs/*",
+        "*.md"
+      ]
+    },
+    "source_commit": "c42d1355e94609ecd903184f49ae05db100709f6",
+    "preservation": "Generated deployment config has empty vars and keep_vars=true; CLI also passes --keep-vars; existing remote runtime variables and encrypted secrets retained. Source placeholders cannot overwrite working checkout config. New Asian Kitchen runtime flag is not changed automatically.",
+    "local_verification": "3 scoped tests PASS: remove repository placeholders, enforce preview worker/account and flags, preserve bindings/idempotence. Full Vinext and cloud deployment still NOT_RUN.",
+    "configuration_steps": "docs/runbooks/cloudflare-git-preview.md",
+    "missing": "One-time Cloudflare GitHub connection through user's own normal browser, repository-specific consent and actual first build/deploy. Chat-browser login remains HTTP403; remote PC monthly quota remains paused.",
+    "next": "User opens existing preview Worker Settings > Builds > Connect, chooses only the named repository, then enters the prepared fields. No new Worker, paid plan, broad repo grant or production/main merge."
   }
 }
