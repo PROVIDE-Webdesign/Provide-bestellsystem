@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-27T18:35:27.298Z",
+  "recorded_at": "2026-10-27T18:45:23.485Z",
   "target_date": "2026-10-28",
   "target": "internal staging test pilot; real restaurant operation not assumed",
   "source_product_head": "cbc78a2240eba05840b6cd712c89025bb6377635",
@@ -65,7 +65,7 @@
     "full fresh browser/restore/load/provider/audit matrices"
   ],
   "next": [
-    "complete the personal owner's normal dashboard login and user-owned MFA setup",
+    "user completes personal MFA in the signed-in dashboard, then verify AAL2 and permitted pilot restaurant access",
     "user may test the internal pickup pilot and report concrete defects",
     "keep online payments, delivery and business mail disabled; defer broad additional checks"
   ],
@@ -272,7 +272,7 @@
     "new_order_is_separate_test": "intentional second customer test; original essential smoke remains historical proof"
   },
   "personal_dashboard_access": {
-    "status": "OWNER_MEMBERSHIP_VERIFIED_AWAITING_PERSONAL_LOGIN_AND_MFA",
+    "status": "OWNER_MEMBERSHIP_AND_PASSWORD_LOGIN_VERIFIED_AWAITING_PERSONAL_MFA",
     "existing_access": "User-created personal Auth account found directly in the correct project; email confirmed. The Auth users list had not displayed it. No duplicate account created.",
     "intended_scope": "personal owner of fictional internal pilot restaurant and its one location; no Supabase project or billing privileges",
     "explicit_access_approval": "User answered Ja darfst du to the specific personal pilot owner and location grant.",
@@ -292,11 +292,17 @@
       "credentials": "User chose their own password; password and MFA secrets were not read or written by the agent."
     },
     "next": [
-      "complete normal dashboard password login through secure browser authentication",
-      "user enrolls and verifies their own MFA; no sessions or factors are forged"
+      "user takes over the signed-in dashboard to enroll and verify their own MFA privately",
+      "verify the resulting AAL2 dashboard and permitted pilot restaurant access after user completion"
     ],
     "emails_sent": false,
-    "personal_identifiers": "omitted from public repository evidence"
+    "personal_identifiers": "omitted from public repository evidence",
+    "login": {
+      "result": "PASS_NORMAL_PERSONAL_PASSWORD_LOGIN_AAL1",
+      "visible_dashboard": "Sicheres Dashboard; Sicherheitsniveau AAL1; Zweiten Faktor bestätigen; MFA sicher einrichten oder öffnen",
+      "browser_auth": "secure credential broker submitted; no credential values returned to agent",
+      "mfa": "not yet enrolled or verified for this personal user"
+    }
   },
   "remote_worktree_last_verified_head": "561babb05a5fb48a03564dcfb0b7216116fee6d9",
   "remote_worktree_sync_note": "This documentation update uses GitHub directly after PC quota exhaustion. Fetch and inspect before a later fast-forward of the PC worktree; preserve local changes."
