@@ -414,19 +414,28 @@
     "activation_flag": "ASIAN_KITCHEN_DEMO_ENABLED=true in approved preview runtime only; existing checkout protection, network/gateway secrets and Turnstile remain required",
     "proposed_preview_path": "/asian-kitchen/ (not yet live or verified)",
     "current_blockers": [
-      "Desktop Commander monthly quota pause remains in effect; no retry/reconnect",
-      "Cloudflare browser is signed out; user selected Google through secure browserAuth; identifier submit resulted in visible invalid email/phone error; no authenticated result",
-      "Do not observe blocked supabase.com origin or use wrong native Supabase project"
+      "Remote PC credit top-up planned by user; activation not yet confirmed. Earlier monthly quota pause remains untested.",
+      "Cloudflare Google sign-in failed; subsequent user-approved direct email/password sign-in returned API login HTTP 403. No authenticated Cloudflare browser state confirmed; do not repeat that failed route.",
+      "Do not observe blocked supabase.com origin or use wrong native Supabase project."
     ],
     "next": [
-      "complete Cloudflare sign-in through supported user flow, then inspect actual deployment capability; do not claim sign-in alone guarantees publication",
-      "obtain full storefront build and deploy through existing authorized preview path when available",
-      "publish synthetic menu and complete one same-order demo/dashboard/status run with real human verification; no broad regression matrix"
+      "Wait for user confirmation that remote-access credit is active; then use remote PC only for necessary private configuration, full build and deployment.",
+      "Preserve local worktree changes, inspect actual preview deployment configuration, and use the existing authorized path.",
+      "Publish the full synthetic menu and complete one same-order demo/dashboard/status run with real human verification; no broad regression matrix."
     ]
   },
   "next_actions": [
-    "complete Cloudflare sign-in through supported user flow, then inspect actual deployment capability; do not claim sign-in alone guarantees publication",
-    "obtain full storefront build and deploy through existing authorized preview path when available",
-    "publish synthetic menu and complete one same-order demo/dashboard/status run with real human verification; no broad regression matrix"
-  ]
+    "Wait for user confirmation that remote-access credit is active; then use remote PC only for necessary private configuration, full build and deployment.",
+    "Preserve local worktree changes, inspect actual preview deployment configuration, and use the existing authorized path.",
+    "Publish the full synthetic menu and complete one same-order demo/dashboard/status run with real human verification; no broad regression matrix."
+  ],
+  "remote_access_usage_policy": {
+    "user_instruction_date": "2026-10-27",
+    "user_statement": "User plans an additional 10 EUR of remote-access credit and requires remote access only when necessary.",
+    "credit_status": "PLANNED_BY_USER_NOT_YET_CONFIRMED_ACTIVE",
+    "rule": "Use GitHub and the local executor for source changes, documentation and targeted checks whenever sufficient. Use remote PC only for necessary private runtime/configuration access, full build, deployment and indispensable verification unavailable through other authorized tools.",
+    "execution": "Prepare commands before the remote call; combine dependent operations in bounded batches; inspect returned results before any adaptive follow-up. Do not poll, reconnect, reinstall, or repeat successful checks without new evidence.",
+    "prohibited": "No purchase, subscription change, extra token creation or expanded account access is authorized by this statement. Do not retry paused Desktop Commander calls until the user confirms activation or independent evidence establishes resumed availability.",
+    "next_remote_task": "After credit activation is confirmed: inspect worktree and private deployment configuration without printing credentials; preserve local changes; then perform the existing preview build/deployment path as available."
+  }
 }
