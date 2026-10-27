@@ -1,0 +1,74 @@
+{
+  "recorded_at": "2026-10-27T17:17:05.739174+00:00",
+  "case": "PILOT-CLOUD-COMPLETE-PICKUP",
+  "scope": "internal preview with fictional tenant and synthetic contact; pickup, pay on collection; no production restaurant acceptance",
+  "implementation_commits": {
+    "api": "84ed37b27a2f0390004518df7f3a2c3e166f5a69",
+    "frontends": "e6ffa3cc1ba66ed15a32fb13819e2a941f223337"
+  },
+  "worker_versions": {
+    "api": "f9849f1e-5956-476b-81c4-563177149d5f",
+    "storefront": "b906f537-86f5-4931-b3df-e8a43618b43e",
+    "dashboard": "a7bfb23a-2dd3-4971-89a8-802692460a2f"
+  },
+  "order": {
+    "id": "04a778a1-4424-47b5-aced-624ac338fad3",
+    "number": "BS-00000001",
+    "items": 2,
+    "total_amount_minor": 1550,
+    "currency": "EUR",
+    "status": "ready",
+    "orders_in_pilot_database": 1
+  },
+  "cases": [
+    {
+      "id": "PILOT-REAL-CHALLENGE-ISSUE",
+      "result": "PASS",
+      "layer": "actual cloud-browser managed Turnstile checkbox, explicitly approved by user; normal server verification issued session"
+    },
+    {
+      "id": "PILOT-CLOUD-CUSTOMER-SUBMIT",
+      "result": "PASS",
+      "layer": "actual cloud browser cart, quote, review and protected customer submit; confirmation BS-00000001"
+    },
+    {
+      "id": "PILOT-CLOUD-DUPLICATE-REPLAY",
+      "result": "PASS",
+      "layer": "cloud database backend replay of that committed human-verified session; original complete payload fingerprint independently reconstructed and matched; two repeats return same order, conflicting fingerprint rejected",
+      "limits": "second browser HTTP submission not claimed"
+    },
+    {
+      "id": "PILOT-CLOUD-OWNER-MFA-STATUS",
+      "result": "PASS",
+      "layer": "native Chromium test of normal password/TOTP MFA and owner UI; role owner AAL2, one location",
+      "transitions": [
+        {
+          "target": "accepted",
+          "proof": "native owner UI action committed; then owner read, DB and actual customer browser showed accepted"
+        },
+        {
+          "target": "preparing",
+          "http": 200,
+          "proof": "native owner UI transition; actual DB preparing"
+        },
+        {
+          "target": "ready",
+          "http": 200,
+          "proof": "native owner UI transition; actual DB ready and ready detail visible"
+        }
+      ]
+    },
+    {
+      "id": "PILOT-CLOUD-CUSTOMER-STATUS",
+      "result": "PASS",
+      "layer": "same actual customer browser and retained status capability; visible Abholbereit, BS-00000001, EUR15.50, two items after refresh"
+    }
+  ],
+  "test_harness_notes": "Owner UI intentionally closes details after each transition. The smoke harness was adjusted to reopen the order and resume committed transitions; no status implementation change was needed.",
+  "deferred": [
+    "full fresh CI/browser matrix/restore/load/audit suites",
+    "online payments, delivery and mail remain disabled",
+    "formal user acceptance and production restaurant activation"
+  ],
+  "result": "PASS_INTERNAL_SYNTHETIC_PICKUP_PILOT"
+}

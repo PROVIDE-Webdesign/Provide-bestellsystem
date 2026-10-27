@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-27T16:58:31.118654+00:00",
+  "recorded_at": "2026-10-27T17:17:05.739174+00:00",
   "target_date": "2026-10-28",
   "target": "internal staging test pilot; real restaurant operation not assumed",
   "source_product_head": "cbc78a2240eba05840b6cd712c89025bb6377635",
@@ -57,17 +57,16 @@
     "mfaPrompt": true,
     "passwordAccepted": true
   },
-  "real_order_write": "NOT_RUN: real managed Turnstile needs an interactive human verification; no order created",
-  "online_deployment": "DEPLOYED: three preview workers; essential order submission remains blocked at interactive real Turnstile",
+  "real_order_write": "PASS: actual normal cloud browser protected submit, order BS-00000001 EUR15.50; no auth/provider bypass",
+  "online_deployment": "DEPLOYED_AND_SCOPED_SMOKE_PASS: internal synthetic pickup pilot",
   "credentials": "runtime-only, ignored files; no credentials in Git",
   "deferred": [
     "general PR25 end-review",
     "full fresh browser/restore/load/provider/audit matrices"
   ],
   "next": [
-    "complete the real interactive Cloudflare challenge with per-action confirmation in an available browser",
-    "submit one synthetic pickup order and verify the same-order duplicate response",
-    "verify order arrival, owner status transition and customer status"
+    "user may test the internal pickup pilot and report concrete defects",
+    "resume deferred broader checks and non-pilot functions later under existing decisions"
   ],
   "mfa_smoke": {
     "case": "PILOT-REAL-MFA-AND-ACCESS",
@@ -147,10 +146,11 @@
     "restaurant": 1,
     "location": 1,
     "menu_items": 2,
-    "orders": 0,
     "normal_auth_owner": true,
-    "cloud_mfa": "not enrolled yet",
-    "rls_disabled_public_tables": 0
+    "cloud_mfa": "PASS: normal TOTP enrollment/verification, owner AAL2",
+    "rls_disabled_public_tables": 0,
+    "orders_before_smoke": 0,
+    "orders_after_smoke": 1
   },
   "turnstile": {
     "managed_widget_created": true,
@@ -187,20 +187,16 @@
     "scope": "real deployed services and normal Supabase Auth; synthetic owner; no authentication bypass"
   },
   "cloud_pickup_smoke": {
-    "case": "PILOT-CLOUD-PICKUP",
-    "result": "BLOCKED_AT_REAL_CHALLENGE",
-    "catalog_http": 200,
-    "checkout_context_http": 200,
-    "cart_quote_http": 200,
-    "quote_amount_minor": 1550,
-    "currency": "EUR",
-    "items": [
-      "Gem\u00fcsecurry:1250",
-      "Duftreis:300"
-    ],
-    "real_managed_turnstile": "interactive Verify you are human checkbox visible; no interaction attempted",
-    "orders_in_database": 0,
-    "submit_duplicate_status_cases": "NOT_RUN"
+    "case": "PILOT-CLOUD-COMPLETE-PICKUP",
+    "result": "PASS_INTERNAL_SYNTHETIC_PICKUP_PILOT",
+    "order_number": "BS-00000001",
+    "order_count": 1,
+    "amount_minor": 1550,
+    "items": 2,
+    "final_status": "ready",
+    "actual_customer_browser_status": "Abholbereit",
+    "duplicate_proof_layer": "actual committed cloud session replayed at database boundary with independently matched original payload fingerprint; no duplicate order",
+    "full_evidence": "docs/planning/evidence/pilot-cloud-complete-pickup-20261027.json"
   },
   "cloud_runtime_write_fix": {
     "confirmed_failure": "SQLSTATE25006",
@@ -220,13 +216,13 @@
     "cloud_migrations": "PASS46 exact original versions",
     "cloud_normal_mfa": "PASS",
     "cloud_catalog_cart_quote": "PASS",
-    "cloud_customer_submit_duplicate_and_status": "BLOCKED_AT_INTERACTIVE_TURNSTILE"
+    "cloud_customer_submit_duplicate_and_status": "PASS_SCOPED: actual customer submit/status + native owner UI transitions + cloud backend duplicate/conflict replay"
   },
   "tool_limitations": {
-    "cloud_browser": "available again; correct synthetic cart prepared in tab7; no CAPTCHA interaction attempted",
+    "cloud_browser": "available; actual submit and public ready status verified; customer tab kept as deliverable",
     "native_tests": "continue working on the connected user computer; challenge was observed but not clicked"
   },
-  "pilot_ready": false,
+  "pilot_ready": true,
   "cloud_challenge_fix": {
     "user_video": "real client widget success, then server-side issue preparation failure; no order created",
     "confirmed_root_cause": "workerd TypeError for Request redirect:error, before upstream request; native probe proves manual accepted",
@@ -248,6 +244,14 @@
       "intent_returned": false
     },
     "real_provider_configuration_probe": "HTTP200 success=false invalid-input-response; secret not logged",
-    "positive_real_order": "NOT_RUN; prepared browser awaiting real challenge"
-  }
+    "positive_real_order": "PASS: explicitly approved real managed checkbox, server-issued intent, actual order submitted"
+  },
+  "cloud_owner_order_status": {
+    "result": "PASS_REAL_MFA_INCOMING_ORDER_AND_READY_TRANSITIONS",
+    "aal": "aal2",
+    "role": "owner",
+    "final_status": "ready",
+    "total_amount_minor": 1550
+  },
+  "pilot_readiness_scope": "technical internal staging pickup pilot with synthetic tenant/data; no production operation or formal user end-acceptance"
 }
