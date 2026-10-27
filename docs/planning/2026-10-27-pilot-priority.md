@@ -31,12 +31,17 @@ Passwortanmeldung sowie reguläre MFA-Einrichtung und Codeprüfung funktionieren
 Inhaberzugriff mit AAL2 und die leere Bestellübersicht (HTTP 200) bestätigt. Noch keine
 Testbestellung.
 
-Cloudflare: Eine Geräteanmeldung war erfolgreich, gewährte aber nur Zugriff auf ein anderes Konto
-als das dokumentierte Bestellsystem-Preview-Konto. Dessen Hyperdrive-Lesezugriff wurde abgelehnt.
-Eine neue Gerätefreigabe für das vorgesehene Konto wurde angefordert. Keine Cloudänderung und keine
-Zuordnung des pausierten Supabase-Projekts allein aus dessen Sichtbarkeit.
+Cloudflare: Zugang zum dokumentierten Bestellsystem-Preview-Konto ist jetzt bestätigt. Ein
+authentifizierter Hyperdrive-GET ordnet provide-bs-postgres-preview eindeutig dem Supabase-Projekt
+bobucujpbbqoustcnlyq zu. Der aktuelle Supabase-Connector hat dafür keine Berechtigung; die lokale
+CLI ist ebenfalls nicht angemeldet. Das andere sichtbare, pausierte Projekt kyuanppwfxtgeyfcyqvn
+bleibt unzugeordnet und unangetastet. Die bisherige Cloudflare-Anmeldung muss nicht wiederholt
+werden. Der vorhandene Hyperdrive-SQL-Cache ist noch eingeschaltet; vor Checkout-Aktivierung
+ausschalten. Die vorhandenen Preview-Health-URLs lieferten HTTP 403; daraus folgt kein positiver
+Laufzeitnachweis.
 
-NEXT: Zugang zum dokumentierten Preview-Konto abschließen, bestehende Hyperdrive-/Datenbankzuordnung
-lesen, geschützten Checkout konfigurieren und genau einen vollständigen synthetischen Abholauftrag
-mit Bestelleingang und Statuswechsel prüfen. Danach erreichbaren Staging-Piloten bereitstellen. Der
-Termin bleibt ein Ziel; der vollständige Bestellweg und die Online-Bereitstellung sind offen.
+NEXT: Supabase-Zugriff für bobucujpbbqoustcnlyq freigeben, tatsächlichen Projekt-/Schema- und
+Migrationsstand lesen, danach die geschützte Checkout-Laufzeit konfigurieren und genau einen
+vollständigen synthetischen Abholauftrag mit Doppelabsendung, Bestelleingang und Statuswechsel
+prüfen. Anschließend erreichbaren Staging-Piloten bereitstellen. Der Termin bleibt ein Ziel;
+vollständiger Bestellweg und Online-Bereitstellung sind offen.

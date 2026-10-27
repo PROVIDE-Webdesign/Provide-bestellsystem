@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-27T13:29:24.990067+00:00",
+  "recorded_at": "2026-10-27T14:09:42.930113+00:00",
   "target_date": "2026-10-28",
   "target": "internal staging test pilot; real restaurant operation not assumed",
   "source_product_head": "cbc78a2240eba05840b6cd712c89025bb6377635",
@@ -58,16 +58,17 @@
     "passwordAccepted": true
   },
   "real_order_write": "NOT_RUN; closed until checkout gateway and challenge configured",
-  "online_deployment": "BLOCKED:successful OAuth belongs to a different account from the documented preview account; correct-account device approval pending; cloud database association unresolved",
+  "online_deployment": "BLOCKED:correct Cloudflare access confirmed; Supabase management access to the actual linked preview project is missing",
   "credentials": "runtime-only, ignored files; no credentials in Git",
   "deferred": [
     "general PR25 end-review",
     "full fresh browser/restore/load/provider/audit matrices"
   ],
   "next": [
-    "finish Cloudflare device authorization for documented preview account",
-    "read existing Hyperdrive configuration and identify cloud database before mutation",
-    "configure protected checkout, then run one complete synthetic pickup order and dashboard/status flow",
+    "authorize current Supabase connection for project bobucujpbbqoustcnlyq; Cloudflare login already complete",
+    "read actual project status/schema/migrations before any data changes",
+    "disable Hyperdrive SQL caching before enabling protected checkout",
+    "configure checkout and run one complete synthetic pickup order, duplicate submission and dashboard/status flow",
     "publish and verify the internal staging pilot"
   ],
   "mfa_smoke": {
@@ -92,9 +93,24 @@
   },
   "cloudflare_access": {
     "expected_preview_account": "46a54934872edeb8dc9197e1810aee86",
-    "last_verified_oauth_account": "8cb50751b27d1c133b1231cd72469cf7",
-    "expected_preview_account_access": "DENIED:Hyperdrive GET authentication error 10000",
-    "new_device_authorization": "requested; human approval pending at this checkpoint",
+    "last_verified_oauth_account": "46a54934872edeb8dc9197e1810aee86",
+    "expected_preview_account_access": "PASS:OAuth identity and Hyperdrive GET",
     "cloud_mutations": false
+  },
+  "preview_database_association": {
+    "hyperdrive_name": "provide-bs-postgres-preview",
+    "hyperdrive_id": "5a73616416a04caf8f6df75d8dd34d0f",
+    "supabase_project_ref": "bobucujpbbqoustcnlyq",
+    "database_host": "db.bobucujpbbqoustcnlyq.supabase.co",
+    "association": "verified by authenticated existing Hyperdrive configuration",
+    "hyperdrive_sql_caching_disabled": false,
+    "management_connection": "DENIED:current Supabase connector cannot access this project",
+    "local_cli": "not authenticated",
+    "other_visible_project": "kyuanppwfxtgeyfcyqvn remains inactive and unassigned; do not restore it for this pilot"
+  },
+  "existing_preview_health": {
+    "api_health_http": 403,
+    "database_health_http": 403,
+    "interpretation": "no positive application/database health proof from these responses"
   }
 }
