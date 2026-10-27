@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-27T17:37:11.527Z",
+  "recorded_at": "2026-10-27T18:35:27.298Z",
   "target_date": "2026-10-28",
   "target": "internal staging test pilot; real restaurant operation not assumed",
   "source_product_head": "cbc78a2240eba05840b6cd712c89025bb6377635",
@@ -65,7 +65,7 @@
     "full fresh browser/restore/load/provider/audit matrices"
   ],
   "next": [
-    "complete the user's personal dashboard account/password/MFA setup for the same internal pilot",
+    "complete the personal owner's normal dashboard login and user-owned MFA setup",
     "user may test the internal pickup pilot and report concrete defects",
     "keep online payments, delivery and business mail disabled; defer broad additional checks"
   ],
@@ -220,7 +220,7 @@
     "cloud_customer_submit_duplicate_and_status": "PASS_SCOPED: actual customer submit/status + native owner UI transitions + cloud backend duplicate/conflict replay"
   },
   "tool_limitations": {
-    "cloud_browser": "available; actual submit and public ready status verified; customer tab kept as deliverable",
+    "cloud_browser": "available; approved personal pilot owner/location data assignment and post-write RLS verification completed",
     "native_tests": "Existing native smoke evidence remains valid; PC-dependent work paused. Supabase browser read-only check and GitHub connector remain usable.",
     "remote_pc": "Desktop Commander monthly quota exhausted; calls paused, device remains paired; do not retry/reconnect."
   },
@@ -272,16 +272,31 @@
     "new_order_is_separate_test": "intentional second customer test; original essential smoke remains historical proof"
   },
   "personal_dashboard_access": {
-    "status": "PREPARED_AWAITING_USER_CREDENTIAL_CREATION",
-    "existing_access": "technical synthetic owner account; personal user login not yet provisioned",
-    "prepared_surface": "Supabase project Auth > Users > Create new user; empty email/password fields; no create action performed",
+    "status": "OWNER_MEMBERSHIP_VERIFIED_AWAITING_PERSONAL_LOGIN_AND_MFA",
+    "existing_access": "User-created personal Auth account found directly in the correct project; email confirmed. The Auth users list had not displayed it. No duplicate account created.",
     "intended_scope": "personal owner of fictional internal pilot restaurant and its one location; no Supabase project or billing privileges",
+    "explicit_access_approval": "User answered Ja darfst du to the specific personal pilot owner and location grant.",
+    "verification": {
+      "role": "owner",
+      "status": "active",
+      "restaurants": 1,
+      "locations": 1,
+      "rls_enabled_and_forced_both_tables": true,
+      "channel": "authorized Supabase SQL Editor, separate post-write read"
+    },
+    "execution": {
+      "confirmed_target_users": 1,
+      "memberships_created": 1,
+      "location_assignments_created": 1,
+      "security_review": "Run without RLS was blocked by automatic review and cancelled. Read-only checks proved both existing tables had enabled and forced RLS. Used the safer Run and enable RLS option; post-write protection remained enabled and forced.",
+      "credentials": "User chose their own password; password and MFA secrets were not read or written by the agent."
+    },
     "next": [
-      "user creates personal account and chooses own password privately in the prepared browser form",
-      "verify exact created user identity and configure only internal pilot restaurant owner membership",
-      "user signs in through normal dashboard and sets up their own MFA; no sessions or factors are forged"
+      "complete normal dashboard password login through secure browser authentication",
+      "user enrolls and verifies their own MFA; no sessions or factors are forged"
     ],
-    "emails_sent": false
+    "emails_sent": false,
+    "personal_identifiers": "omitted from public repository evidence"
   },
   "remote_worktree_last_verified_head": "561babb05a5fb48a03564dcfb0b7216116fee6d9",
   "remote_worktree_sync_note": "This documentation update uses GitHub directly after PC quota exhaustion. Fetch and inspect before a later fast-forward of the PC worktree; preserve local changes."
