@@ -378,5 +378,55 @@
     "duplicate_interpretation": "No duplicate classification or current database order count inferred from the new displayed order number.",
     "live_connection_scope": "Dashboard photos show disconnected live channel with advertised 15-second reload fallback; no fresh WebSocket success claim.",
     "code_or_deployment_changes": false
-  }
+  },
+  "asian_kitchen_integration": {
+    "status": "IMPLEMENTED_LOCAL_CHECKS_PASS_AWAITING_DEPLOYMENT",
+    "user_authorization": "2026-10-27: connect the new ordering system while preserving the menu and cart on the supplied completed Asian Kitchen demo; user then instructed to continue.",
+    "source_commit": "b8408575c6167e12bad739b15e11d22f1f37ce66",
+    "original_source": {
+      "path": "apps/storefront/demo/asian-kitchen.html",
+      "sha256": "20feee61f68711da0ffb938ff0752da8a65cb74f7c6363df3cb4cb90c2cbc3bc",
+      "dishes": 12,
+      "variants": 8,
+      "menu_and_embedded_image_parity": "PASS"
+    },
+    "implementation": [
+      "existing demo menu/cart retained; explicit synthetic item and variant IDs",
+      "existing protected CheckoutClient and contract parsers reused through same-origin gateway",
+      "server price/time review, contacts, privacy notice, real Turnstile hook and order submission",
+      "receipt-first recovery after uncertainty/reload, double-submit guard, manual status refresh",
+      "Node 24 asset generation included in storefront build; runtime activation defaults false"
+    ],
+    "local_evidence": "docs/planning/evidence/asian-kitchen-integration-local-20261027.json",
+    "verification": {
+      "targeted_tests": "11 PASS / 0 FAIL, isolated synthetic counterpart",
+      "syntax": "17 browser modules PASS",
+      "source_binding": "13 runtime/source/build/test files match Git blobs",
+      "asset_build": "PASS",
+      "full_vinext_build": "NOT_RUN",
+      "new_page_browser_ui": "NOT_RUN",
+      "new_page_live_checkout_and_dashboard": "NOT_RUN"
+    },
+    "deployment": "NOT_RUN; original published demo and currently deployed workers unchanged",
+    "catalog_import": "NOT_RUN; import and explicitly publish full synthetic Asian Kitchen menu for existing pilot restaurant/location before activation",
+    "scope": "internal synthetic pickup only; payment on fulfillment; delivery, online payment and email remain disabled",
+    "known_limit": "free-text special wishes hidden/disabled; nonempty values rejected rather than silently dropped",
+    "activation_flag": "ASIAN_KITCHEN_DEMO_ENABLED=true in approved preview runtime only; existing checkout protection, network/gateway secrets and Turnstile remain required",
+    "proposed_preview_path": "/asian-kitchen/ (not yet live or verified)",
+    "current_blockers": [
+      "Desktop Commander monthly quota pause remains in effect; no retry/reconnect",
+      "Cloudflare browser is signed out; user selected Google through secure browserAuth; identifier submit resulted in visible invalid email/phone error; no authenticated result",
+      "Do not observe blocked supabase.com origin or use wrong native Supabase project"
+    ],
+    "next": [
+      "complete Cloudflare sign-in through supported user flow, then inspect actual deployment capability; do not claim sign-in alone guarantees publication",
+      "obtain full storefront build and deploy through existing authorized preview path when available",
+      "publish synthetic menu and complete one same-order demo/dashboard/status run with real human verification; no broad regression matrix"
+    ]
+  },
+  "next_actions": [
+    "complete Cloudflare sign-in through supported user flow, then inspect actual deployment capability; do not claim sign-in alone guarantees publication",
+    "obtain full storefront build and deploy through existing authorized preview path when available",
+    "publish synthetic menu and complete one same-order demo/dashboard/status run with real human verification; no broad regression matrix"
+  ]
 }
