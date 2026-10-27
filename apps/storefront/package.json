@@ -12,7 +12,8 @@
     "start": "wrangler dev --config dist/server/wrangler.json",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test:browser": "node --experimental-strip-types tests/browser/run.ts"
+    "test:browser": "node --experimental-strip-types tests/browser/run.ts",
+    "deploy:cloud-preview": "node ../../scripts/prepare-storefront-cloud-build.mjs && wrangler deploy --config dist/server/wrangler.json --keep-vars"
   },
   "dependencies": {
     "@provide/contracts": "workspace:*",
