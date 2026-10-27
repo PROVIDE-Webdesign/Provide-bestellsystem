@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-27T16:29:30.120594+00:00",
+  "recorded_at": "2026-10-27T16:58:31.118654+00:00",
   "target_date": "2026-10-28",
   "target": "internal staging test pilot; real restaurant operation not assumed",
   "source_product_head": "cbc78a2240eba05840b6cd712c89025bb6377635",
@@ -158,13 +158,13 @@
     "secrets": "runtime-only"
   },
   "source_implementations": {
-    "api": "96ff45c16f5364e063d753a4e7aa57a3ce5c908a",
+    "api": "84ed37b27a2f0390004518df7f3a2c3e166f5a69",
     "frontends": "e6ffa3cc1ba66ed15a32fb13819e2a941f223337"
   },
   "cloud_deployments": {
     "api": {
       "url": "https://provide-bs-api-preview.alpaysey.workers.dev",
-      "version_id": "24a29fdb-4432-4dcc-9eb4-17b67a69acb7"
+      "version_id": "f9849f1e-5956-476b-81c4-563177149d5f"
     },
     "storefront": {
       "url": "https://provide-bs-storefront-preview.alpaysey.workers.dev",
@@ -223,8 +223,31 @@
     "cloud_customer_submit_duplicate_and_status": "BLOCKED_AT_INTERACTIVE_TURNSTILE"
   },
   "tool_limitations": {
-    "cloud_browser": "execution environment became unavailable during this turn; cannot currently hand off or interact with its challenge",
+    "cloud_browser": "available again; correct synthetic cart prepared in tab7; no CAPTCHA interaction attempted",
     "native_tests": "continue working on the connected user computer; challenge was observed but not clicked"
   },
-  "pilot_ready": false
+  "pilot_ready": false,
+  "cloud_challenge_fix": {
+    "user_video": "real client widget success, then server-side issue preparation failure; no order created",
+    "confirmed_root_cause": "workerd TypeError for Request redirect:error, before upstream request; native probe proves manual accepted",
+    "source_commit": "84ed37b27a2f0390004518df7f3a2c3e166f5a69",
+    "change": "Siteverify uses manual redirects; all non-2xx including 3xx still rejected",
+    "targeted_tests": "PASS55 across challenge adapter and protected coordinator",
+    "typecheck": "PASS",
+    "negative_cloud_before": {
+      "http": 503,
+      "intent_returned": false
+    },
+    "negative_cloud_after": {
+      "http": 409,
+      "intent_returned": false,
+      "database_issue_outcome": "rejected"
+    },
+    "cached_bad_token_cross_issue_replay": {
+      "http": 403,
+      "intent_returned": false
+    },
+    "real_provider_configuration_probe": "HTTP200 success=false invalid-input-response; secret not logged",
+    "positive_real_order": "NOT_RUN; prepared browser awaiting real challenge"
+  }
 }

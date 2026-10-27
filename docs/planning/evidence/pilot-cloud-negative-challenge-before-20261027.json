@@ -1,0 +1,7 @@
+{
+  "bootstrapHttp": 200,
+  "issueHttp": 503,
+  "errorCode": "service_unavailable",
+  "intentReturned": false,
+  "scope": "real provider negative verification; deliberately invalid token; no CAPTCHA solve, bypass or success mock"
+}
