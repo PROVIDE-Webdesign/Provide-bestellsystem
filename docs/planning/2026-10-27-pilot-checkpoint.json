@@ -419,13 +419,13 @@
       "Do not observe blocked supabase.com origin or use wrong native Supabase project."
     ],
     "next": [
-      "No additional spending. Plan a user-operated phone-to-PC fallback and/or an existing-worker Cloudflare Git deployment path; neither is configured yet.",
+      "Cloudflare Git connection is user-UI confirmed; observe first full build/deployment and fix concrete failures. No extra spend.",
       "Preserve local worktree changes, inspect actual preview deployment configuration, and use the existing authorized path.",
       "Publish the full synthetic menu and complete one same-order demo/dashboard/status run with real human verification; no broad regression matrix."
     ]
   },
   "next_actions": [
-    "Correct the UI path: existing provide-bs-storefront-preview Worker > Settings > Builds > Connect; use prepared Git settings, not new Pages site creation.",
+    "Observe the first Cloudflare Workers Git build for the connected storefront preview after this checkpoint commit; no new Pages project or paid resources.",
     "Observe first full cloud build/deployment; diagnose concrete errors only.",
     "Publish full synthetic Asian Kitchen menu, consciously activate demo flag and perform one same-order acceptance run."
   ],
@@ -448,7 +448,7 @@
     "alternative_plan": {
       "user_need": "Continue from iPhone throughout 28.10.2026 while PC stays at home.",
       "phone_to_pc": "Chrome Remote Desktop in iPhone browser is a proposed user-operated fallback; no installation or access grant performed by agent.",
-      "deployment": "Cloudflare Workers Builds connected to existing GitHub pilot branch is a proposed alternative to PC-based deployment; not configured or authorized as a new persistent GitHub integration yet.",
+      "deployment": "Existing storefront Worker is connected to the repository and pilot branch in the user's normal browser; first cloud build/deploy not yet verified.",
       "cost": "No extra spend, purchases, subscriptions or paid resources. Workers Builds official Free allowance verified as 3000 build minutes/month; actual account allowance and compatibility still require inspection.",
       "important_limit": "Chrome Remote Desktop would let the user operate the PC, not give this agent Desktop Commander tool access.",
       "auth": "Existing Chat-browser Cloudflare direct login returned HTTP403. No repeat, fingerprint/network change or assumed shared session from user's own PC browser.",
@@ -456,7 +456,7 @@
     }
   },
   "cloudflare_git_builds": {
-    "status": "PREPARED_IN_PILOT_BRANCH_NOT_CONNECTED",
+    "status": "CONNECTED_USER_UI_CONFIRMED_FIRST_BUILD_REQUESTED",
     "user_decision": "User accepted the Cloudflare-to-GitHub deployment route; no extra spend.",
     "scope": {
       "worker": "provide-bs-storefront-preview",
@@ -466,7 +466,7 @@
     },
     "settings": {
       "root_directory": "apps/storefront",
-      "build_command": "pnpm build",
+      "build_command": "pnpm run build",
       "deploy_command": "pnpm deploy:cloud-preview",
       "build_variables": {
         "NODE_VERSION": "24.22.1",
@@ -492,8 +492,8 @@
     "preservation": "Generated deployment config has empty vars and keep_vars=true; CLI also passes --keep-vars; existing remote runtime variables and encrypted secrets retained. Source placeholders cannot overwrite working checkout config. New Asian Kitchen runtime flag is not changed automatically.",
     "local_verification": "3 scoped tests PASS: remove repository placeholders, enforce preview worker/account and flags, preserve bindings/idempotence. Full Vinext and cloud deployment still NOT_RUN.",
     "configuration_steps": "docs/runbooks/cloudflare-git-preview.md",
-    "missing": "One-time Cloudflare GitHub connection through user's own normal browser, repository-specific consent and actual first build/deploy. Chat-browser login remains HTTP403; remote PC monthly quota remains paused.",
-    "next": "User opens existing preview Worker Settings > Builds > Connect, chooses only the named repository, then enters the prepared fields. No new Worker, paid plan, broad repo grant or production/main merge.",
+    "missing": "First full cloud build/deploy result, full synthetic menu publication, conscious runtime activation and one same-order acceptance run. Existing agent Cloudflare login remains HTTP403; remote PC quota paused.",
+    "next": "Observe Cloudflare first build after this commit; diagnose only concrete failures. If no build starts, inspect watch filters or use Cloudflare's build trigger in the user's existing session.",
     "user_setup_review": {
       "date": "2026-10-27",
       "source": "private user-provided 16.5-second screen recording; no video or screenshots copied to public repository",
@@ -510,7 +510,16 @@
         "root_directory": "apps/storefront"
       },
       "not_verified": "Node/pnpm variables not shown as configured; Git connection to existing Worker and deployment not completed.",
-      "next": "Leave the unsaved Pages form; open existing provide-bs-storefront-preview under Workers & Pages, then Settings > Builds > Connect. Do not create a new Pages site or fill a static output directory for this Worker deployment."
+      "next": "Leave the unsaved Pages form; open existing provide-bs-storefront-preview under Workers & Pages, then Settings > Builds > Connect. Do not create a new Pages site or fill a static output directory for this Worker deployment.",
+      "resolution": "User left Pages form, corrected Worker settings, and connected repository; confirmed by subsequent 22:54 recording and 22:56 screenshot."
+    },
+    "connection_confirmation": {
+      "date": "2026-10-27",
+      "evidence": "Private user screenshot of Cloudflare Settings > Builds, local time 22:56; repository and pilot branch shown, builds enabled, banner requests a commit to start first build.",
+      "source_media_publicly_copied": false,
+      "full_settings_evidence": "Preceding private recording at 22:54 shows correct root apps/storefront, pnpm run build, pnpm deploy:cloud-preview, NODE_VERSION=24.22.1, PNPM_VERSION=11.19.0 and disabled preview builds.",
+      "first_build": "No build result yet. This checkpoint commit requests the first automatic build. Actual start/deployment remains unverified.",
+      "watch_paths": "Prepared includes/excludes are recommendations; their saved Cloudflare configuration has not been observed."
     }
   }
 }
