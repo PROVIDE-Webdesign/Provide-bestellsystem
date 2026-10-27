@@ -419,20 +419,20 @@
       "Do not observe blocked supabase.com origin or use wrong native Supabase project."
     ],
     "next": [
-      "Resolve the remaining service-side monthly quota pause; preserve the paired device. Continue necessary remote work only once usable credit is established.",
+      "No additional spending. Plan a user-operated phone-to-PC fallback and/or an existing-worker Cloudflare Git deployment path; neither is configured yet.",
       "Preserve local worktree changes, inspect actual preview deployment configuration, and use the existing authorized path.",
       "Publish the full synthetic menu and complete one same-order demo/dashboard/status run with real human verification; no broad regression matrix."
     ]
   },
   "next_actions": [
-    "Resolve the remaining service-side monthly quota pause; preserve the paired device. Continue necessary remote work only once usable credit is established.",
+    "No additional spending. Plan a user-operated phone-to-PC fallback and/or an existing-worker Cloudflare Git deployment path; neither is configured yet.",
     "Preserve local worktree changes, inspect actual preview deployment configuration, and use the existing authorized path.",
     "Publish the full synthetic menu and complete one same-order demo/dashboard/status run with real human verification; no broad regression matrix."
   ],
   "remote_access_usage_policy": {
     "user_instruction_date": "2026-10-27",
     "user_statement": "User plans an additional 10 EUR of remote-access credit and requires remote access only when necessary.",
-    "credit_status": "USER_REPORTED_READY_BUT_FIRST_NECESSARY_PC_CALL_STILL_RETURNS_MONTHLY_QUOTA_PAUSE",
+    "credit_status": "NO_PAID_UPGRADE_REQUESTED; existing quota pause remains",
     "rule": "Use GitHub and the local executor for source changes, documentation and targeted checks whenever sufficient. Use remote PC only for necessary private runtime/configuration access, full build, deployment and indispensable verification unavailable through other authorized tools.",
     "execution": "Prepare commands before the remote call; combine dependent operations in bounded batches; inspect returned results before any adaptive follow-up. Do not poll, reconnect, reinstall, or repeat successful checks without new evidence.",
     "prohibited": "No purchase, subscription change, extra token creation or expanded account access is authorized by this statement. Do not retry paused Desktop Commander calls until the user confirms activation or independent evidence establishes resumed availability.",
@@ -443,6 +443,16 @@
       "operation": "one batched, read-only inspection of existing pilot worktree and private deployment configuration metadata",
       "result": "No remote command execution confirmed. Desktop Commander returned monthly usage limit; device remains connected and paired; do not retry or reconnect.",
       "follow_up": "User must establish that the additional credit is available to this connected service account before another attempt. No further remote tool calls, reconnect, subscription change or new authentication performed."
+    },
+    "additional_spending": "USER_DECLINED_ANY_ADDITIONAL_SPENDING_2026-10-27",
+    "alternative_plan": {
+      "user_need": "Continue from iPhone throughout 28.10.2026 while PC stays at home.",
+      "phone_to_pc": "Chrome Remote Desktop in iPhone browser is a proposed user-operated fallback; no installation or access grant performed by agent.",
+      "deployment": "Cloudflare Workers Builds connected to existing GitHub pilot branch is a proposed alternative to PC-based deployment; not configured or authorized as a new persistent GitHub integration yet.",
+      "cost": "No extra spend, purchases, subscriptions or paid resources. Workers Builds official Free allowance verified as 3000 build minutes/month; actual account allowance and compatibility still require inspection.",
+      "important_limit": "Chrome Remote Desktop would let the user operate the PC, not give this agent Desktop Commander tool access.",
+      "auth": "Existing Chat-browser Cloudflare direct login returned HTTP403. No repeat, fingerprint/network change or assumed shared session from user's own PC browser.",
+      "reset": "Monthly free allowance exists; exact 01.11.2026 reset not established."
     }
   }
 }
