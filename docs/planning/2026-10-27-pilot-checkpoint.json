@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-27T19:04:41.042Z",
+  "recorded_at": "2026-10-27T19:12:57.351Z",
   "target_date": "2026-10-28",
   "target": "internal staging test pilot; real restaurant operation not assumed",
   "source_product_head": "cbc78a2240eba05840b6cd712c89025bb6377635",
@@ -65,8 +65,8 @@
     "full fresh browser/restore/load/provider/audit matrices"
   ],
   "next": [
-    "obtain only non-secret verification status of the unfinished personal MFA enrollment from the user",
-    "resolve the interrupted enrollment using a user-controlled normal provider operation; preserve any verified factors",
+    "obtain the actual non-secret MFA enrollment error code/message from the user's failed PC request",
+    "resolve the confirmed error while preserving verified factors and normal MFA enforcement",
     "verify completed AAL2 and permitted pilot restaurant access",
     "keep online payments, delivery and business mail disabled; defer broad additional checks"
   ],
@@ -293,8 +293,8 @@
       "credentials": "User chose their own password; password and MFA secrets were not read or written by the agent."
     },
     "next": [
-      "obtain only non-secret verification status of the unfinished personal MFA enrollment from the user",
-      "resolve the interrupted enrollment using a user-controlled normal provider operation; preserve any verified factors",
+      "obtain the actual non-secret MFA enrollment error code/message from the user's failed PC request",
+      "resolve the confirmed error while preserving verified factors and normal MFA enforcement",
       "verify completed AAL2 and permitted pilot restaurant access"
     ],
     "emails_sent": false,
@@ -320,7 +320,8 @@
       "diagnosis": "Interrupted unverified enrollment / friendly-name conflict is plausible; exact current personal factor state and provider error have NOT been verified.",
       "private_observation": "Supabase browser content observation was denied by a saved origin permission. Do not retry through alternate tabs, raw browser interfaces or indirect private access. No real factor secrets were inspected.",
       "mutations": "No MFA factor removed, changed, enrolled or verified by the agent; no raw Auth DML; no product code or deployment changed.",
-      "next": "User reports only factor verification status from their own Supabase user details. If an unfinished factor is confirmed, prepare a user-controlled restart; preserve verified factors. A permanent component recovery fix remains to implement and deploy."
+      "next": "Obtain only the failed enrollment request's non-secret error code/message from the user's PC dashboard. Do not request passwords, tokens, headers, a HAR file, QR payloads or successful enrollment responses.",
+      "user_observation": "User reports factors: [] in their own user-details Raw JSON. This view lists no factor; the original interrupted-factor hypothesis remains unconfirmed. No removal was instructed or performed."
     }
   },
   "remote_worktree_last_verified_head": "561babb05a5fb48a03564dcfb0b7216116fee6d9",
