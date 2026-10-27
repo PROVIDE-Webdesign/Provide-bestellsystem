@@ -31,17 +31,20 @@ Passwortanmeldung sowie reguläre MFA-Einrichtung und Codeprüfung funktionieren
 Inhaberzugriff mit AAL2 und die leere Bestellübersicht (HTTP 200) bestätigt. Noch keine
 Testbestellung.
 
-Cloudflare: Zugang zum dokumentierten Bestellsystem-Preview-Konto ist jetzt bestätigt. Ein
-authentifizierter Hyperdrive-GET ordnet provide-bs-postgres-preview eindeutig dem Supabase-Projekt
-bobucujpbbqoustcnlyq zu. Der aktuelle Supabase-Connector hat dafür keine Berechtigung; die lokale
-CLI ist ebenfalls nicht angemeldet. Das andere sichtbare, pausierte Projekt kyuanppwfxtgeyfcyqvn
-bleibt unzugeordnet und unangetastet. Die bisherige Cloudflare-Anmeldung muss nicht wiederholt
-werden. Der vorhandene Hyperdrive-SQL-Cache ist noch eingeschaltet; vor Checkout-Aktivierung
-ausschalten. Die vorhandenen Preview-Health-URLs lieferten HTTP 403; daraus folgt kein positiver
-Laufzeitnachweis.
+Cloudflare und Datenbank: Der freigegebene Wiederstart des tatsächlichen Projekts
+bobucujpbbqoustcnlyq (provide-bs-preview, PROVIDE Webdesign) ist abgeschlossen. Das Dashboard meldet
+Healthy; eine normale SQL-Leseabfrage funktioniert. Anwendungstabellen und Migrationsregister sind
+noch nicht vorhanden. Die 46 bestehenden Migrationen sind in der Cloud noch nicht angewendet.
+Hyperdrive-SQL-Caching ist jetzt deaktiviert und durch erneuten authentifizierten GET bestätigt.
 
-NEXT: Supabase-Zugriff für bobucujpbbqoustcnlyq freigeben, tatsächlichen Projekt-/Schema- und
-Migrationsstand lesen, danach die geschützte Checkout-Laufzeit konfigurieren und genau einen
-vollständigen synthetischen Abholauftrag mit Doppelabsendung, Bestelleingang und Statuswechsel
-prüfen. Anschließend erreichbaren Staging-Piloten bereitstellen. Der Termin bleibt ein Ziel;
-vollständiger Bestellweg und Online-Bereitstellung sind offen.
+Browserzugriff auf das richtige Supabase-Projekt ist vorhanden. Der native Supabase-Connector bleibt
+für dieses Projekt unberechtigt und die lokale CLI unangemeldet. Ein Zugangsentwurf ist auf genau
+dieses Projekt und 24 Stunden begrenzt. Es wurde noch kein Token erzeugt und es wurden keine
+Tokenrechte vergeben. Die automatische Freigabeprüfung blockierte bereits die Auswahl der
+Datenbank-Schreibrechte, weil die konkrete Rechtefreigabe noch fehlt.
+
+NEXT: Die konkret begrenzten Tokenrechte und das private Hinterlegen für die CLI freigeben lassen.
+Danach die 46 vorhandenen Migrationen übernehmen, den geschützten Checkout konfigurieren, einen
+synthetischen Abholauftrag mit Doppelabsendung, Bestelleingang und Statuswechsel prüfen und den
+Staging-Piloten bereitstellen. Keine erneute Cloudflare-Anmeldung und keine Reaktivierung des
+anderen, unzugeordneten Supabase-Projekts. Der Zieltermin bleibt 28.10.2026.
