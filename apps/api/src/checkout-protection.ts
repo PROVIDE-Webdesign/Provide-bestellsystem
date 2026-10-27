@@ -492,7 +492,12 @@ export async function handleProtectedStorefront(
             ? "unsupported_media_type"
             : "bad_request",
       );
-    // No raw exception or request material is logged or exposed at this boundary.
+    // Keep operational diagnostics free of request bodies, credentials and SQL text.
+    const code = record(error)?.code;
+    console.error(JSON.stringify({
+      event: "checkout_boundary_failed",
+      databaseCode: typeof code === "string" && /^[0-9A-Z]{5}$/.test(code) ? code : "unclassified",
+    }));
     return fail(503);
   }
 }
