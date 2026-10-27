@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-27T16:06:21.832971+00:00",
+  "recorded_at": "2026-10-27T16:29:30.120594+00:00",
   "target_date": "2026-10-28",
   "target": "internal staging test pilot; real restaurant operation not assumed",
   "source_product_head": "cbc78a2240eba05840b6cd712c89025bb6377635",
@@ -57,17 +57,17 @@
     "mfaPrompt": true,
     "passwordAccepted": true
   },
-  "real_order_write": "NOT_RUN; closed until checkout gateway and challenge configured",
-  "online_deployment": "NOT_DEPLOYED:new cloud schema, protected checkout and complete synthetic order/status flow still pending",
+  "real_order_write": "NOT_RUN: real managed Turnstile needs an interactive human verification; no order created",
+  "online_deployment": "DEPLOYED: three preview workers; essential order submission remains blocked at interactive real Turnstile",
   "credentials": "runtime-only, ignored files; no credentials in Git",
   "deferred": [
     "general PR25 end-review",
     "full fresh browser/restore/load/provider/audit matrices"
   ],
   "next": [
-    "build and deploy API, storefront and dashboard preview workers",
-    "normal cloud MFA and one complete synthetic pickup order",
-    "verify prices, duplicate protection, owner status transition and customer status"
+    "complete the real interactive Cloudflare challenge with per-action confirmation in an available browser",
+    "submit one synthetic pickup order and verify the same-order duplicate response",
+    "verify order arrival, owner status transition and customer status"
   ],
   "mfa_smoke": {
     "case": "PILOT-REAL-MFA-AND-ACCESS",
@@ -156,5 +156,75 @@
     "managed_widget_created": true,
     "domain": "https://provide-bs-storefront-preview.alpaysey.workers.dev",
     "secrets": "runtime-only"
-  }
+  },
+  "source_implementations": {
+    "api": "96ff45c16f5364e063d753a4e7aa57a3ce5c908a",
+    "frontends": "e6ffa3cc1ba66ed15a32fb13819e2a941f223337"
+  },
+  "cloud_deployments": {
+    "api": {
+      "url": "https://provide-bs-api-preview.alpaysey.workers.dev",
+      "version_id": "24a29fdb-4432-4dcc-9eb4-17b67a69acb7"
+    },
+    "storefront": {
+      "url": "https://provide-bs-storefront-preview.alpaysey.workers.dev",
+      "version_id": "b906f537-86f5-4931-b3df-e8a43618b43e"
+    },
+    "dashboard": {
+      "url": "https://provide-bs-dashboard-preview.alpaysey.workers.dev",
+      "version_id": "a7bfb23a-2dd3-4971-89a8-802692460a2f"
+    }
+  },
+  "cloud_mfa_smoke": {
+    "case": "PILOT-REAL-MFA-AND-ACCESS",
+    "result": "PASS_MFA_AAL2_AND_ORDER_BOARD",
+    "normal_password_login_http": 200,
+    "normal_factor_enroll_challenge_verify_http": 200,
+    "aal": "aal2",
+    "role": "owner",
+    "locations": 1,
+    "orders_http": 200,
+    "scope": "real deployed services and normal Supabase Auth; synthetic owner; no authentication bypass"
+  },
+  "cloud_pickup_smoke": {
+    "case": "PILOT-CLOUD-PICKUP",
+    "result": "BLOCKED_AT_REAL_CHALLENGE",
+    "catalog_http": 200,
+    "checkout_context_http": 200,
+    "cart_quote_http": 200,
+    "quote_amount_minor": 1550,
+    "currency": "EUR",
+    "items": [
+      "Gem\u00fcsecurry:1250",
+      "Duftreis:300"
+    ],
+    "real_managed_turnstile": "interactive Verify you are human checkbox visible; no interaction attempted",
+    "orders_in_database": 0,
+    "submit_duplicate_status_cases": "NOT_RUN"
+  },
+  "cloud_runtime_write_fix": {
+    "confirmed_failure": "SQLSTATE25006",
+    "cause": "dedicated preview database role retained default_transaction_read_only=on from read-only spike",
+    "role": "provide_hyperdrive_preview",
+    "default_transaction_read_only_after": "off",
+    "pool_restart_verified": true,
+    "sql_cache_disabled": true,
+    "role_privilege_inheritance": false,
+    "explicit_service_role_set": true,
+    "post_fix_catalog_quote_mfa_and_orders_read": "PASS"
+  },
+  "essential_checks": {
+    "frontend_builds": "PASS storefront and dashboard",
+    "client_bundle_private_secret_scan": "PASS; zero matches",
+    "targeted_checkout_boundary_tests": "PASS33",
+    "cloud_migrations": "PASS46 exact original versions",
+    "cloud_normal_mfa": "PASS",
+    "cloud_catalog_cart_quote": "PASS",
+    "cloud_customer_submit_duplicate_and_status": "BLOCKED_AT_INTERACTIVE_TURNSTILE"
+  },
+  "tool_limitations": {
+    "cloud_browser": "execution environment became unavailable during this turn; cannot currently hand off or interact with its challenge",
+    "native_tests": "continue working on the connected user computer; challenge was observed but not clicked"
+  },
+  "pilot_ready": false
 }
