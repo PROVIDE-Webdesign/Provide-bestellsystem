@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-27T19:22:39.278Z",
+  "recorded_at": "2026-10-27T19:27:19.845Z",
   "target_date": "2026-10-28",
   "target": "internal staging test pilot; real restaurant operation not assumed",
   "source_product_head": "cbc78a2240eba05840b6cd712c89025bb6377635",
@@ -326,7 +326,24 @@
       "reported": "logged into dashboard and MFA passed",
       "scope": "personal access setup",
       "independent_personal_aal2_ui_capture": false,
-      "acceptance": "personal setup block closed on user confirmation; avoid redundant sign-in checks under the fast-pilot priority"
+      "acceptance": "Personal MFA success was reported by the user; their subsequent photo also confirms a visible pilot order board with changed test-order statuses.",
+      "order_board_evidence": {
+        "source": "private user-supplied photo of their PC dashboard",
+        "order_board_visible": true,
+        "location": "Teststandort Mitte",
+        "orders": [
+          {
+            "number": "BS-00000001",
+            "displayed_status": "Abgeschlossen"
+          },
+          {
+            "number": "BS-00000002",
+            "displayed_status": "Angenommen"
+          }
+        ],
+        "live_display": "Live nicht verbunden – sichere Nachladung alle 15 Sekunden",
+        "scope": "user-provided visual evidence; no claim of fresh agent-side AAL2 capture or a live WebSocket connection"
+      }
     }
   },
   "remote_worktree_last_verified_head": "561babb05a5fb48a03564dcfb0b7216116fee6d9",
