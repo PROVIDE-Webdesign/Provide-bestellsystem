@@ -14,6 +14,7 @@
   },
   "vars": {
     "APP_ENV": "preview",
+    "ASIAN_KITCHEN_DEMO_ENABLED": "false",
     "CHECKOUT_PROTECTION_ENABLED": "false",
     "CHECKOUT_STOREFRONT_ORIGIN": "https://replace-with-preview-storefront.example.invalid",
     "PUBLIC_CHECKOUT_TURNSTILE_SITE_KEY": "",
