@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-27T17:17:05.739174+00:00",
+  "recorded_at": "2026-10-27T17:37:11.527Z",
   "target_date": "2026-10-28",
   "target": "internal staging test pilot; real restaurant operation not assumed",
   "source_product_head": "cbc78a2240eba05840b6cd712c89025bb6377635",
@@ -65,8 +65,9 @@
     "full fresh browser/restore/load/provider/audit matrices"
   ],
   "next": [
+    "complete the user's personal dashboard account/password/MFA setup for the same internal pilot",
     "user may test the internal pickup pilot and report concrete defects",
-    "resume deferred broader checks and non-pilot functions later under existing decisions"
+    "keep online payments, delivery and business mail disabled; defer broad additional checks"
   ],
   "mfa_smoke": {
     "case": "PILOT-REAL-MFA-AND-ACCESS",
@@ -220,7 +221,8 @@
   },
   "tool_limitations": {
     "cloud_browser": "available; actual submit and public ready status verified; customer tab kept as deliverable",
-    "native_tests": "continue working on the connected user computer; challenge was observed but not clicked"
+    "native_tests": "Existing native smoke evidence remains valid; PC-dependent work paused. Supabase browser read-only check and GitHub connector remain usable.",
+    "remote_pc": "Desktop Commander monthly quota exhausted; calls paused, device remains paired; do not retry/reconnect."
   },
   "pilot_ready": true,
   "cloud_challenge_fix": {
@@ -253,5 +255,34 @@
     "final_status": "ready",
     "total_amount_minor": 1550
   },
-  "pilot_readiness_scope": "technical internal staging pickup pilot with synthetic tenant/data; no production operation or formal user end-acceptance"
+  "pilot_readiness_scope": "technical internal staging pickup pilot with synthetic tenant/data; no production operation or formal user end-acceptance",
+  "mobile_user_test": {
+    "result": "PASS_MOBILE_PICKUP_CONFIRMATION",
+    "scope": "private user-supplied iPhone recording; actual confirmation for two dishes and EUR15.50; personal contact details omitted",
+    "independent_readonly_database_check": {
+      "project_ref": "bobucujpbbqoustcnlyq",
+      "channel": "previously authorized Supabase browser SQL editor",
+      "scoped_order_count": 2,
+      "statuses": [
+        "submitted",
+        "ready"
+      ],
+      "amount_minor_each": 1550
+    },
+    "new_order_is_separate_test": "intentional second customer test; original essential smoke remains historical proof"
+  },
+  "personal_dashboard_access": {
+    "status": "PREPARED_AWAITING_USER_CREDENTIAL_CREATION",
+    "existing_access": "technical synthetic owner account; personal user login not yet provisioned",
+    "prepared_surface": "Supabase project Auth > Users > Create new user; empty email/password fields; no create action performed",
+    "intended_scope": "personal owner of fictional internal pilot restaurant and its one location; no Supabase project or billing privileges",
+    "next": [
+      "user creates personal account and chooses own password privately in the prepared browser form",
+      "verify exact created user identity and configure only internal pilot restaurant owner membership",
+      "user signs in through normal dashboard and sets up their own MFA; no sessions or factors are forged"
+    ],
+    "emails_sent": false
+  },
+  "remote_worktree_last_verified_head": "561babb05a5fb48a03564dcfb0b7216116fee6d9",
+  "remote_worktree_sync_note": "This documentation update uses GitHub directly after PC quota exhaustion. Fetch and inspect before a later fast-forward of the PC worktree; preserve local changes."
 }
