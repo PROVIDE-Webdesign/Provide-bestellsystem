@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-27",
+  "status": "IMPLEMENTED_LOCAL_CHECKS_PASS_NOT_DEPLOYED",
+  "sourceCommit": "b8408575c6167e12bad739b15e11d22f1f37ce66",
+  "sourceSha256": "20feee61f68711da0ffb938ff0752da8a65cb74f7c6363df3cb4cb90c2cbc3bc",
+  "generatedHtmlSha256": "942d3a17b6c788468b6982cd5e38e0b8b2321fa82ac50348bfeee69e68d2363c",
+  "remoteSourceBindingFiles": 13,
+  "remoteSourceBinding": "PASS",
+  "menuParity": "PASS",
+  "embeddedImageParity": "PASS",
+  "dishes": 12,
+  "variants": 8,
+  "syntaxModules": 17,
+  "syntax": "PASS",
+  "targetedTests": {
+    "passed": 11,
+    "failed": 0,
+    "command": "node --test scripts/test-asian-kitchen-demo.mjs",
+    "type": "isolated synthetic contract and transport tests"
+  },
+  "assetBuild": "PASS_NODE24",
+  "fullVinextBuild": "NOT_RUN_DEPENDENCIES_NOT_AVAILABLE_IN_EXECUTOR",
+  "browserUI": "NOT_RUN_FOR_NEW_PAGE",
+  "liveCheckoutAndStatus": "NOT_RUN_FOR_NEW_PAGE",
+  "deployment": "NOT_RUN",
+  "catalogImport": "NOT_RUN",
+  "originalPublishedDemo": "UNCHANGED",
+  "limitations": [
+    "free-text special requests disabled; nonempty values rejected instead of dropped",
+    "preview catalog must be imported and published before ordering can work",
+    "new runtime flag defaults false",
+    "agent PC tool paused after monthly usage limit; not retried",
+    "Cloudflare browser signed out; Google login reports invalid email/phone input; no authenticated result"
+  ]
+}
