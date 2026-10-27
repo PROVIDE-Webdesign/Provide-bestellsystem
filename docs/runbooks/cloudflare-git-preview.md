@@ -1,7 +1,8 @@
 # Cloudflare Workers Builds: bestehender Storefront-Pilot
 
-Vorbereitet am 27.10.2026. Git-Verbindung, neuer Cloud-Build und Deployment sind noch nicht
-ausgeführt oder nachgewiesen. Dieser Weg benötigt nach erfolgreicher Einrichtung keinen
+Stand 27.10.2026: Git-Verbindung zum bestehenden Worker ist bestätigt. Der erste Cloud-Build
+startete und scheiterte am noch nicht gebauten Paket `@provide/contracts`; Deployment ist
+noch nicht erfolgreich nachgewiesen. Dieser Weg benötigt nach erfolgreicher Einrichtung keinen
 laufenden Nutzer-PC und keinen bezahlten Desktop-Commander-Zugriff.
 
 ## Einmalige Verknüpfung
@@ -20,7 +21,7 @@ verwaltet den erforderlichen Deployment-Zugang im eigenen Einrichtungsablauf.
 | Git-Repository | `PROVIDE-Webdesign/Provide-bestellsystem` |
 | Deploy-/Production-Branch dieses Preview-Workers | `codex/pilot-20261028` |
 | Root directory | `apps/storefront` |
-| Build command | `pnpm build` |
+| Build command | `pnpm run build` |
 | Deploy command | `pnpm deploy:cloud-preview` |
 | Zusätzliche Branch-/PR-Preview-Builds | deaktiviert lassen |
 | Build variable `NODE_VERSION` | `24.22.1` |
@@ -77,8 +78,13 @@ Garantie ableiten und den ersten Build im Dashboard beobachten. Der Free-Plan ne
 
 ## Erster tatsächlicher Nachweis
 
-Nach dem Verbinden den ersten vollständigen Build und Deploy auswerten. Kein erfolgreicher
-Cloud-Build ist bisher belegt; das lokale Executor-Abbild besitzt die Vinext-Abhängigkeiten
+Der Storefront-Befehl baut zuerst `@provide/contracts`, danach die Asian-Kitchen-Dateien
+und anschließend Vinext. Das Contracts-Paket exportiert `dist/index.js`; bei einem frischen
+Cloud-Checkout existiert diese Datei vor seinem TypeScript-Build nicht. Die bisherige lokale
+Monorepo-Buildreihenfolge über Turbo hatte diesen Schritt bereits vorgeschaltet.
+
+Nach der Korrektur den vollständigen Cloud-Build und Deploy auswerten. Ein erfolgreicher
+Cloud-Build ist noch nicht belegt; das lokale Executor-Abbild besitzt die Vinext-Abhängigkeiten
 nicht. Den API-Katalog zunächst unverändert lassen, wenn der neue Build fehlschlägt.
 Der vorhandene Worker bleibt bis zu einem erfolgreichen Deployment beim bisherigen Stand.
 

@@ -403,7 +403,7 @@
       "syntax": "17 browser modules PASS",
       "source_binding": "13 runtime/source/build/test files match Git blobs",
       "asset_build": "PASS",
-      "full_vinext_build": "NOT_RUN",
+      "full_vinext_build": "FIRST_CLOUD_ATTEMPT_FAILED_MISSING_CONTRACTS_DIST; corrected build order awaiting automatic retry",
       "new_page_browser_ui": "NOT_RUN",
       "new_page_live_checkout_and_dashboard": "NOT_RUN"
     },
@@ -425,7 +425,7 @@
     ]
   },
   "next_actions": [
-    "Observe the first Cloudflare Workers Git build for the connected storefront preview after this checkpoint commit; no new Pages project or paid resources.",
+    "Observe Cloudflare retry after explicit contracts dependency build; resolve only concrete build/deploy errors.",
     "Observe first full cloud build/deployment; diagnose concrete errors only.",
     "Publish full synthetic Asian Kitchen menu, consciously activate demo flag and perform one same-order acceptance run."
   ],
@@ -456,7 +456,7 @@
     }
   },
   "cloudflare_git_builds": {
-    "status": "CONNECTED_USER_UI_CONFIRMED_FIRST_BUILD_REQUESTED",
+    "status": "CONNECTED_FIRST_BUILD_FAILED_BUILD_ORDER_FIX_PREPARED",
     "user_decision": "User accepted the Cloudflare-to-GitHub deployment route; no extra spend.",
     "scope": {
       "worker": "provide-bs-storefront-preview",
@@ -493,7 +493,7 @@
     "local_verification": "3 scoped tests PASS: remove repository placeholders, enforce preview worker/account and flags, preserve bindings/idempotence. Full Vinext and cloud deployment still NOT_RUN.",
     "configuration_steps": "docs/runbooks/cloudflare-git-preview.md",
     "missing": "First full cloud build/deploy result, full synthetic menu publication, conscious runtime activation and one same-order acceptance run. Existing agent Cloudflare login remains HTTP403; remote PC quota paused.",
-    "next": "Observe Cloudflare first build after this commit; diagnose only concrete failures. If no build starts, inspect watch filters or use Cloudflare's build trigger in the user's existing session.",
+    "next": "Observe automatic build for this atomic build-order fix; obtain concrete Cloudflare logs if it fails. No further settings changes currently required.",
     "user_setup_review": {
       "date": "2026-10-27",
       "source": "private user-provided 16.5-second screen recording; no video or screenshots copied to public repository",
@@ -520,6 +520,21 @@
       "full_settings_evidence": "Preceding private recording at 22:54 shows correct root apps/storefront, pnpm run build, pnpm deploy:cloud-preview, NODE_VERSION=24.22.1, PNPM_VERSION=11.19.0 and disabled preview builds.",
       "first_build": "No build result yet. This checkpoint commit requests the first automatic build. Actual start/deployment remains unverified.",
       "watch_paths": "Prepared includes/excludes are recommendations; their saved Cloudflare configuration has not been observed."
+    },
+    "first_build": {
+      "id": "61c58b27-7330-401e-a1d0-582e47d37c88",
+      "commit": "5901480386edff402ac13d07ade4f917585082ba",
+      "result": "FAIL_BEFORE_DEPLOY",
+      "evidence": "Cloudflare GitHub check failure plus user-provided build log.",
+      "confirmed_passed": [
+        "Node 24.22.1 and pnpm 11.19.0 detected",
+        "frozen workspace dependency installation",
+        "Asian Kitchen asset generation, original source hash and 13 contract modules"
+      ],
+      "error": "Rolldown failed to resolve @provide/contracts from apps/storefront/app/storefront/protected-gateway.ts",
+      "cause": "Contracts package exports dist/index.js; standalone storefront build omitted dependency compilation that root Turbo normally orders via ^build.",
+      "fix": "Storefront build now explicitly runs pnpm --filter @provide/contracts build before existing asset and Vinext build.",
+      "validation": "Full retry will be performed by Cloudflare after this commit. No import externalization, new dependencies, runtime secrets or source menu changes."
     }
   }
 }
