@@ -65,10 +65,20 @@ async function start() {
   const checkout = new AsianKitchenCheckout(config,manifest,{storage});
   const statusKey = `provide:asian-kitchen-status:${checkout.base}`;
   let challenge = '', issueId = crypto.randomUUID(), widgetId = null, access = null;
-  let uiBusy = false, statusBusy = false;
+  let uiBusy = false, statusBusy = false, challengeLoading = false;
+  const selectionControls = new Map();
   const form = box.querySelector('form');
   const draft = () => bridge.createOrderDraft();
   function controls() {
+    if(uiBusy) {
+      document.querySelectorAll('#menu button,#menu input,[data-order-cart-7i] button,[data-order-cart-7i] textarea,[data-order-info-7x] input,[data-order-info-7x] select,[data-order-info-7x] button').forEach(control => {
+        if(!selectionControls.has(control))selectionControls.set(control,control.disabled);
+        control.disabled=true;
+      });
+    } else {
+      selectionControls.forEach((disabled,control) => {if(control.isConnected)control.disabled=disabled;});
+      selectionControls.clear();
+    }
     const needsChallenge = (!checkout.client.currentIntent || checkout.renewAllowed) && !checkout.client.hasPendingIssue;
     fields.disabled = uiBusy || checkout.completed || checkout.client.missingMetadataWarning;
     previewButton.disabled = uiBusy || checkout.completed || checkout.client.needsReceipt;
@@ -76,7 +86,7 @@ async function start() {
     receiptButton.hidden = !checkout.client.currentIntent || checkout.completed;
     receiptButton.disabled = uiBusy;
     retryChallenge.hidden = checkout.completed || !!challenge || !needsChallenge;
-    retryChallenge.disabled = uiBusy;
+    retryChallenge.disabled = uiBusy || challengeLoading;
     newOrder.hidden = !checkout.completed;
   }
   function invalidate() {
@@ -113,11 +123,14 @@ async function start() {
   }
   function confirmed(result) {
     saveAccess(result); showOrder(result);
+    uiBusy=false;controls();
     $('[data-cart-clear-7n]')?.click();
     message.textContent = 'Deine Testbestellung ist eingegangen. Das Restaurant muss sie noch bestätigen.';
     statusBox.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'center'});
   }
   async function loadChallenge() {
+    if(challengeLoading)return;
+    challengeLoading=true;
     challenge = ''; controls();
     const container = box.querySelector('[data-provide-challenge]');
     try {
@@ -136,6 +149,7 @@ async function start() {
         'expired-callback':() => {challenge='';message.textContent='Die Sicherheitsprüfung ist abgelaufen. Bitte erneut starten.';controls();}
       });
     } catch { message.textContent = 'Die Sicherheitsprüfung konnte nicht geladen werden. Deine Auswahl bleibt erhalten.'; }
+    finally {challengeLoading=false;controls();}
   }
   bridge.registerAdapter('onlineShop',{execute:(_payload,context) => checkout.submit(_payload,context.customer,context.challenge,context.issueId)});
   previewButton.addEventListener('click',async () => {
