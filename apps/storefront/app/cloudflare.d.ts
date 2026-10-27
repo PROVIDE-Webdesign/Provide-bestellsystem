@@ -1,6 +1,7 @@
 // Runtime module provided by workerd. Secret bindings are consumed only in server routes.
 declare module "cloudflare:workers" {
   export const env: {
+    readonly ASIAN_KITCHEN_DEMO_ENABLED?: string;
     readonly PUBLIC_API_URL?: string;
     readonly CHECKOUT_PROTECTION_ENABLED?: string;
     readonly PUBLIC_CHECKOUT_TURNSTILE_SITE_KEY?: string;
