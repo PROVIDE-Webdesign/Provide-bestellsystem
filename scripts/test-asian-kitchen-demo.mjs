@@ -124,3 +124,18 @@ test('uncertain challenge issuance is retried with identical payload and submiss
 test('an inconsistent server quote is rejected',async()=>{
   const b=backend({quoteMismatch:true}),c=controller(b);await assert.rejects(c.quote(draft()));assert.equal(c.preview,null);
 });
+test('missing local intent metadata blocks a new order when the server reports an older attempt',async()=>{
+  const b=backend(),original=b.fetcher;
+  b.fetcher=async(url,init)=>String(url).endsWith('/checkout-context')?Response.json({data:{ready:true,csrf:'a'.repeat(43),hasExistingIntents:true}}):original(url,init);
+  const c=controller(b);await assert.rejects(c.quote(draft()),/Belegdaten/);
+  await assert.rejects(c.submit(draft(),customer,'token',crypto.randomUUID()));
+  assert.equal(b.calls.filter(x=>x.resource==='orders'||x.resource==='checkout-session').length,0);
+});
+test('completed order metadata remains recoverable after reload until an explicit new order',async()=>{
+  const b=backend(),s=storage(),opts={fetcher:b.fetcher,storage:s,now:clock},c=new AsianKitchenCheckout(config,manifest,opts),d=draft();
+  await c.quote(d);await c.submit(d,customer,'token',crypto.randomUUID());
+  const reopened=new AsianKitchenCheckout(config,manifest,opts);assert.equal(reopened.client.needsReceipt,true);
+  const receipt=await reopened.receipt();assert.equal(receipt.confirmation.orderNumber,'BS-00000099');
+  await assert.rejects(reopened.submit(d,customer,'token',crypto.randomUUID()));
+  assert.equal(b.calls.filter(x=>x.resource==='orders').length,1);
+});
