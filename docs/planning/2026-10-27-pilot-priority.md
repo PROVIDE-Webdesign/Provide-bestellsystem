@@ -25,6 +25,18 @@ automatische Migration der bisherigen Datenbank. Supabase-Cloudprojekt ist aktue
 nicht eindeutig dem Bestellsystem zugeordnet. Ein lokaler Bestellsystem-Stack ist vorhanden; dessen
 Daten werden nicht zurückgesetzt.
 
-NEXT: exakten Produktstand installieren, bauen und eine getrennte Pilotlaufzeit vorbereiten. Termin
-ist ein Ziel; eine belastbare Zusage setzt den funktionierenden vollständigen Bestellweg und
-erreichbare Bereitstellung voraus.
+Stand 27.10.2026: fünf Buildaufgaben bestanden, getrennte lokale Pilotdatenbank mit 46 Migrationen
+und synthetischen Gerichten gestartet. Speisekarte und Warenkorb im tatsächlichen Browser bestätigt.
+Passwortanmeldung sowie reguläre MFA-Einrichtung und Codeprüfung funktionieren; danach ist der
+Inhaberzugriff mit AAL2 und die leere Bestellübersicht (HTTP 200) bestätigt. Noch keine
+Testbestellung.
+
+Cloudflare: Eine Geräteanmeldung war erfolgreich, gewährte aber nur Zugriff auf ein anderes Konto
+als das dokumentierte Bestellsystem-Preview-Konto. Dessen Hyperdrive-Lesezugriff wurde abgelehnt.
+Eine neue Gerätefreigabe für das vorgesehene Konto wurde angefordert. Keine Cloudänderung und keine
+Zuordnung des pausierten Supabase-Projekts allein aus dessen Sichtbarkeit.
+
+NEXT: Zugang zum dokumentierten Preview-Konto abschließen, bestehende Hyperdrive-/Datenbankzuordnung
+lesen, geschützten Checkout konfigurieren und genau einen vollständigen synthetischen Abholauftrag
+mit Bestelleingang und Statuswechsel prüfen. Danach erreichbaren Staging-Piloten bereitstellen. Der
+Termin bleibt ein Ziel; der vollständige Bestellweg und die Online-Bereitstellung sind offen.

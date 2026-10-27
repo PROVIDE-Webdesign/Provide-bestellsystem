@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-27T13:10:36.056158+00:00",
+  "recorded_at": "2026-10-27T13:29:24.990067+00:00",
   "target_date": "2026-10-28",
   "target": "internal staging test pilot; real restaurant operation not assumed",
   "source_product_head": "cbc78a2240eba05840b6cd712c89025bb6377635",
@@ -58,16 +58,43 @@
     "passwordAccepted": true
   },
   "real_order_write": "NOT_RUN; closed until checkout gateway and challenge configured",
-  "online_deployment": "BLOCKED:Cloudflare CLI not authenticated; visible Supabase cloud project inactive/unassigned",
+  "online_deployment": "BLOCKED:successful OAuth belongs to a different account from the documented preview account; correct-account device approval pending; cloud database association unresolved",
   "credentials": "runtime-only, ignored files; no credentials in Git",
   "deferred": [
     "general PR25 end-review",
     "full fresh browser/restore/load/provider/audit matrices"
   ],
   "next": [
-    "complete client-side pilot wiring",
-    "Cloudflare login on existing account",
-    "resolve existing preview database association before any cloud mutation",
-    "configure checkout and run one full pilot order/status flow"
-  ]
+    "finish Cloudflare device authorization for documented preview account",
+    "read existing Hyperdrive configuration and identify cloud database before mutation",
+    "configure protected checkout, then run one complete synthetic pickup order and dashboard/status flow",
+    "publish and verify the internal staging pilot"
+  ],
+  "mfa_smoke": {
+    "case": "PILOT-REAL-MFA-AND-ACCESS",
+    "result": "PASS_MFA_AAL2_AND_ORDER_BOARD",
+    "scope": "synthetic account; normal UI enrollment and challenge verification; no authentication bypass",
+    "accessContext": {
+      "aal": "aal2",
+      "memberships": [
+        {
+          "role": "owner",
+          "access": "allowed",
+          "locations": 1
+        }
+      ]
+    },
+    "orderBoardPresent": true,
+    "auth_factor_challenge_http": 200,
+    "auth_factor_verify_http": 200,
+    "dashboard_orders_http": 200,
+    "order_list_state": "empty synthetic pilot database; no test order yet"
+  },
+  "cloudflare_access": {
+    "expected_preview_account": "46a54934872edeb8dc9197e1810aee86",
+    "last_verified_oauth_account": "8cb50751b27d1c133b1231cd72469cf7",
+    "expected_preview_account_access": "DENIED:Hyperdrive GET authentication error 10000",
+    "new_device_authorization": "requested; human approval pending at this checkpoint",
+    "cloud_mutations": false
+  }
 }
