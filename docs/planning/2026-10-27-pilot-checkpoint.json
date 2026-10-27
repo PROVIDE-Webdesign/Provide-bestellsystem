@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-27T19:12:57.351Z",
+  "recorded_at": "2026-10-27T19:22:39.278Z",
   "target_date": "2026-10-28",
   "target": "internal staging test pilot; real restaurant operation not assumed",
   "source_product_head": "cbc78a2240eba05840b6cd712c89025bb6377635",
@@ -62,12 +62,11 @@
   "credentials": "runtime-only, ignored files; no credentials in Git",
   "deferred": [
     "general PR25 end-review",
-    "full fresh browser/restore/load/provider/audit matrices"
+    "full fresh browser/restore/load/provider/audit matrices",
+    "Interrupted personal MFA setup UX: observed source gap, original runtime cause unconfirmed; defer follow-up because user now reports successful MFA."
   ],
   "next": [
-    "obtain the actual non-secret MFA enrollment error code/message from the user's failed PC request",
-    "resolve the confirmed error while preserving verified factors and normal MFA enforcement",
-    "verify completed AAL2 and permitted pilot restaurant access",
+    "user tests the internal pickup pilot with the personal dashboard account",
     "keep online payments, delivery and business mail disabled; defer broad additional checks"
   ],
   "mfa_smoke": {
@@ -273,7 +272,7 @@
     "new_order_is_separate_test": "intentional second customer test; original essential smoke remains historical proof"
   },
   "personal_dashboard_access": {
-    "status": "PERSONAL_MFA_BLOCKED_AFTER_DEVICE_CHANGE",
+    "status": "USER_CONFIRMED_PERSONAL_MFA_AND_DASHBOARD_ACCESS",
     "existing_access": "User-created personal Auth account found directly in the correct project; email confirmed. The Auth users list had not displayed it. No duplicate account created.",
     "intended_scope": "personal owner of fictional internal pilot restaurant and its one location; no Supabase project or billing privileges",
     "explicit_access_approval": "User answered Ja darfst du to the specific personal pilot owner and location grant.",
@@ -293,9 +292,7 @@
       "credentials": "User chose their own password; password and MFA secrets were not read or written by the agent."
     },
     "next": [
-      "obtain the actual non-secret MFA enrollment error code/message from the user's failed PC request",
-      "resolve the confirmed error while preserving verified factors and normal MFA enforcement",
-      "verify completed AAL2 and permitted pilot restaurant access"
+      "use the internal pickup pilot and report concrete defects; personal setup is complete on user confirmation"
     ],
     "emails_sent": false,
     "personal_identifiers": "omitted from public repository evidence",
@@ -303,7 +300,7 @@
       "result": "PASS_NORMAL_PERSONAL_PASSWORD_LOGIN_AAL1",
       "visible_dashboard": "Sicheres Dashboard; Sicherheitsniveau AAL1; Zweiten Faktor bestätigen; MFA sicher einrichten oder öffnen",
       "browser_auth": "secure credential broker submitted; no credential values returned to agent",
-      "mfa": "not yet enrolled or verified for this personal user"
+      "mfa": "PASS_USER_REPORTED: user states that personal dashboard login is complete and MFA passed; no second agent-side authentication performed"
     },
     "mfa_resume_issue": {
       "user_report": "First attempt displayed QR code; user switched to PC to scan with their only phone. PC now reports that MFA enrollment cannot be started and does not show a QR.",
@@ -320,8 +317,16 @@
       "diagnosis": "Interrupted unverified enrollment / friendly-name conflict is plausible; exact current personal factor state and provider error have NOT been verified.",
       "private_observation": "Supabase browser content observation was denied by a saved origin permission. Do not retry through alternate tabs, raw browser interfaces or indirect private access. No real factor secrets were inspected.",
       "mutations": "No MFA factor removed, changed, enrolled or verified by the agent; no raw Auth DML; no product code or deployment changed.",
-      "next": "Obtain only the failed enrollment request's non-secret error code/message from the user's PC dashboard. Do not request passwords, tokens, headers, a HAR file, QR payloads or successful enrollment responses.",
-      "user_observation": "User reports factors: [] in their own user-details Raw JSON. This view lists no factor; the original interrupted-factor hypothesis remains unconfirmed. No removal was instructed or performed."
+      "next": "No further enrollment-error collection required for the completed personal setup. Keep the interrupted-setup UX gap as a deferred follow-up if reproduced.",
+      "user_observation": "User reports factors: [] in their own user-details Raw JSON. This view lists no factor; the original interrupted-factor hypothesis remains unconfirmed. No removal was instructed or performed.",
+      "resolution": "User subsequently reports successful MFA and dashboard access. The earlier private factor state and original error code were not independently verified; no agent reset or product fix was performed."
+    },
+    "user_completion": {
+      "source": "explicit user report in this conversation",
+      "reported": "logged into dashboard and MFA passed",
+      "scope": "personal access setup",
+      "independent_personal_aal2_ui_capture": false,
+      "acceptance": "personal setup block closed on user confirmation; avoid redundant sign-in checks under the fast-pilot priority"
     }
   },
   "remote_worktree_last_verified_head": "561babb05a5fb48a03564dcfb0b7216116fee6d9",
