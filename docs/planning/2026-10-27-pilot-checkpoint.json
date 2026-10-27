@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-27T15:10:06.600259+00:00",
+  "recorded_at": "2026-10-27T16:06:21.832971+00:00",
   "target_date": "2026-10-28",
   "target": "internal staging test pilot; real restaurant operation not assumed",
   "source_product_head": "cbc78a2240eba05840b6cd712c89025bb6377635",
@@ -65,10 +65,9 @@
     "full fresh browser/restore/load/provider/audit matrices"
   ],
   "next": [
-    "obtain explicit permission for project-only 24-hour CLI token with Database/Migrations read-write and necessary project diagnostics/API-key read access; no token generated yet",
-    "apply the existing 46 versioned migrations to the verified empty preview application database and verify the resulting schema",
-    "configure pilot services, protected checkout and synthetic access account",
-    "run one complete synthetic pickup order, duplicate submission and dashboard/status flow; publish version-bound internal pilot"
+    "build and deploy API, storefront and dashboard preview workers",
+    "normal cloud MFA and one complete synthetic pickup order",
+    "verify prices, duplicate protection, owner status transition and customer status"
   ],
   "mfa_smoke": {
     "case": "PILOT-REAL-MFA-AND-ACCESS",
@@ -121,7 +120,7 @@
     "application_tables": [],
     "migration_registry": null,
     "sql_probe": "PASS:normal SQL Editor read as postgres; no non-provider application tables or migration registry",
-    "schema_changes": false
+    "schema_changes": true
   },
   "hyperdrive_cache_change": {
     "hyperdrive_id": "5a73616416a04caf8f6df75d8dd34d0f",
@@ -132,23 +131,30 @@
     "passed": true
   },
   "cloud_migration_state": {
-    "source_commit": "6a4146a248ea15770bf4e4a47331efebd88591b9",
+    "source_commit": "03fda985c10f6547433ab5b1bde742164ea183f7",
     "count": 46,
-    "state": "NOT_APPLIED",
-    "application_database_before_setup": "empty by scoped metadata query"
+    "state": "PASS_46_MIGRATIONS_AND_ORIGINAL_VERSIONS",
+    "application_database_before_setup": "empty",
+    "history_versions_match_source": true
   },
   "management_access": {
-    "browser": "authenticated as approved account; correct project readable",
-    "native_supabase_connector": "still no access to this project",
-    "local_cli": "not authenticated",
-    "token_draft": {
-      "name": "PROVIDE pilot 2026-10-28 (CLI)",
-      "resource": "project only",
-      "organization": "PROVIDE Webdesign",
-      "project_ref": "bobucujpbbqoustcnlyq",
-      "lifetime_hours": 24,
-      "generated": false,
-      "permission_state": "None; automatic approval review rejected selecting Database read-write because this exact scope lacks explicit approval"
-    }
+    "native_supabase_connector": "not associated with this project; not used",
+    "management_api": "200; ACTIVE_HEALTHY",
+    "user_approval": "Ja darfst du: scoped 24-hour token, project bobucujpbbqoustcnlyq only",
+    "token": "created and stored privately outside Git; Database/Migrations RW; six approved read capabilities"
+  },
+  "cloud_synthetic_seed": {
+    "restaurant": 1,
+    "location": 1,
+    "menu_items": 2,
+    "orders": 0,
+    "normal_auth_owner": true,
+    "cloud_mfa": "not enrolled yet",
+    "rls_disabled_public_tables": 0
+  },
+  "turnstile": {
+    "managed_widget_created": true,
+    "domain": "https://provide-bs-storefront-preview.alpaysey.workers.dev",
+    "secrets": "runtime-only"
   }
 }

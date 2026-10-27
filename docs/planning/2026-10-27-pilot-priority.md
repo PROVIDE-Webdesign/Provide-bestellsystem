@@ -48,3 +48,6 @@ Danach die 46 vorhandenen Migrationen übernehmen, den geschützten Checkout kon
 synthetischen Abholauftrag mit Doppelabsendung, Bestelleingang und Statuswechsel prüfen und den
 Staging-Piloten bereitstellen. Keine erneute Cloudflare-Anmeldung und keine Reaktivierung des
 anderen, unzugeordneten Supabase-Projekts. Der Zieltermin bleibt 28.10.2026.
+
+## 2026-10-27: Cloud schema ready
+User explicitly approved the project-only 24-hour management token. All 46 source migrations and exact original history versions verified. One fictional test restaurant with two menu items and a normal Auth owner is seeded; no orders or cloud MFA factors yet. Public-table RLS remains enabled. Real Turnstile widget created. Three preview worker builds/deployments and the complete synthetic checkout/status path are next. Payments, mail and delivery remain disabled.
