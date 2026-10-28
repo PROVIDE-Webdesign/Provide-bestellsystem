@@ -20,7 +20,7 @@ select is(pg_temp.setup((select q from setup_address),'f1000000-0000-0000-0000-0
 select is(pg_temp.setup((select q from setup_address),'f1000000-0000-0000-0000-000000000001','aal1')->>'outcome','forbidden','address write still requires MFA');
 select is(pg_temp.setup(jsonb_set((select q from setup_address),'{address,city}','null'))->>'outcome','invalid','database rejects malformed address independently of TypeScript');
 select is(private.read_provide_administration('f1000000-0000-0000-0000-000000000001','aal2','{"restaurantId":"f2000000-0000-0000-0000-000000000003","locationId":"f3000000-0000-0000-0000-000000000003"}')->'data'->'selected'->'address'->>'city','Aachen','saved address is readable for editing');
-select is((select go_live_status from public.location_activation_states where location_id='f3000000-0000-0000-000000000003'),'blocked','address alone never enables orders');
+select is((select go_live_status from public.location_activation_states where location_id='f3000000-0000-0000-0000-000000000003'),'blocked','address alone never enables orders');
 create temporary table setup_owner(q jsonb);
 insert into setup_owner values('{"action":"firstOwner","ownerUserId":"f1000000-0000-0000-0000-000000000005","confirmation":"second-pilot"}');
 select is(pg_temp.setup((select q from setup_owner),'f1000000-0000-0000-0000-000000000002')->>'outcome','forbidden','tenant grant cannot bootstrap ownership elsewhere');
