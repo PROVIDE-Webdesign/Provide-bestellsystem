@@ -494,10 +494,13 @@ export async function handleProtectedStorefront(
       );
     // Keep operational diagnostics free of request bodies, credentials and SQL text.
     const code = record(error)?.code;
-    console.error(JSON.stringify({
-      event: "checkout_boundary_failed",
-      databaseCode: typeof code === "string" && /^[0-9A-Z]{5}$/.test(code) ? code : "unclassified",
-    }));
+    console.error(
+      JSON.stringify({
+        event: "checkout_boundary_failed",
+        databaseCode:
+          typeof code === "string" && /^[0-9A-Z]{5}$/.test(code) ? code : "unclassified",
+      }),
+    );
     return fail(503);
   }
 }

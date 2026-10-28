@@ -89,7 +89,9 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:16322/postgres
 
       - name: Prepare masked loopback Realtime credentials
-        run: node scripts/ci-realtime-env.mjs
+        run: |
+          node --test scripts/ci-realtime-env.test.mjs
+          node scripts/ci-realtime-env.mjs
 
       - name: Test two authenticated dashboards on real private Realtime
         run: pnpm --filter @provide/api exec vitest run src/realtime.integration.test.ts
