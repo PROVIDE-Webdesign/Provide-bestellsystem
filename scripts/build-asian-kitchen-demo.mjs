@@ -32,6 +32,19 @@ function replaceOnce(html, from, to) {
 }
 // Preserve the menu HTML/images/layout. Only enable the named adapter and correct the legacy pickup clock.
 let html = replaceOnce(original,'onlineShop:"prepared-not-active"','onlineShop:"active"');
+// Describe the connected internal pilot without changing the protected demo source.
+for (const [from, to] of [
+  ['Auswahl prüfen, Bestellart und Zeit festlegen, Anfrageweg wählen.', 'Gerichte prüfen, Abholzeit wählen und Testbestellung absenden.'],
+  ['<span>Ihre Bestellanfrage</span><strong>Drei Schritte bis zur Anfrage</strong>', '<span>Ihre Testbestellung</span><strong>Drei Schritte zur Testbestellung</strong>'],
+  ['data-order-demo-badge>Demo</span>', 'data-order-demo-badge>Testpilot</span>'],
+  ['aria-label="Demo-Hinweis zur Bestellanfrage"><strong>Demo: Es wird nichts automatisch bestellt oder versendet.</strong><span>Verbindlich erst nach Bestätigung des Restaurants.</span>', 'aria-label="Hinweis zum internen Bestellpiloten"><strong>Nach dem Absenden wird Ihre Testbestellung im Bestellsystem gespeichert.</strong><span>Nur erfundene Testdaten verwenden. Keine echte Restaurantbestellung, keine Onlinezahlung. Reservierung und Kontakt bleiben separate Demos.</span>'],
+  ['<small class="order-cart-summary-detail-7m">Unverbindliche Bestellanfrage</small>', '<small class="order-cart-summary-detail-7m">Vorläufige Summe · Gesamtpreis im Abschluss prüfen</small>'],
+  ['data-checkout-next-7y="2" disabled>Weiter zu Bestellart und Zeit</button>', 'data-checkout-next-7y="2" disabled>Weiter zur Abholzeit</button>'],
+  ['<strong>Bestellart und Zeit</strong><small data-checkout-summary-7y="2">', '<strong>Abholzeit wählen</strong><small data-checkout-summary-7y="2">'],
+  ['Wählen Sie Abholung oder Lieferung. Anschließend werden nur die dafür benötigten Angaben angezeigt.', 'In diesem Testpiloten ist nur Abholung möglich. Wählen Sie Ihre gewünschte Abholzeit.'],
+  ['data-checkout-next-7y="3" disabled>Weiter zur Anfrage</button>', 'data-checkout-next-7y="3" disabled>Weiter zum Bestellabschluss</button>'],
+  ['<strong>Anfrage senden</strong><small data-checkout-summary-7y="3">WhatsApp oder Telefon</small>', '<strong>Testbestellung abschließen</strong><small data-checkout-summary-7y="3">Kontaktdaten und Bestätigung</small>'],
+]) html = replaceOnce(html, from, to);
 const clock = `<script id="provide-pickup-clock">window.PROVIDE_PICKUP_CLOCK=function(){var p={};new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).forEach(function(x){p[x.type]=x.value;});return {minute:Number(p.hour)*60+Number(p.minute),weekday:new Date(Date.UTC(Number(p.year),Number(p.month)-1,Number(p.day))).getUTCDay()};};</script>`;
 html = replaceOnce(html,'<script id="ordering-config-7q">',clock+'\n<script id="ordering-config-7q">');
 html = replaceOnce(html,'config.orderInformation.openingHours[new Date().getDay()]','config.orderInformation.openingHours[window.PROVIDE_PICKUP_CLOCK().weekday]');

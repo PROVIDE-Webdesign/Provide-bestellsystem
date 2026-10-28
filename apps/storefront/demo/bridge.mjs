@@ -12,7 +12,7 @@ async function start() {
   const oldContact = panel.querySelector('.order-contact-7c');
   const box = document.createElement('section');
   box.className = 'provide-checkout';
-  box.innerHTML = `<h3>Bestellung abschließen</h3>
+  box.innerHTML = `<h3>Testbestellung abschließen</h3>
     <p>Interner Testpilot · Abholung · Zahlung bei Abholung</p>
     <p>Asian Kitchen ist ein fiktives Restaurant. Bitte nur erfundene Test-Kontaktdaten verwenden.</p>
     <form data-provide-form>
@@ -25,7 +25,7 @@ async function start() {
       <label class="provide-check"><input type="checkbox" data-provide-price required> Ich habe Gerichte, Gesamtpreis und Abholzeit geprüft.</label>
       <label class="provide-check"><input type="checkbox" data-provide-privacy required> Ich habe den <a href="#datenschutz">Datenschutzhinweis</a> gelesen.</label>
       <div data-provide-challenge></div>
-      <button type="submit" class="btn primary" data-provide-submit disabled>Zahlungspflichtig bestellen</button>
+      <button type="submit" class="btn primary" data-provide-submit disabled>Testbestellung absenden</button>
       </fieldset>
     </form>
     <p data-provide-message role="status" aria-live="polite">Bestellverbindung wird geprüft …</p>
@@ -34,7 +34,7 @@ async function start() {
     <button type="button" class="btn secondary" data-provide-new-order hidden>Neue Testbestellung beginnen</button>`;
   if (oldContact) oldContact.replaceWith(box); else panel.prepend(box);
   const triggerTitle = $('[data-checkout-trigger-7y="3"] strong');
-  if (triggerTitle) triggerTitle.textContent = 'Bestellung abschließen';
+  if (triggerTitle) triggerTitle.textContent = 'Testbestellung abschließen';
   const triggerSummary = $('[data-checkout-summary-7y="3"]');
   if (triggerSummary) triggerSummary.textContent = 'Kontaktdaten und Bestätigung';
   const message = box.querySelector('[data-provide-message]');
@@ -100,7 +100,7 @@ async function start() {
   }
   const statusBox = document.createElement('section');
   statusBox.className = 'provide-checkout provide-order-status'; statusBox.hidden = true;
-  statusBox.innerHTML = '<h3>Deine Bestellung</h3><p data-order-state role="status" aria-live="polite"></p><p data-order-number></p><p data-order-total></p><p data-order-time></p><p data-order-refreshed></p><button type="button" class="btn secondary" data-refresh-status>Status aktualisieren</button><p data-status-error role="status"></p>';
+  statusBox.innerHTML = '<h3>Deine Testbestellung</h3><p data-order-state role="status" aria-live="polite"></p><p data-order-number></p><p data-order-total></p><p data-order-time></p><p data-order-refreshed></p><button type="button" class="btn secondary" data-refresh-status>Status aktualisieren</button><p data-status-error role="status"></p>';
   $('#order').prepend(statusBox);
   function showOrder(result) {
     statusBox.hidden = false;
@@ -125,7 +125,7 @@ async function start() {
     saveAccess(result); showOrder(result);
     uiBusy=false;controls();
     $('[data-cart-clear-7n]')?.click();
-    message.textContent = 'Deine Testbestellung ist eingegangen. Das Restaurant muss sie noch bestätigen.';
+    message.textContent = 'Deine Testbestellung ist eingegangen. Der Testauftrag muss noch angenommen werden.';
     statusBox.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'center'});
   }
   async function loadChallenge() {
