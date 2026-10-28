@@ -1,3 +1,4 @@
+import { verifyTwoRestaurantsBrowser } from "./two-restaurants.ts";
 import { verifySupportBrowser } from "./support.ts";
 import { verifyCheckoutProtectionBrowser } from "./checkout-protection.ts";
 import { verifyReceiptScopeBrowser } from "./receipt-scope.ts";
@@ -516,6 +517,7 @@ try {
   }
   await verifyCheckoutProtectionBrowser(browser, output);
   await verifyReceiptScopeBrowser(browser, output);
+  await verifyTwoRestaurantsBrowser(browser, output);
 } finally {
   await browser.close();
   await server.close();

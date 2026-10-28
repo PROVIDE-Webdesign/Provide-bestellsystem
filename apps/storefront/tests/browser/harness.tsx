@@ -27,6 +27,7 @@ const dashboard = new URLSearchParams(location.search).has("dashboard");
 const board = new URLSearchParams(location.search).has("board");
 const live = new URLSearchParams(location.search).has("live");
 const viewer = new URLSearchParams(location.search).has("viewer");
+const checkoutMode = new URLSearchParams(location.search).get("checkout");
 /** Native browser regression changes props on the SAME production component. */
 function StorefrontHarness() {
   const [scope, setScope] = useState({
@@ -43,8 +44,8 @@ function StorefrontHarness() {
   }, []);
   return scope.mounted ? (
     <Storefront
-      checkoutProtectionEnabled
-      checkoutTurnstileSiteKey="synthetic-local-widget"
+      checkoutProtectionEnabled={checkoutMode !== "disabled"}
+      checkoutTurnstileSiteKey={checkoutMode === "missing-key" ? "" : "synthetic-local-widget"}
       restaurantSlug={scope.restaurant}
       locationSlug={scope.location}
       privacyNoticeVersion="preview-v1"
