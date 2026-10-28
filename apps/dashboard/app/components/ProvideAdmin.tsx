@@ -218,9 +218,28 @@ export function ProvideAdmin() {
           responsibleUserId: get("responsibleUserId") || null,
         },
       };
+    else if (action === "locationAddress")
+      extra = {
+        address: {
+          addressLine1: get("addressLine1"),
+          addressLine2: get("addressLine2") || null,
+          postalCode: get("postalCode"),
+          city: get("city"),
+          countryCode: get("countryCode").toUpperCase(),
+        },
+      };
+    else if (action === "firstOwner")
+      extra = {
+        ownerUserId: get("ownerUserId"),
+        confirmation: get("confirmation"),
+      };
     else if (action === "createLocation") {
       base.locationId = crypto.randomUUID();
-      extra = { displayName: get("displayName"), slug: get("slug"), timezone: get("timezone") };
+      extra = {
+        displayName: get("displayName"),
+        slug: get("slug"),
+        timezone: get("timezone"),
+      };
     }
     const command = parseProvideAdminCommand({ ...base, action, ...extra });
     if (!command) {
@@ -264,9 +283,14 @@ export function ProvideAdmin() {
       )[selected.onboardingStatus]
     : "";
   const launchNext = selected
-    ? ({ blocked: "ready", ready: "live", live: "paused", paused: "ready" } as const)[
-        selected.goLiveStatus
-      ]
+    ? (
+        {
+          blocked: "ready",
+          ready: "live",
+          live: "paused",
+          paused: "ready",
+        } as const
+      )[selected.goLiveStatus]
     : "";
   const selectedFeature = selected?.features.find((f) => f.key === featureKey);
   return (
@@ -324,7 +348,12 @@ export function ProvideAdmin() {
           {data.nextRestaurantCursor && (
             <button
               type="button"
-              onClick={() => changeScope({ action: "read", cursor: data.nextRestaurantCursor! })}
+              onClick={() =>
+                changeScope({
+                  action: "read",
+                  cursor: data.nextRestaurantCursor!,
+                })
+              }
             >
               Weitere Mandanten
             </button>
@@ -345,7 +374,8 @@ export function ProvideAdmin() {
                   }
                 >
                   <option value="">
-                    Gesamter Mandant{selected.canManageRestaurant ? "" : " · nur Überblick"}
+                    Gesamter Mandant
+                    {selected.canManageRestaurant ? "" : " · nur Überblick"}
                   </option>
                   {selected.locationId &&
                     !selected.locations.some((l) => l.id === selected.locationId) && (
@@ -450,6 +480,12 @@ export function ProvideAdmin() {
                       <option value="goLive">Bestellfreigabe weiterführen</option>
                       <option value="reopen">Prüfpunkte erneut öffnen</option>
                       <option value="profileStatus">Betriebsstatus ändern</option>
+                      {selected.locationId !== null && (
+                        <option value="locationAddress">Standortadresse pflegen</option>
+                      )}
+                      {data.canCreateRestaurant && selected.locationId === null && (
+                        <option value="firstOwner">Ersten Inhaber zuordnen</option>
+                      )}
                       {selected.canManageRestaurant && selected.locationId === null && (
                         <>
                           <option value="critical">Kritische Nachweisgrundlage ändern</option>
@@ -598,7 +634,8 @@ export function ProvideAdmin() {
                           </select>
                         </label>
                         <label>
-                          Bestätige den Bereichs-Kurznamen „{selected.scopeSlug}“
+                          Bestätige den Bereichs-Kurznamen „{selected.scopeSlug}
+                          “
                           <input name="confirmation" required maxLength={63} autoComplete="off" />
                         </label>
                         {!data.liveActionsEnabled && (
@@ -691,6 +728,84 @@ export function ProvideAdmin() {
                             name="responsibleUserId"
                             defaultValue={selected.configuration?.responsibleUserId ?? ""}
                             maxLength={36}
+                          />
+                        </label>
+                      </>
+                    )}
+                    {action === "locationAddress" && (
+                      <>
+                        <p>
+                          Adressänderungen öffnen die Standortprüfung erneut und sperren neue
+                          Bestellungen bis zur erneuten Freigabe.
+                        </p>
+                        <label>
+                          Straße und Hausnummer
+                          <input
+                            name="addressLine1"
+                            required
+                            maxLength={160}
+                            defaultValue={selected.address?.addressLine1 ?? ""}
+                          />
+                        </label>
+                        <label>
+                          Adresszusatz
+                          <input
+                            name="addressLine2"
+                            maxLength={160}
+                            defaultValue={selected.address?.addressLine2 ?? ""}
+                          />
+                        </label>
+                        <label>
+                          Postleitzahl
+                          <input
+                            name="postalCode"
+                            required
+                            maxLength={20}
+                            defaultValue={selected.address?.postalCode ?? ""}
+                          />
+                        </label>
+                        <label>
+                          Stadt
+                          <input
+                            name="city"
+                            required
+                            maxLength={100}
+                            defaultValue={selected.address?.city ?? ""}
+                          />
+                        </label>
+                        <label>
+                          Ländercode
+                          <input
+                            name="countryCode"
+                            required
+                            minLength={2}
+                            maxLength={2}
+                            pattern="[A-Za-z]{2}"
+                            defaultValue={selected.address?.countryCode ?? "DE"}
+                          />
+                        </label>
+                      </>
+                    )}
+                    {action === "firstOwner" && (
+                      <>
+                        <p>
+                          Nur für neue Restaurants ohne Personal. Das Benutzerkonto muss bereits
+                          registriert sein, eine bestätigte E-Mail und eingerichtete MFA besitzen.
+                          Diese Aktion erstellt kein Konto und ersetzt keine spätere
+                          Personalverwaltung.
+                        </p>
+                        <label>
+                          Bestätigte Benutzer-ID des Inhabers
+                          <input name="ownerUserId" required minLength={36} maxLength={36} />
+                        </label>
+                        <label>
+                          Restaurant-Kurzname zur Bestätigung: {selected.slug}
+                          <input
+                            name="confirmation"
+                            required
+                            minLength={3}
+                            maxLength={63}
+                            autoComplete="off"
                           />
                         </label>
                       </>

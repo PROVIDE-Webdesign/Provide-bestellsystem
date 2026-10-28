@@ -23,6 +23,13 @@ type Mutation = {
   requestId: string;
   reason: string;
 };
+export type LocationAddress = {
+  addressLine1: string;
+  addressLine2: string | null;
+  postalCode: string;
+  city: string;
+  countryCode: string;
+};
 export type ProvideAdminCommand =
   | {
       action: "read";
@@ -44,11 +51,27 @@ export type ProvideAdminCommand =
       evidenceKind: (typeof provideEvidenceKinds)[number] | null;
       evidenceReference: string | null;
     })
-  | (Mutation & { action: "onboarding"; status: "in_progress" | "ready_for_review" | "approved" })
-  | (Mutation & { action: "goLive"; status: "ready" | "live" | "paused"; confirmation: string })
+  | (Mutation & {
+      action: "onboarding";
+      status: "in_progress" | "ready_for_review" | "approved";
+    })
+  | (Mutation & {
+      action: "goLive";
+      status: "ready" | "live" | "paused";
+      confirmation: string;
+    })
   | (Mutation & { action: "reopen"; checkKeys: string[] })
   | (Mutation & { action: "critical"; configuration: LaunchConfiguration })
-  | (Mutation & { action: "profileStatus"; status: "setup" | "active" | "suspended" })
+  | (Mutation & { action: "locationAddress"; address: LocationAddress })
+  | (Mutation & {
+      action: "firstOwner";
+      ownerUserId: string;
+      confirmation: string;
+    })
+  | (Mutation & {
+      action: "profileStatus";
+      status: "setup" | "active" | "suspended";
+    })
   | (Mutation & {
       action: "createRestaurant" | "createLocation";
       displayName: string;
@@ -81,6 +104,22 @@ const integer = (x: unknown): x is number =>
 const instant = (x: unknown): x is string =>
   typeof x === "string" &&
   isExplicitInstant(x.replace(/(\.\d{3})\d{1,3}(?=(?:Z|[+-]\d{2}:\d{2})$)/, "$1"));
+export function parseLocationAddress(x: unknown): LocationAddress | undefined {
+  const a = object(x);
+  if (
+    !a ||
+    Object.keys(a).length !== 5 ||
+    !keys(a, ["addressLine1", "addressLine2", "postalCode", "city", "countryCode"]) ||
+    !text(a.addressLine1, 1, 160) ||
+    (a.addressLine2 !== null && !text(a.addressLine2, 1, 160)) ||
+    !text(a.postalCode, 1, 20) ||
+    !text(a.city, 1, 100) ||
+    typeof a.countryCode !== "string" ||
+    !/^[A-Z]{2}$/.test(a.countryCode)
+  )
+    return undefined;
+  return a as LocationAddress;
+}
 export function parseLaunchConfiguration(x: unknown): LaunchConfiguration | undefined {
   const s = object(x);
   if (
@@ -192,6 +231,23 @@ export function parseProvideAdminCommand(x: unknown): ProvideAdminCommand | unde
       )
         return undefined;
       break;
+    case "locationAddress":
+      if (
+        s.locationId === null ||
+        !keys(s, [...common, "address"]) ||
+        !parseLocationAddress(s.address)
+      )
+        return undefined;
+      break;
+    case "firstOwner":
+      if (
+        s.locationId !== null ||
+        !keys(s, [...common, "ownerUserId", "confirmation"]) ||
+        !uuid(s.ownerUserId) ||
+        !text(s.confirmation, 3, 63)
+      )
+        return undefined;
+      break;
     case "profileStatus":
       if (!keys(s, [...common, "status"]) || !member(s.status, ["setup", "active", "suspended"]))
         return undefined;
@@ -235,6 +291,7 @@ export type ProvideAdminState = {
     onboardingStatus: (typeof onboardingStatuses)[number];
     goLiveStatus: (typeof goLiveStatuses)[number];
     configuration: LaunchConfiguration | null;
+    address?: LocationAddress | null;
     checks: {
       key: string;
       description: string;
@@ -320,6 +377,7 @@ export function parseProvideAdminState(x: unknown): ProvideAdminState | undefine
         "onboardingStatus",
         "goLiveStatus",
         "configuration",
+        "address",
         "checks",
         "features",
         "audit",
@@ -340,6 +398,7 @@ export function parseProvideAdminState(x: unknown): ProvideAdminState | undefine
       !onboardingStatuses.some((t) => t === v.onboardingStatus) ||
       !goLiveStatuses.some((t) => t === v.goLiveStatus) ||
       (v.configuration !== null && !parseLaunchConfiguration(v.configuration)) ||
+      (v.address !== undefined && v.address !== null && !parseLocationAddress(v.address)) ||
       !Array.isArray(v.checks) ||
       v.checks.length > 40 ||
       !Array.isArray(v.features) ||
