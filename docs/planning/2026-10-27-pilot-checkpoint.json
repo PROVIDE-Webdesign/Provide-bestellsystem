@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-27T19:42:58.626Z",
+  "recorded_at": "2026-10-28",
   "target_date": "2026-10-28",
   "target": "internal staging test pilot; real restaurant operation not assumed",
   "source_product_head": "cbc78a2240eba05840b6cd712c89025bb6377635",
@@ -381,7 +381,7 @@
     "code_or_deployment_changes": false
   },
   "asian_kitchen_integration": {
-    "status": "PUBLISHED_MENU_VERIFIED_MAPPING_UPDATED_AWAITING_CLOUD_RETRY_AND_ACTIVATION",
+    "status": "LIVE_CHECKOUT_BROWSER_ERROR_FIXED_AWAITING_DEPLOYMENT",
     "user_authorization": "2026-10-27: connect the new ordering system while preserving the menu and cart on the supplied completed Asian Kitchen demo; user then instructed to continue.",
     "source_commit": "b8408575c6167e12bad739b15e11d22f1f37ce66",
     "original_source": {
@@ -400,21 +400,21 @@
     ],
     "local_evidence": "docs/planning/evidence/asian-kitchen-integration-local-20261027.json",
     "verification": {
-      "targeted_tests": "13 PASS / 0 FAIL against actual published catalog snapshot and isolated synthetic checkout counterpart",
+      "targeted_tests": "14 PASS / 0 FAIL; includes regression for native-style fetch global receiver in default and injected transports",
       "syntax": "17 browser modules PASS",
-      "source_binding": "Existing runtime modules unchanged. Runtime mapping updated to actual published IDs; tests compare source fixture semantics independently.",
+      "source_binding": "Manifest retains reviewed published catalog IDs. Browser transport fix only; no source menu/image changes.",
       "asset_build": "PASS",
-      "full_vinext_build": "PASS_CLOUD_2b82753; fresh mapping change will receive automatic Cloudflare build",
-      "new_page_browser_ui": "PASS_USER_VIDEO_SCOPED: page, images, menu categories/variants visible; cart empty; no claim of checkout completion",
-      "new_page_live_checkout_and_dashboard": "NOT_RUN",
+      "full_vinext_build": "PASS for prior mapping commit a1946078 (Cloudflare); fresh transport fix pending automatic build",
+      "new_page_browser_ui": "PASS_AGENT_UI: one Curry Hähnchen at EUR17.90 added; pickup at 12:00 selected; activated protected checkout and contact form visible.",
+      "new_page_live_checkout_and_dashboard": "NOT_COMPLETE: price review failed before order submission with browser fetch Illegal invocation; fix awaiting automatic build/deploy and renewed live test.",
       "test_fixture_fix": "Use one issuedAt timestamp for the isolated mock intent. Two Date.now calls could differ by 1 ms and violate the exact 60-minute intent receipt/write interval; initial targeted test failed before reaching transport uncertainty, fixed fixture and all 13 passed. Runtime security parsers unchanged."
     },
-    "deployment": "Code deployed successfully via GitHub/Cloudflare at 2b82753, version 8b4d3dac-698d-4439-882d-9beaf3e657b4. This commit updates the menu-ID binding and requests the next automatic build; its outcome is not yet claimed.",
+    "deployment": "Mapping commit a19460788e6a11a60df3d44c3de7933dc2a72b44 deployed successfully, build 7f01ee45-0359-4dd7-a41e-29535561f3ca, version 7a4b6f52-0a63-4ee2-b3be-01562c32f21d. Transport correction requests next automatic deployment.",
     "catalog_import": "PASS_USER_EXPORT: one published menu, version a64cd93a-4200-41d6-871a-637c756f71e1, 12 available synthetic products, 3 categories, 8 active variants; uploaded public catalog is current user-supplied evidence, not a fresh agent database query.",
     "scope": "internal synthetic pickup only; payment on fulfillment; delivery, online payment and email remain disabled",
     "known_limit": "free-text special wishes hidden/disabled; nonempty values rejected rather than silently dropped",
     "activation_flag": "ASIAN_KITCHEN_DEMO_ENABLED=true in approved preview runtime only; existing checkout protection, network/gateway secrets and Turnstile remain required",
-    "proposed_preview_path": "/asian-kitchen/ (not yet live or verified)",
+    "proposed_preview_path": "/asian-kitchen/ (live; activated checkout observed in authorized browser)",
     "current_blockers": [
       "Desktop Commander monthly quota remains paused; no retry/reconnect or extra spend.",
       "Cloudflare direct browser auth previously returned HTTP403; no retry of that failed login route.",
@@ -422,9 +422,9 @@
       "Supabase origin observation remains blocked; wrong inactive native project must not be used."
     ],
     "next": [
-      "Observe automatic Cloudflare mapping deployment.",
-      "Set ASIAN_KITCHEN_DEMO_ENABLED=true only in existing storefront preview runtime; activation not yet observed.",
-      "Complete one normal human-verified pickup order and correlate its same order number with dashboard and customer status."
+      "Observe automatic deployment for native-fetch receiver fix.",
+      "Reload original authorized browser and repeat price review, then real challenge and one synthetic pickup submission.",
+      "Correlate the resulting same order with dashboard and customer status if authorized session is available."
     ],
     "published_catalog": {
       "date": "2026-10-28",
@@ -435,12 +435,20 @@
       "binding": "All twelve item IDs differ from the original import fixture because MenuImport generates new IDs. Manifest now uses the twelve published IDs explicitly; all eight variant IDs retained.",
       "semantics": "All twelve categories, names, descriptions, prices and full configurations match the synthetic import fixture. Source import file remains unchanged.",
       "new_import_rule": "Every fresh import requires a deliberate review of published IDs and a manifest update. Browser product names/prices never select runtime product identity."
+    },
+    "runtime_activation": "PASS_AGENT_UI: enabled new checkout is visible after user configured runtime flag; no secrets inspected.",
+    "live_transport_fix": {
+      "observed_error": "Failed to execute fetch on Window: Illegal invocation",
+      "cause": "AsianKitchenCheckout called an unbound browser fetch as its own object method for the catalog request. Shared CheckoutClient already binds fetch correctly.",
+      "fix": "Bind AsianKitchenCheckout fetcher to globalThis, matching existing shared client behavior.",
+      "regression": "Native-style receiver-sensitive fetch test fails before fix and passes after fix for default and injected transports through quote, submit and status.",
+      "scope": "No protection bypass, credentials, factors, RLS, gateway policy or challenge verification changes; no order was submitted before the error."
     }
   },
   "next_actions": [
-    "Observe cloud build/deploy for published catalog mapping.",
-    "Consciously enable Asian Kitchen preview runtime flag.",
-    "Run one same-order pickup acceptance with real human Turnstile and dashboard/status correlation."
+    "Observe automatic deployment for native-fetch receiver fix.",
+    "Reload original authorized browser and repeat price review, then real challenge and one synthetic pickup submission.",
+    "Correlate the resulting same order with dashboard and customer status if authorized session is available."
   ],
   "remote_access_usage_policy": {
     "user_instruction_date": "2026-10-27",
@@ -469,7 +477,7 @@
     }
   },
   "cloudflare_git_builds": {
-    "status": "CONNECTED_CLOUD_DEPLOY_PASS_PUBLISHED_MENU_BINDING_RETRY_PENDING",
+    "status": "CONNECTED_MAPPING_DEPLOYED_TRANSPORT_FIX_BUILD_PENDING",
     "user_decision": "User accepted the Cloudflare-to-GitHub deployment route; no extra spend.",
     "scope": {
       "worker": "provide-bs-storefront-preview",
@@ -505,8 +513,8 @@
     "preservation": "Generated deployment config has empty vars and keep_vars=true; CLI also passes --keep-vars; existing remote runtime variables and encrypted secrets retained. Source placeholders cannot overwrite working checkout config. New Asian Kitchen runtime flag is not changed automatically.",
     "local_verification": "3 scoped tests PASS: remove repository placeholders, enforce preview worker/account and flags, preserve bindings/idempotence. Full Vinext and cloud deployment still NOT_RUN.",
     "configuration_steps": "docs/runbooks/cloudflare-git-preview.md",
-    "missing": "Successful automatic build/deploy for latest published item-ID binding, conscious storefront demo activation, and same-order acceptance. First full cloud deployment and menu publication are already confirmed.",
-    "next": "Observe automatic build/deploy for the actual published item-ID binding, then consciously enable ASIAN_KITCHEN_DEMO_ENABLED in storefront preview runtime and complete one same-order acceptance run.",
+    "missing": "Successful deployment/live acceptance for browser fetch receiver fix; menu mapping and runtime activation now observed.",
+    "next": "Observe automatic deployment for native-fetch receiver fix.",
     "user_setup_review": {
       "date": "2026-10-27",
       "source": "private user-provided 16.5-second screen recording; no video or screenshots copied to public repository",
@@ -555,6 +563,12 @@
       "version_id": "8b4d3dac-698d-4439-882d-9beaf3e657b4",
       "proof": "Cloudflare GitHub check concluded success with version ID; subsequent user video confirms Asian Kitchen page/menu/images rendered on iPhone.",
       "browser_smoke_scope": "User navigation and visible menu only; no new checkout acceptance yet."
+    },
+    "published_mapping_deployment": {
+      "source_commit": "a19460788e6a11a60df3d44c3de7933dc2a72b44",
+      "build_id": "7f01ee45-0359-4dd7-a41e-29535561f3ca",
+      "version_id": "7a4b6f52-0a63-4ee2-b3be-01562c32f21d",
+      "result": "PASS"
     }
   },
   "dashboard_menu_activation": {

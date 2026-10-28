@@ -81,6 +81,26 @@ function backend({uncertain=false,quoteMismatch=false,issueFailure=false}={}) {
 }
 const controller=b=>new AsianKitchenCheckout(config,manifest,{fetcher:b.fetcher,storage:storage(),now:clock});
 
+test('native-style fetch keeps the global receiver for default and injected transports',async()=>{
+  const originalFetch=globalThis.fetch;
+  try {
+    for(const useDefault of [true,false]){
+      const b=backend();
+      const receiverSensitiveFetch=function(...args){
+        assert.equal(this,globalThis,'browser fetch requires its global receiver');
+        return b.fetcher(...args);
+      };
+      globalThis.fetch=receiverSensitiveFetch;
+      const options={storage:storage(),now:clock,...(useDefault?{}:{fetcher:receiverSensitiveFetch})};
+      const c=new AsianKitchenCheckout(config,manifest,options);
+      assert.equal((await c.quote(draft())).subtotalAmountMinor,2270);
+      const result=await c.submit(draft(),customer,'token',crypto.randomUUID());
+      assert.equal((await c.status(result)).status,'ready');
+      assert.equal(b.calls.filter(x=>x.resource==='orders').length,1);
+    }
+  } finally {globalThis.fetch=originalFetch;}
+});
+
 test('all twelve dishes and eight variants map to explicit catalog IDs',()=>{
   assert.equal(Object.keys(manifest.items).length,12);
   assert.equal(Object.values(manifest.items).reduce((n,i)=>n+i.variants.length,0),8);

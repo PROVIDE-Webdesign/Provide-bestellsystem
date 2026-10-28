@@ -10,7 +10,7 @@ export class AsianKitchenCheckout {
   constructor(config, manifest, {fetcher = fetch, storage = null, now = () => new Date()} = {}) {
     this.config = config;
     this.manifest = manifest;
-    this.fetcher = fetcher;
+    this.fetcher = fetcher.bind(globalThis);
     this.now = now;
     this.base = `/api/storefront/${manifest.restaurantSlug}/${manifest.locationSlug}`;
     this.client = new CheckoutClient(this.base, fetcher, storage);
