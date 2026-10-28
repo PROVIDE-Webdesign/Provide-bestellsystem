@@ -268,6 +268,24 @@ input:not([type]) {
   font-size: 0.88rem;
   font-weight: 650;
 }
+.checkout-privacy {
+  margin-top: 20px;
+  padding: 12px;
+  border: 1px solid #d5dacf;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+.checkout-privacy summary {
+  min-height: 44px;
+  padding: 10px 0;
+  cursor: pointer;
+  font-weight: 650;
+}
+.checkout-privacy h3 {
+  font-size: 1rem;
+}
 .privacy-confirmation {
   display: flex;
   gap: 10px;

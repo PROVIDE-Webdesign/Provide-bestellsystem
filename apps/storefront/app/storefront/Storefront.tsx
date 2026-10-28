@@ -1,4 +1,5 @@
 "use client";
+import { CheckoutPrivacyNotice } from "./CheckoutPrivacyNotice";
 import { TaxBreakdown } from "./TaxBreakdown";
 import { ItemPicker } from "./ItemPicker";
 import { cartStorageKey, serializeCart, restoreCart } from "./cart-storage";
@@ -889,7 +890,11 @@ export default function Storefront(scope: StorefrontProps) {
         <a href="/">
           PROVIDE<span> BESTELLEN</span>
         </a>
-        <span className="preview-label">Testansicht · Checkout standardmäßig gesperrt</span>
+        <span className="preview-label">
+          {protectionConfigured
+            ? "Testansicht · Test-Checkout aktiviert"
+            : "Testansicht · Checkout nicht freigeschaltet"}
+        </span>
       </header>
       {(confirmation || orderStatus || statusMessage) && (
         <section className="order-status" aria-labelledby="order-status-title" aria-live="polite">
@@ -1377,9 +1382,11 @@ export default function Storefront(scope: StorefrontProps) {
                         setEmail(event.target.value);
                       }}
                     />
+                    <CheckoutPrivacyNotice noticeVersion={scope.privacyNoticeVersion} />
                     <label className="privacy-confirmation">
                       <input
                         type="checkbox"
+                        aria-describedby="checkout-privacy-context"
                         checked={privacyAccepted}
                         onChange={(event) => {
                           invalidateSubmission(false);

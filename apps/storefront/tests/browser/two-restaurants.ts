@@ -226,8 +226,69 @@ export async function verifyTwoRestaurantsBrowser(browser: Browser, output: stri
       }
       throw Error("Unexpected two-restaurant resource: " + resource);
     });
+    async function verifyNotice(page: Page, mode: string) {
+      const notice = page.locator("#checkout-privacy-notice");
+      const toggle = notice.locator("summary");
+      const checkbox = page.getByRole("checkbox", { name: /Datenschutzhinweis/ });
+      const writesBefore = observed.filter((r) =>
+        ["orders", "checkout-session"].includes(r.resource),
+      ).length;
+      assert.equal(await notice.getAttribute("open"), null);
+      assert.equal(await checkbox.isChecked(), false);
+      await toggle.focus();
+      await toggle.press("Enter");
+      assert.notEqual(await notice.getAttribute("open"), null);
+      await notice.getByText("Bitte nur erfundene Testdaten verwenden.", { exact: true }).waitFor();
+      assert.ok((await notice.innerText()).includes("preview-v1"));
+      assert.ok((await notice.innerText()).includes("Cloudflare Turnstile"));
+      assert.ok((await notice.innerText()).includes("Supabase-Datenbank"));
+      assert.equal(
+        await checkbox.isChecked(),
+        false,
+        "Opening the notice is not an acknowledgment",
+      );
+      assert.equal(
+        observed.filter((r) => ["orders", "checkout-session"].includes(r.resource)).length,
+        writesBefore,
+      );
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
+        false,
+      );
+      await page.screenshot({
+        path: output + `checkout-notice-${mode}-${width}.png`,
+        fullPage: true,
+      });
+      await toggle.press("Enter");
+      assert.equal(await notice.getAttribute("open"), null);
+    }
     const pages: Page[] = [];
     try {
+      // The preview label follows the same activation prerequisites as the checkout controls.
+      for (const mode of ["disabled", "missing-key"]) {
+        const page = await context.newPage();
+        page.on("pageerror", (error) => errors.push(error.message));
+        await page.clock.setFixedTime(new Date(now));
+        await page.goto(`http://127.0.0.1:4321/?checkout=${mode}`);
+        await page
+          .getByRole("heading", { name: restaurants[0]!.catalog.restaurant.name, exact: true })
+          .waitFor();
+        assert.equal(
+          await page.locator(".preview-label").textContent(),
+          "Testansicht · Checkout nicht freigeschaltet",
+        );
+        await page
+          .getByText("Der sichere Checkout ist noch nicht freigeschaltet.", { exact: true })
+          .waitFor();
+        assert.equal(
+          await page
+            .getByRole("button", { name: "Sicherheitsprüfung starten", exact: true })
+            .count(),
+          0,
+        );
+        await verifyNotice(page, mode);
+        await page.close();
+      }
       for (const current of restaurants) {
         const page = await context.newPage();
         pages.push(page);
@@ -239,6 +300,11 @@ export async function verifyTwoRestaurantsBrowser(browser: Browser, output: stri
         await page
           .getByRole("heading", { name: current.catalog.restaurant.name, exact: true })
           .waitFor();
+        assert.equal(
+          await page.locator(".preview-label").textContent(),
+          "Testansicht · Test-Checkout aktiviert",
+        );
+        if (current.letter === "a") await verifyNotice(page, "enabled");
         const other = restaurants.find((r) => r !== current)!;
         assert.equal(
           await page.getByRole("heading", { name: other.item.name, exact: true }).count(),
@@ -358,6 +424,8 @@ export async function verifyTwoRestaurantsBrowser(browser: Browser, output: stri
               "server-price-change-review",
               "two-scoped-orders",
               "scoped-status-reload-no-resubmit",
+              "checkout-activation-enabled-disabled-missing-key",
+              "reachable-keyboard-privacy-notice-without-acknowledgment-or-submission",
             ],
             observed,
           },
