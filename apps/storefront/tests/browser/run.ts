@@ -1,3 +1,4 @@
+import { verifyTwoRestaurantsBrowser } from "./two-restaurants.ts";
 import { verifySupportBrowser } from "./support.ts";
 import { verifyCheckoutProtectionBrowser } from "./checkout-protection.ts";
 import { verifyReceiptScopeBrowser } from "./receipt-scope.ts";
@@ -32,18 +33,26 @@ const configuredCatalog = {
       ...menu,
       sections: menu.sections.map((s) => ({
         ...s,
-        items: s.items.map((i) => (i.id === item.id ? { ...i, configuration } : i)),
+        items: s.items.map((i) =>
+          i.id === item.id ? { ...i, configuration } : i,
+        ),
       })),
     },
   ],
 };
-const output = fileURLToPath(new URL("../../../../output/menu-cart-browser/", import.meta.url));
+const output = fileURLToPath(
+  new URL("../../../../output/menu-cart-browser/", import.meta.url),
+);
 await mkdir(output, { recursive: true });
 const server = await createServer({
   configFile: false,
   root: fileURLToPath(new URL("./", import.meta.url)),
   plugins: [react()],
-  resolve: { alias: { "@": fileURLToPath(new URL("../../../dashboard/", import.meta.url)) } },
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("../../../dashboard/", import.meta.url)),
+    },
+  },
   server: {
     host: "127.0.0.1",
     port: 4321,
@@ -53,7 +62,8 @@ const server = await createServer({
 });
 await server.listen();
 const engine = process.env.BROWSER_ENGINE ?? "chromium";
-if (!["chromium", "firefox", "webkit"].includes(engine)) throw Error("Unsupported browser engine");
+if (!["chromium", "firefox", "webkit"].includes(engine))
+  throw Error("Unsupported browser engine");
 const engines = { chromium, firefox, webkit };
 const selectedBrowser = engines[engine as "chromium" | "firefox" | "webkit"];
 const browser = await selectedBrowser.launch({ headless: true });
@@ -74,7 +84,9 @@ try {
             _element: HTMLElement,
             options: { cData: string; callback: (token: string) => void },
           ) => {
-            queueMicrotask(() => options.callback("synthetic-" + options.cData));
+            queueMicrotask(() =>
+              options.callback("synthetic-" + options.cData),
+            );
             return options.cData;
           },
           remove: () => undefined,
@@ -99,13 +111,17 @@ try {
       statusAvailableUntil: "2026-10-04T10:00:00.000Z",
     };
     await page.route("**/api/storefront/**", async (route) => {
-      const resource = new URL(route.request().url()).pathname.split("/").at(-1);
+      const resource = new URL(route.request().url()).pathname
+        .split("/")
+        .at(-1);
       if (resource === "catalog") {
         await route.fulfill({ json: { data: configuredCatalog } });
         return;
       }
       if (resource === "checkout-context") {
-        await route.fulfill({ json: { data: { ready: true, csrf: "a".repeat(43) } } });
+        await route.fulfill({
+          json: { data: { ready: true, csrf: "a".repeat(43) } },
+        });
         return;
       }
       if (resource === "checkout-session") {
@@ -123,21 +139,36 @@ try {
         return;
       }
       if (resource === "checkout-receipt") {
-        await route.fulfill({ json: { data: { state: "unsubmitted", writeExpired: false } } });
+        await route.fulfill({
+          json: { data: { state: "unsubmitted", writeExpired: false } },
+        });
         return;
       }
       if (resource === "order-status") {
-        await route.fulfill({ json: { data: { ...numbered, status: "accepted" } } });
+        await route.fulfill({
+          json: { data: { ...numbered, status: "accepted" } },
+        });
         return;
       }
       const posted: unknown = route.request().postDataJSON();
-      const body = (resource === "orders" ? (posted as { command: unknown }).command : posted) as {
-        lines?: { menuItemId: string; quantity: number; variantId: string; optionIds: string[] }[];
+      const body = (
+        resource === "orders"
+          ? (posted as { command: unknown }).command
+          : posted
+      ) as {
+        lines?: {
+          menuItemId: string;
+          quantity: number;
+          variantId: string;
+          optionIds: string[];
+        }[];
       };
       if (resource === "cart-quote") {
         quoted++;
         assert.equal(body.lines?.[0]?.variantId, configuration.variants[1]!.id);
-        assert.deepEqual(body.lines[0].optionIds, [configuration.optionGroups[0]!.options[1]!.id]);
+        assert.deepEqual(body.lines[0].optionIds, [
+          configuration.optionGroups[0]!.options[1]!.id,
+        ]);
         await route.fulfill({
           json: {
             data: {
@@ -199,7 +230,12 @@ try {
         await route.fulfill(
           submitted === 1
             ? { status: 409, json: { error: { code: "conflict" } } }
-            : { status: 201, json: { data: { ...numbered, statusAccessToken: "a".repeat(43) } } },
+            : {
+                status: 201,
+                json: {
+                  data: { ...numbered, statusAccessToken: "a".repeat(43) },
+                },
+              },
         );
         return;
       }
@@ -209,14 +245,26 @@ try {
     await page.getByRole("heading", { name: item.name, exact: true }).waitFor();
     const dish = page
       .locator("li.dish")
-      .filter({ has: page.getByRole("heading", { name: item.name, exact: true }) });
-    const nameBox = await dish.getByRole("heading", { name: item.name, exact: true }).boundingBox();
-    assert.ok(nameBox && nameBox.width >= 150, "Dish name must have a readable column on mobile");
+      .filter({
+        has: page.getByRole("heading", { name: item.name, exact: true }),
+      });
+    const nameBox = await dish
+      .getByRole("heading", { name: item.name, exact: true })
+      .boundingBox();
+    assert.ok(
+      nameBox && nameBox.width >= 150,
+      "Dish name must have a readable column on mobile",
+    );
     await dish.getByRole("button", { name: "Hinzufügen" }).click();
     await dish.getByRole("alert").waitFor();
-    await page.screenshot({ path: output + `picker-${viewport.width}.png`, fullPage: true });
+    await page.screenshot({
+      path: output + `picker-${viewport.width}.png`,
+      fullPage: true,
+    });
     assert.match(await dish.getByRole("alert").innerText(), /vervollständige/);
-    await dish.getByLabel("Variante", { exact: true }).selectOption(configuration.variants[1]!.id);
+    await dish
+      .getByLabel("Variante", { exact: true })
+      .selectOption(configuration.variants[1]!.id);
     await dish.getByRole("checkbox", { name: /Extra B/ }).check();
     await dish.getByRole("button", { name: "Hinzufügen" }).click();
     await page.getByRole("heading", { name: "1 Gerichte" }).waitFor();
@@ -224,61 +272,99 @@ try {
     await page.getByRole("heading", { name: "1 Gerichte" }).waitFor();
     await page.getByRole("heading", { name: item.name, exact: true }).waitFor();
     assert.equal(
-      await page.getByRole("button", { name: "Abholbestellung absenden" }).isDisabled(),
+      await page
+        .getByRole("button", { name: "Abholbestellung absenden" })
+        .isDisabled(),
       true,
     );
     await page.getByLabel("Datum und Uhrzeit").fill("2026-10-02T12:00");
-    await page.getByRole("button", { name: "Warenkorb und Preise prüfen" }).click();
+    await page
+      .getByRole("button", { name: "Warenkorb und Preise prüfen" })
+      .click();
     const confirmation = page.getByRole("checkbox", {
       name: "Ich bestätige die angezeigten Gerichte, Auswahl und aktuellen Preise.",
     });
     await confirmation.waitFor();
     assert.equal(await confirmation.isChecked(), false);
-    await page.getByText("Enthaltene Steuern und Summen", { exact: true }).click();
-    await page.getByText("Enthaltene Steuer 7 %: 0,98 €", { exact: false }).waitFor();
-    await page.screenshot({ path: output + `tax-${viewport.width}.png`, fullPage: true });
+    await page
+      .getByText("Enthaltene Steuern und Summen", { exact: true })
+      .click();
+    await page
+      .getByText("Enthaltene Steuer 7 %: 0,98 €", { exact: false })
+      .waitFor();
+    await page.screenshot({
+      path: output + `tax-${viewport.width}.png`,
+      fullPage: true,
+    });
     await confirmation.check();
-    await page.getByRole("button", { name: "Sicherheitsprüfung starten" }).click();
+    await page
+      .getByRole("button", { name: "Sicherheitsprüfung starten" })
+      .click();
     await page
       .getByText(
         "Bestellversuch vorbereitet. Du kannst die Bestellung jetzt ausdrücklich absenden.",
       )
       .waitFor();
     assert.equal(
-      await page.getByRole("button", { name: "Abholbestellung absenden" }).isEnabled(),
+      await page
+        .getByRole("button", { name: "Abholbestellung absenden" })
+        .isEnabled(),
       true,
     );
     await page.getByLabel("Name", { exact: true }).fill("Synthetic");
     await page.getByLabel("Telefonnummer").fill("+999100000001");
     await page.getByLabel("E-Mail-Adresse").fill("synthetic@example.invalid");
     await page.getByRole("checkbox", { name: /Datenschutzhinweis/ }).check();
-    await page.getByRole("button", { name: "Abholbestellung absenden" }).click();
-    await page.getByText(/Die Bestellung konnte nicht angenommen werden/).waitFor();
+    await page
+      .getByRole("button", { name: "Abholbestellung absenden" })
+      .click();
+    await page
+      .getByText(/Die Bestellung konnte nicht angenommen werden/)
+      .waitFor();
     assert.equal(
-      await page.getByRole("button", { name: "Abholbestellung absenden" }).isDisabled(),
+      await page
+        .getByRole("button", { name: "Abholbestellung absenden" })
+        .isDisabled(),
       true,
     );
     assert.equal(quoted, 1);
     assert.equal(submitted, 1);
     assert.equal(
-      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth + 1,
+      ),
       false,
     );
-    await page.screenshot({ path: output + `cart-${viewport.width}.png`, fullPage: true });
-    await page.getByRole("button", { name: "Warenkorb und Preise prüfen" }).click();
+    await page.screenshot({
+      path: output + `cart-${viewport.width}.png`,
+      fullPage: true,
+    });
+    await page
+      .getByRole("button", { name: "Warenkorb und Preise prüfen" })
+      .click();
     await confirmation.waitFor();
     await confirmation.check();
-    await page.getByRole("button", { name: "Abholbestellung absenden" }).click();
-    await page.getByText("Bestellnummer: BS-00000421", { exact: true }).waitFor();
-    await page.getByRole("heading", { name: "Bestellung angenommen", exact: true }).waitFor();
+    await page
+      .getByRole("button", { name: "Abholbestellung absenden" })
+      .click();
+    await page
+      .getByText("Bestellnummer: BS-00000421", { exact: true })
+      .waitFor();
+    await page
+      .getByRole("heading", { name: "Bestellung angenommen", exact: true })
+      .waitFor();
     await page.waitForLoadState("networkidle");
     await page.screenshot({
       path: output + `order-number-guest-${viewport.width}.png`,
       fullPage: true,
     });
     await page.reload();
-    await page.getByText("Bestellnummer: BS-00000421", { exact: true }).waitFor();
-    await page.getByRole("heading", { name: "Bestellung angenommen", exact: true }).waitFor();
+    await page
+      .getByText("Bestellnummer: BS-00000421", { exact: true })
+      .waitFor();
+    await page
+      .getByRole("heading", { name: "Bestellung angenommen", exact: true })
+      .waitFor();
     await page.waitForLoadState("networkidle");
     // Expired recovery must clear itself; the cart never restores checkout approval.
     await page.evaluate(() => {
@@ -297,7 +383,9 @@ try {
     });
     await page.reload();
     await page.getByRole("heading", { name: "0 Gerichte" }).waitFor();
-    await page.getByRole("heading", { name: "Bestellung angenommen", exact: true }).waitFor();
+    await page
+      .getByRole("heading", { name: "Bestellung angenommen", exact: true })
+      .waitFor();
     await page.waitForLoadState("networkidle");
     const published: MenuAdminVersion = {
       id: menu.versionId,
@@ -330,7 +418,9 @@ try {
           id: menu.id,
           name: menu.name,
           versions: [published],
-          publications: [{ versionId: published.id, effectiveAt: "2026-09-01T12:00:00Z" }],
+          publications: [
+            { versionId: published.id, effectiveAt: "2026-09-01T12:00:00Z" },
+          ],
         },
       ],
     };
@@ -362,7 +452,12 @@ try {
           };
           state = {
             ...state,
-            menus: [{ ...state.menus[0]!, versions: [version, ...state.menus[0]!.versions] }],
+            menus: [
+              {
+                ...state.menus[0]!,
+                versions: [version, ...state.menus[0]!.versions],
+              },
+            ],
           };
         }
         if (command.action === "create_draft") {
@@ -372,7 +467,10 @@ try {
             number: 2,
             status: "draft" as const,
           };
-          state = { ...state, menus: [{ ...state.menus[0]!, versions: [draft, published] }] };
+          state = {
+            ...state,
+            menus: [{ ...state.menus[0]!, versions: [draft, published] }],
+          };
         }
         if (command.action === "save_draft") {
           saves++;
@@ -381,7 +479,10 @@ try {
             menus: [
               {
                 ...state.menus[0]!,
-                versions: [{ ...state.menus[0]!.versions[0]!, ...command, revision: 1 }, published],
+                versions: [
+                  { ...state.menus[0]!.versions[0]!, ...command, revision: 1 },
+                  published,
+                ],
               },
             ],
           };
@@ -391,34 +492,57 @@ try {
     });
     await page.goto("http://127.0.0.1:4321/?dashboard");
     await page.getByRole("button", { name: "Menüstand laden" }).click();
-    const fee = page.getByRole("group", { name: "Steuerregel für die Liefergebühr" });
-    const feeSave = fee.getByRole("button", { name: "Steuerregel als neue Lieferregel speichern" });
+    const fee = page.getByRole("group", {
+      name: "Steuerregel für die Liefergebühr",
+    });
+    const feeSave = fee.getByRole("button", {
+      name: "Steuerregel als neue Lieferregel speichern",
+    });
     assert.equal(await feeSave.isDisabled(), true);
-    await fee.getByLabel("Bestätigter Liefergebühr-Steuersatz in Prozent").fill("19");
-    await fee.getByLabel("Begründung", { exact: true }).fill("Synthetic declared fee");
-    await fee.getByLabel("Die fachliche Steuerregel wurde geprüft und bestätigt.").check();
+    await fee
+      .getByLabel("Bestätigter Liefergebühr-Steuersatz in Prozent")
+      .fill("19");
+    await fee
+      .getByLabel("Begründung", { exact: true })
+      .fill("Synthetic declared fee");
+    await fee
+      .getByLabel("Die fachliche Steuerregel wurde geprüft und bestätigt.")
+      .check();
     await feeSave.click();
     await fee.getByText("Aktuell: 19 %", { exact: true }).waitFor();
-    await page.getByRole("button", { name: "Als neuen Entwurf kopieren" }).click();
-    await page.getByText("Version 2: Entwurf, für Kunden unsichtbar", { exact: false }).waitFor();
+    await page
+      .getByRole("button", { name: "Als neuen Entwurf kopieren" })
+      .click();
+    await page
+      .getByText("Version 2: Entwurf, für Kunden unsichtbar", { exact: false })
+      .waitFor();
     await page.getByLabel("Preis in Euro", { exact: true }).fill("14");
     await page.getByLabel("Bestätigter Steuersatz in Prozent").fill("19");
     await page.getByRole("button", { name: "Entwurf speichern" }).click();
-    await page.getByText(/Bitte bestätige zuerst die geprüften Produktinformationen/).waitFor();
+    await page
+      .getByText(/Bitte bestätige zuerst die geprüften Produktinformationen/)
+      .waitFor();
     assert.equal(saves, 0);
     await page.getByRole("checkbox", { name: /Ich habe Steuersatz/ }).check();
     await page.getByRole("button", { name: "Entwurf speichern" }).click();
     await page.getByText(/Änderung gespeichert/).waitFor();
     assert.equal(saves, 1);
-    await page.getByRole("button", { name: "Änderungsvorschau anzeigen" }).click();
+    await page
+      .getByRole("button", { name: "Änderungsvorschau anzeigen" })
+      .click();
     await page.getByText(/12.50 EUR → 14.00 EUR/).waitFor();
     assert.equal(
-      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth + 1,
+      ),
       false,
     );
     await page.waitForLoadState("networkidle");
     assert.deepEqual(errors, []);
-    await page.screenshot({ path: output + `editor-${viewport.width}.png`, fullPage: true });
+    await page.screenshot({
+      path: output + `editor-${viewport.width}.png`,
+      fullPage: true,
+    });
     const fileInput = page.getByLabel("Importdatei (JSON)");
     await fileInput.setInputFiles({
       name: "pending.json",
@@ -426,7 +550,9 @@ try {
       buffer: Buffer.from(JSON.stringify(pendingImport)),
     });
     await page.getByText("Import gesperrt:", { exact: false }).waitFor();
-    const importButton = page.getByRole("button", { name: "Als neuen Entwurf importieren" });
+    const importButton = page.getByRole("button", {
+      name: "Als neuen Entwurf importieren",
+    });
     assert.equal(await importButton.isDisabled(), true);
     assert.equal(imports, 0);
     const completedImport = {
@@ -443,14 +569,23 @@ try {
     await page.getByText("Import geprüft.", { exact: false }).waitFor();
     page.once("dialog", (dialog) => void dialog.accept());
     await importButton.click();
-    await page.getByText("Version 3: Entwurf, für Kunden unsichtbar", { exact: false }).waitFor();
+    await page
+      .getByText("Version 3: Entwurf, für Kunden unsichtbar", { exact: false })
+      .waitFor();
     assert.equal(imports, 1);
-    await page.screenshot({ path: output + `import-${viewport.width}.png`, fullPage: true });
+    await page.screenshot({
+      path: output + `import-${viewport.width}.png`,
+      fullPage: true,
+    });
     const { statusAvailableUntil: _until, ...summary } = numbered;
     void _until;
     await page.route("**/api/orders**", async (route) => {
-      const detailed = new URL(route.request().url()).pathname !== "/api/orders";
-      const order = { ...summary, allowedTransitions: ["accepted", "rejected", "cancelled"] };
+      const detailed =
+        new URL(route.request().url()).pathname !== "/api/orders";
+      const order = {
+        ...summary,
+        allowedTransitions: ["accepted", "rejected", "cancelled"],
+      };
       await route.fulfill({
         json: {
           data: detailed
@@ -481,24 +616,36 @@ try {
     await page.goto("http://127.0.0.1:4321/?board");
     await page.getByLabel("Bestellnummer suchen").fill("BS-00000421");
     await page.getByRole("button", { name: "Suchen", exact: true }).click();
-    await page.getByRole("button", { name: "Suche zurücksetzen", exact: true }).waitFor();
+    await page
+      .getByRole("button", { name: "Suche zurücksetzen", exact: true })
+      .waitFor();
     try {
-      await page.getByRole("button", { name: /BS-00000421/ }).click({ timeout: 10000 });
+      await page
+        .getByRole("button", { name: /BS-00000421/ })
+        .click({ timeout: 10000 });
     } catch (error) {
       await page.screenshot({
         path: output + `order-number-dashboard-failure-${viewport.width}.png`,
         fullPage: true,
       });
-      console.error("Dashboard number failure:", await page.locator("body").innerText(), errors);
+      console.error(
+        "Dashboard number failure:",
+        await page.locator("body").innerText(),
+        errors,
+      );
       throw error;
     }
-    await page.getByRole("heading", { name: "#BS-00000421", exact: true }).waitFor();
+    await page
+      .getByRole("heading", { name: "#BS-00000421", exact: true })
+      .waitFor();
     await page.screenshot({
       path: output + `order-number-dashboard-${viewport.width}.png`,
       fullPage: true,
     });
     assert.equal(
-      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth + 1,
+      ),
       false,
     );
     await verifyOrderLiveBrowser(page, output, viewport.width);
@@ -516,6 +663,7 @@ try {
   }
   await verifyCheckoutProtectionBrowser(browser, output);
   await verifyReceiptScopeBrowser(browser, output);
+  await verifyTwoRestaurantsBrowser(browser, output);
 } finally {
   await browser.close();
   await server.close();
