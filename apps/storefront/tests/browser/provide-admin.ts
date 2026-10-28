@@ -141,7 +141,9 @@ export async function verifyProvideBrowser(page: Page, output: string, width: nu
   await page.getByLabel("Ich habe Bereich und Änderung geprüft.", { exact: true }).check();
   await Promise.all([
     page.waitForResponse(
-      (r) => r.url().endsWith("/api/provide") && r.request().postDataJSON().action === "firstOwner",
+      (r) =>
+        r.url().endsWith("/api/provide") &&
+        parseProvideAdminCommand(r.request().postDataJSON())?.action === "firstOwner",
     ),
     page.getByRole("button", { name: "Änderung bewusst anwenden" }).click(),
   ]);
@@ -161,7 +163,8 @@ export async function verifyProvideBrowser(page: Page, output: string, width: nu
   await Promise.all([
     page.waitForResponse(
       (r) =>
-        r.url().endsWith("/api/provide") && r.request().postDataJSON().action === "locationAddress",
+        r.url().endsWith("/api/provide") &&
+        parseProvideAdminCommand(r.request().postDataJSON())?.action === "locationAddress",
     ),
     page.getByRole("button", { name: "Änderung bewusst anwenden" }).click(),
   ]);

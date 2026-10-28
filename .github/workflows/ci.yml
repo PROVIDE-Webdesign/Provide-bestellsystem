@@ -38,7 +38,12 @@ jobs:
         if:
           ${{ !cancelled() && (steps.formatting.outcome == 'success' || steps.formatting.outcome ==
           'failure') }}
-        run: pnpm lint && pnpm typecheck && pnpm test && pnpm build
+        run: |
+          status=0
+          for task in lint typecheck test build; do
+            pnpm "$task" || status=1
+          done
+          exit "$status"
 
   database:
     runs-on: ubuntu-latest
