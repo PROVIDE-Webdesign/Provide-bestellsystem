@@ -7,3 +7,13 @@ pnpm-lock.yaml
 
 # SQL include must not be rewritten as Markdown (quoted JSON labels).
 supabase/tests/fixtures/menu-selection.fixture.inc
+
+# Immutable uploaded source: the demo build verifies manifest.sourceSha256.
+apps/storefront/demo/asian-kitchen.html
+
+# Historical, source-bound evidence. Preserve the recorded bytes and hashes.
+docs/pilot/asian-kitchen-published-catalog-20261028.json
+docs/planning/2026-10-27-pilot-checkpoint.json
+docs/planning/evidence/pilot-cloud-negative-challenge-after-20261027.json
+docs/planning/evidence/pilot-cloud-negative-challenge-before-20261027.json
+docs/planning/evidence/pilot-native-redirect-20261027.json

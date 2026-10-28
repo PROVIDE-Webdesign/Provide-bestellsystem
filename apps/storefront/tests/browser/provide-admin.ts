@@ -8,6 +8,8 @@ export async function verifyProvideBrowser(page: Page, output: string, width: nu
     revision = raw.selected.revision,
     mutations = 0;
   let replay: unknown = null;
+  let setupMode = false;
+  let savedAddress: unknown = null;
   await page.route("**/api/provide", async (route) => {
     const q = parseProvideAdminCommand(route.request().postDataJSON());
     assert.ok(q);
@@ -19,20 +21,42 @@ export async function verifyProvideBrowser(page: Page, output: string, width: nu
     }
     if (q.action !== "read") {
       mutations++;
-      assert.equal(q.action, "feature");
-      assert.equal(q.expectedRevision, revision);
-      assert.equal(q.reason, "Synthetic feature review");
-      if (conflict) {
-        await route.fulfill({ status: 409, json: { error: { code: "conflict" } } });
-        return;
+      if (setupMode) {
+        assert.ok(q.action === "firstOwner" || q.action === "locationAddress");
+        assert.equal(q.expectedRevision, revision);
+        assert.equal(q.reason, "Synthetic setup review");
+        if (q.action === "firstOwner") {
+          assert.equal(q.ownerUserId, "f1000000-0000-0000-0000-000000000005");
+          assert.equal(q.confirmation, raw.selected.slug);
+          assert.equal(q.locationId, null);
+        } else {
+          assert.equal(q.locationId, raw.selected.locations[0]!.id);
+          assert.deepEqual(q.address, {
+            addressLine1: "Testweg 2",
+            addressLine2: null,
+            postalCode: "52062",
+            city: "Aachen",
+            countryCode: "DE",
+          });
+          savedAddress = q.address;
+        }
+        revision++;
+      } else {
+        assert.equal(q.action, "feature");
+        assert.equal(q.expectedRevision, revision);
+        assert.equal(q.reason, "Synthetic feature review");
+        if (conflict) {
+          await route.fulfill({ status: 409, json: { error: { code: "conflict" } } });
+          return;
+        }
+        if (replay === null) {
+          replay = q;
+          await route.fulfill({ status: 503, json: { error: { code: "service_unavailable" } } });
+          return;
+        }
+        assert.deepEqual(q, replay);
+        revision++;
       }
-      if (replay === null) {
-        replay = q;
-        await route.fulfill({ status: 503, json: { error: { code: "service_unavailable" } } });
-        return;
-      }
-      assert.deepEqual(q, replay);
-      revision++;
     }
     await route.fulfill({
       json: {
@@ -42,6 +66,7 @@ export async function verifyProvideBrowser(page: Page, output: string, width: nu
             ? {
                 ...raw.selected,
                 revision,
+                address: q.locationId ? savedAddress : null,
                 locationId: q.locationId ?? null,
                 scopeSlug: q.locationId ? "storefront-a-mitte" : raw.selected.slug,
                 scopeDisplayName: q.locationId ? "Teststandort Mitte" : raw.selected.displayName,
@@ -106,10 +131,48 @@ export async function verifyProvideBrowser(page: Page, output: string, width: nu
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
     JSON.stringify(overflow),
   );
+  setupMode = true;
+  await page.getByRole("combobox", { name: "Verwaltungsaktion" }).selectOption("firstOwner");
+  await page
+    .getByLabel("Bestätigte Benutzer-ID des Inhabers", { exact: true })
+    .fill("f1000000-0000-0000-0000-000000000005");
+  await page.locator('input[name="confirmation"]').fill(raw.selected.slug);
+  await page.getByLabel("Änderungsgrund", { exact: true }).first().fill("Synthetic setup review");
+  await page.getByLabel("Ich habe Bereich und Änderung geprüft.", { exact: true }).check();
+  await Promise.all([
+    page.waitForResponse(
+      (r) =>
+        r.url().endsWith("/api/provide") &&
+        parseProvideAdminCommand(r.request().postDataJSON())?.action === "firstOwner",
+    ),
+    page.getByRole("button", { name: "Änderung bewusst anwenden" }).click(),
+  ]);
+  await page.screenshot({ path: `${output}/provide-first-owner-${width}.png`, fullPage: true });
   await page
     .getByRole("combobox", { name: "Verwaltungsbereich" })
     .selectOption(raw.selected.locations[0]!.id);
   await page.getByText("Teststandort Mitte", { exact: true }).last().waitFor();
+  await page.getByRole("combobox", { name: "Verwaltungsaktion" }).selectOption("locationAddress");
+  assert.equal(await page.locator('option[value="firstOwner"]').count(), 0);
+  await page.getByLabel("Straße und Hausnummer", { exact: true }).fill("Testweg 2");
+  await page.getByLabel("Postleitzahl", { exact: true }).fill("52062");
+  await page.getByLabel("Stadt", { exact: true }).fill("Aachen");
+  await page.getByLabel("Ländercode", { exact: true }).fill("de");
+  await page.getByLabel("Änderungsgrund", { exact: true }).first().fill("Synthetic setup review");
+  await page.getByLabel("Ich habe Bereich und Änderung geprüft.", { exact: true }).check();
+  await Promise.all([
+    page.waitForResponse(
+      (r) =>
+        r.url().endsWith("/api/provide") &&
+        parseProvideAdminCommand(r.request().postDataJSON())?.action === "locationAddress",
+    ),
+    page.getByRole("button", { name: "Änderung bewusst anwenden" }).click(),
+  ]);
+  await page.screenshot({
+    path: `${output}/provide-location-address-${width}.png`,
+    fullPage: true,
+  });
+  setupMode = false;
   await page.getByRole("combobox", { name: "Verwaltungsaktion" }).selectOption("feature");
   conflict = true;
   await page.getByLabel("Änderungsgrund", { exact: true }).first().fill("Synthetic feature review");

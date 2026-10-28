@@ -29,8 +29,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run checks
-        run: pnpm check
+      - name: Check formatting
+        id: formatting
+        run: pnpm format:check
+
+      # Keep formatting a required failing gate, while still reporting code regressions.
+      - name: Check code after formatting result
+        if:
+          ${{ !cancelled() && (steps.formatting.outcome == 'success' || steps.formatting.outcome ==
+          'failure') }}
+        run: |
+          status=0
+          for task in lint typecheck test build; do
+            pnpm "$task" || status=1
+          done
+          exit "$status"
 
   database:
     runs-on: ubuntu-latest
@@ -73,40 +86,42 @@ jobs:
       - name: Test public API against the migrated database
         run: pnpm --filter @provide/api exec vitest run src/storefront.integration.test.ts
         env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:16322/postgres
 
       - name: Prepare masked loopback Realtime credentials
-        run: node scripts/ci-realtime-env.mjs
+        run: |
+          node --test scripts/ci-realtime-env.test.mjs
+          node scripts/ci-realtime-env.mjs
 
       - name: Test two authenticated dashboards on real private Realtime
         run: pnpm --filter @provide/api exec vitest run src/realtime.integration.test.ts
         env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:16322/postgres
 
       - name: Test actual local Auth invitations and personnel access revocation
         run: pnpm --filter @provide/api exec vitest run src/personnel.integration.test.ts
         env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:16322/postgres
 
       - name: Test actual isolated account recovery and MFA session boundaries
         run:
           pnpm --filter @provide/api exec vitest run src/recovery.integration.test.ts
           src/recovery-loss.integration.test.ts
         env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:16322/postgres
 
       - name:
           Test actual isolated support grants, MFA, session revocation and transaction boundaries
         run: pnpm --filter @provide/api exec vitest run src/support.integration.test.ts
         env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:16322/postgres
 
       # Legacy scenarios require their fresh queue fixture. Run them before the
       # O3 suites intentionally retain committed orders/outbox effects.
       - name: Test O3 real PostgreSQL concurrency and protected dispatcher
         run: pnpm --filter @provide/api exec vitest run src/checkout-protection.integration.test.ts
         env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:16322/postgres
 
       - name: Install Chromium for the integrated HTTPS checkout evidence
         run: pnpm --filter @provide/storefront exec playwright install --with-deps chromium
@@ -114,7 +129,7 @@ jobs:
       - name: Test actual HTTPS browser, gateway, API and PostgreSQL checkout recovery
         run: node scripts/ci-checkout-http.mjs
         env:
-          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:16322/postgres
 
       - name: Retain integrated checkout browser evidence
         uses: actions/upload-artifact@v7

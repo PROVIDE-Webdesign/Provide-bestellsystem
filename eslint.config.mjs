@@ -26,4 +26,27 @@ export default tseslint.config(
       "@typescript-eslint/no-misused-promises": "error",
     },
   },
+  // Dependency-free browser adapters are plain JavaScript outside the TS project.
+  // Keep syntax and recommended lint rules; typed application code remains strict.
+  {
+    files: ["apps/storefront/demo/*.mjs"],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      globals: Object.fromEntries(
+        [
+          "AbortSignal",
+          "Event",
+          "FormData",
+          "MutationObserver",
+          "URL",
+          "crypto",
+          "document",
+          "fetch",
+          "matchMedia",
+          "queueMicrotask",
+          "window",
+        ].map((name) => [name, "readonly"]),
+      ),
+    },
+  },
 );

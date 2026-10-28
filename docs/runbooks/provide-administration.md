@@ -12,8 +12,20 @@ Rechte-/Transaktionsschnitt.
 3. Auth und Administration in einer isolierten Umgebung können danach gezielt eingeschaltet werden.
    Hyperdrive-Cache muss deaktiviert, JWT-Issuer/Audience müssen korrekt sein. Der separate
    Live-Schalter bleibt aus. `/provide` verwendet dieselbe sichere Sitzung und fordert MFA an.
-4. Mandanten/Standorte entstehen im Setup ohne automatische Owner-Zuordnung. A1 ist der nächste
-   Bedienungsblock für Personal, Einladungen, Standortzuordnung und Sperren.
+4. Mandanten/Standorte entstehen im Setup ohne automatische Owner-Zuordnung. Im Restaurantbereich
+   kann ein global berechtigter PROVIDE-Administrator über **Ersten Inhaber zuordnen** ein bereits
+   registriertes Konto mit bestätigter E-Mail und verifizierter MFA zuweisen. Benutzer-ID und
+   Restaurant-Kurzname bewusst bestätigen. Das Restaurant muss im Setup und vollständig ohne
+   Mitgliedschaften sein; die Aktion ersetzt keine Einladung, Kontoanlage oder spätere
+   Personalverwaltung. Gesperrte Konten und wiederholte Erstzuordnungen sind ausgeschlossen. Gleiche
+   Anfrage-IDs sind idempotent, die Zuordnung wird im Verwaltungs- und Personal-Audit geführt. Der
+   Inhaber erhält keine PROVIDE-Rechte und keine automatische Bestellfreigabe.
+
+   Im Standortbereich **Standortadresse pflegen** wählen und Straße/Hausnummer, optionalen Zusatz,
+   Postleitzahl, Stadt und zweistelligen Ländercode erfassen. Der bestehende Standort-Grant gilt;
+   die Restaurantzuordnung ist unveränderlich. Eine spätere Adressänderung öffnet die
+   Standortprüfungen erneut und sperrt neue Bestellungen bis zur bewussten erneuten Freigabe.
+
 5. Nachweise strukturiert referenzieren; keine Geheimnisse, Gastdaten oder freie E-Mail-Adressen in
    Grund/Referenz. Pflichtprüfungen können Nichtanwendbarkeit als belegten fachlichen Fall
    dokumentieren. F01–F03 liefern derzeit keine echte Deklarations-/Import-/Geräteabnahme.

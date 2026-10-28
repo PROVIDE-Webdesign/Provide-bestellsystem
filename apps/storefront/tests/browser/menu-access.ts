@@ -257,7 +257,12 @@ export async function verifyMenuAccessBrowser(page: Page, output: string, width:
           { restaurantId: restaurantB, mounted: !unmount },
         );
         if (unmount) await page.getByText("Menüpflege geschlossen", { exact: true }).waitFor();
-        else await empty();
+        else {
+          // dispatchEvent returns before React commits the requested prop change.
+          // Observe the new restaurant heading, then immediately assert full clearing.
+          await page.locator(`#menu-title-${restaurantB}`).waitFor();
+          await empty();
+        }
         if (phase === "headers") await delayed!.fulfill({ json: { data: fixture } });
         else
           await page.evaluate(() =>

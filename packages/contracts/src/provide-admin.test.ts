@@ -16,6 +16,58 @@ const feature = {
   expiresAt: "2026-10-02T12:00:00.000Z",
 };
 describe("PROVIDE administration contracts", () => {
+  const address = {
+    addressLine1: "Testweg 2",
+    addressLine2: null,
+    postalCode: "52062",
+    city: "Aachen",
+    countryCode: "DE",
+  };
+  it("accepts a scoped address and an explicit first-owner confirmation", () => {
+    const q = { ...common, action: "locationAddress", locationId: common.requestId, address };
+    expect(parseProvideAdminCommand(q)).toEqual(q);
+    const owner = {
+      ...common,
+      action: "firstOwner",
+      ownerUserId: common.requestId,
+      confirmation: "test-restaurant",
+    };
+    expect(parseProvideAdminCommand(owner)).toEqual(owner);
+    expect(parseProvideAdminCommand({ ...owner, locationId: common.requestId })).toBeUndefined();
+    expect(
+      parseProvideAdminCommand({ ...owner, ownerUserId: "guest@example.invalid" }),
+    ).toBeUndefined();
+    expect(parseProvideAdminCommand({ ...owner, confirmation: "" })).toBeUndefined();
+    expect(parseProvideAdminCommand({ ...q, locationId: null })).toBeUndefined();
+  });
+  it.each([
+    { city: "" },
+    { postalCode: 52062 },
+    { countryCode: "de" },
+    { addressLine1: "A\nB" },
+    { addressLine2: "" },
+    { city: "x".repeat(101) },
+    { actor: common.requestId },
+  ])("rejects malformed addresses %j", (patch) => {
+    expect(
+      parseProvideAdminCommand({
+        ...common,
+        action: "locationAddress",
+        locationId: common.requestId,
+        address: { ...address, ...patch },
+      }),
+    ).toBeUndefined();
+  });
+  it("parses the optional scoped address without breaking existing projections", () => {
+    const q = { ...raw, selected: { ...raw.selected, address } };
+    expect(parseProvideAdminState(q)).toEqual(q);
+    expect(
+      parseProvideAdminState({
+        ...q,
+        selected: { ...q.selected, address: { ...address, city: null } },
+      }),
+    ).toBeUndefined();
+  });
   it("accepts PostgreSQL RFC3339 microseconds without losing the original instant", () => {
     const state = { ...raw, serverNow: "2026-10-01T12:00:00.123456+00:00" };
     expect(parseProvideAdminState(JSON.parse(JSON.stringify(state)))).toEqual(state);
