@@ -40,6 +40,34 @@ async function boundedAudioOperation(operation: Promise<void>, timeoutMs = 2000)
     if (timer !== undefined) clearTimeout(timer);
   }
 }
+type BrowserAudioSession = { type: string };
+let playback: { session: BrowserAudioSession; previousType: string; users: number } | undefined;
+
+function acquireAlarmPlayback() {
+  const session = (
+    globalThis.navigator as (Navigator & { audioSession?: BrowserAudioSession }) | undefined
+  )?.audioSession;
+  if (!session) return;
+  if (playback?.session !== session) {
+    if (session.type !== "auto" && session.type !== "ambient") return;
+    const previousType = session.type;
+    // On iOS the default Web Audio session is silenced by the ring/silent switch.
+    try {
+      session.type = "playback";
+    } catch {
+      return;
+    }
+    playback = { session, previousType, users: 0 };
+  }
+  const active = playback;
+  active.users++;
+  return () => {
+    if (--active.users !== 0) return;
+    if (playback === active) playback = undefined;
+    if (session.type === "playback") session.type = active.previousType;
+  };
+}
+
 export function createOrderTone(): OrderTone {
   let context: AudioContext | undefined;
   let outputReady = false;
@@ -54,9 +82,11 @@ export function createOrderTone(): OrderTone {
       const oscillator = context.createOscillator(),
         gain = context.createGain();
       oscillator.frequency.value = 880;
-      gain.gain.setValueAtTime(0, context.currentTime);
-      gain.gain.linearRampToValueAtTime(0.12, context.currentTime + 0.02);
-      gain.gain.linearRampToValueAtTime(0, context.currentTime + 0.25);
+      const start = context.currentTime;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.32, start + 0.02);
+      gain.gain.setValueAtTime(0.32, start + 0.32);
+      gain.gain.linearRampToValueAtTime(0, start + 0.46);
       oscillator.connect(gain);
       gain.connect(context.destination);
       const ended = new Promise<void>((resolve) => {
@@ -64,9 +94,11 @@ export function createOrderTone(): OrderTone {
           resolve();
         };
       });
-      oscillator.start();
-      oscillator.stop(context.currentTime + 0.26);
+      let releasePlayback: (() => void) | undefined;
       try {
+        releasePlayback = acquireAlarmPlayback();
+        oscillator.start(start);
+        oscillator.stop(start + 0.48);
         // The first native output can include device startup before its short tone.
         // Keep later alarms on the shorter failure deadline once output is confirmed.
         await boundedAudioOperation(ended, outputReady ? 2000 : 5000);
@@ -75,6 +107,7 @@ export function createOrderTone(): OrderTone {
         oscillator.onended = null;
         oscillator.disconnect();
         gain.disconnect();
+        releasePlayback?.();
       }
     },
     async close() {

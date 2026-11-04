@@ -139,14 +139,18 @@ export class CheckoutClient {
     };
     const response = await send();
     this.assertCurrent(generation, init.signal);
-    // Existing status/payment capabilities outlive the checkout cookie. Only these
-    // independent routes may refresh the CSRF context once after a definite 410.
-    // Never renew an intent or repeat a checkout/receipt/quote automatically.
-    if (
+    // Existing status/payment capabilities outlive the checkout cookie. A second
+    // tab can also replace that cookie, leaving this tab's CSRF value stale.
+    // Only the read-only status lookup may recover from a 403.
+    const expiredContext =
       response.status === 410 &&
-      ["order-status", "payment-session"].includes(resource) &&
-      (await this.error(response)).code === "checkout_session_expired"
-    ) {
+      (resource === "order-status" || resource === "payment-session") &&
+      (await this.error(response)).code === "checkout_session_expired";
+    const staleStatusContext =
+      response.status === 403 &&
+      resource === "order-status" &&
+      (await this.error(response)).code === "forbidden";
+    if (expiredContext || staleStatusContext) {
       this.assertCurrent(generation, init.signal);
       this.csrf = null;
       await this.bootstrap();

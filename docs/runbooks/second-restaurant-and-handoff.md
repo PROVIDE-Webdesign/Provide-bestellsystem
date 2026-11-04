@@ -189,6 +189,23 @@ tatsächlichen Hörbarkeit. Bei erneut stummer Ausgabe den Status oder die angez
 und den verwendeten Browser erfassen.
 [WebKit-Befund zum Stummmodus](https://bugs.webkit.org/show_bug.cgi?id=237322)
 
+### Tonkorrektur in der gemeinsamen Vorschau
+
+Das Dashboard nutzt während eines ausdrücklich aktivierten Tons die Wiedergabe-Audiositzung, wenn
+der Browser diese Schnittstelle unterstützt und die bisherige Sitzung automatisch oder Ambient ist.
+Es stellt den vorherigen Typ nach dem Ton oder Zeitabbruch wieder her. Die Tondauer beträgt jetzt
+0,48 Sekunden. Die Lautstärke des Signals wurde angehoben.
+
+Änderung `5dce976`, Dashboard-Version `81d45a6b-f06a-4dfd-947d-d5583cc0b70f`. Typprüfung, 68
+Dashboard-Tests und der Produktionsbuild bestanden. Die WebKit-Prüfung mit emuliertem iPhone 13
+bestätigte Testton und Ton für einen neuen synthetischen Eingang am virtuellen Audioausgang. Der
+ausgelieferte Dashboard-Code stimmte mit dem Build überein. Im angemeldeten Vorschau-Dashboard
+wechselte die Anzeige nach dem Testton zu „Ton aktiviert“.
+
+Die Hörprobe am echten iPhone ist bestanden. Der Nutzer bestätigte nach der Freischaltung der
+Tonkorrektur, dass der Testton hörbar war. Der Ton bei einem neuen Bestelleingang ist separat durch
+den isolierten WebKit-Lauf belegt. Damit ist der Restaurantteil von Paket 4 abgenommen.
+
 ## Geprüfter Einrichtungsstand für Marktgarten
 
 Am 04.11.2026 in der gemeinsamen Vorschau lesend abgeglichen. TEST Marktgarten und TEST Marktgarten
@@ -317,3 +334,58 @@ synthetischen Daten. Die Beispielsummen waren 30,00 € bei zwei Gerichten in A 
 Gerichten in B. Es gab null Bestell- oder Zahlungsaufrufe, Bestellungen und Zahlungsaufträge. Die
 späteren Vorschau- und Smartphone-Nachweise stehen im Abschnitt zum abgeschlossenen Testfall
 BS16-WEB-E2E-01.
+
+## Paket 5 · Praktische Pilotabnahme am 04.11.2026
+
+Gemeinsame Vorschau beim Abgleich:
+
+- Shop `f60362b7-4e80-4702-b40c-e7c0178eea64`
+- API `c336277d-897b-4c9a-a80d-8f8af42b2b7d`
+- Dashboard `81d45a6b-f06a-4dfd-947d-d5583cc0b70f`
+
+Shop und Dashboard meldeten HTTP 200, die API bestätigte den Datenbankzugriff. Die Website- und
+Warenkorbprüfungen liefen im Desktop-Browser auf der gemeinsamen Vorschau. Der bereits bestätigte
+Smartphone-Durchlauf bezieht sich auf denselben Shop-Stand. Die separate Hörprobe am iPhone steht in
+Paket 4.
+
+| Fall                               | Ergebnis                                                                                                                                                                                                                                                                                      |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Asian Kitchen · Teststandort Mitte | Website-Übergabe mit Frühlingsrollen plus Extra (7,40 €) und Gyoza Hähnchen (7,90 €). Abholzeit 05.11., 18:45 Uhr Ortszeit. Der Shop bestätigte 15,30 € serverseitig.                                                                                                                         |
+| TEST Marktgarten Mitte             | Website-Übergabe mit zweimal Ofengemüse Groß (31,80 €) und einmal Apfelschorle (3,90 €). Abholzeit 05.11., 18:15 Uhr Ortszeit. Verfügbarkeit geprüft und 35,70 € serverseitig bestätigt.                                                                                                      |
+| BS-00000022 · Testküche            | Die bestehende Testbestellung mit Zahlung bei Abholung wurde angenommen, in Zubereitung versetzt, abholbereit markiert und abgeschlossen. Alle fünf Ereignisse ab Eingang sind in der Vorschau-Datenbank belegt. Dashboard und Gastansicht zeigen den Abschluss, dieselbe Nummer und 15,30 €. |
+| BS-00000010 · Marktgarten          | Der bestehende abgeschlossene Abholnachweis wurde im richtigen Restaurant abgeglichen. Der aktuelle Website-Test in Marktgarten endete an der Preisbestätigung.                                                                                                                               |
+
+Beide aktuellen Warenkorbprüfungen endeten vor dem Absenden. Der Ablauf wurde mit bestehenden
+Testbestellungen belegt.
+
+### Befund zum Gaststatus und Korrektur im Shop-Branch
+
+In einem länger geöffneten Gast-Tab schlug „Status aktualisieren“ bei BS-00000022 fehl. Ein Neuladen
+stellte den gespeicherten Gastzugang wieder her und zeigte den Abschluss. In der Vorschau ließ sich
+der betroffene Fehlerpfad mit zwei getrennten Checkout-Kontexten nachstellen. Alter CSRF-Wert plus
+neues Sitzungscookie ergab HTTP 403. Der zum neuen Cookie passende Wert erreichte die
+Gaststatusprüfung, die den absichtlich ungültigen Nachweis mit HTTP 404 abwies.
+
+Die Korrektur baut bei HTTP 403 mit `forbidden` den Sitzungskontext für den Gaststatus einmal neu
+auf. Dabei verwendet sie denselben vorhandenen Gastnachweis. Bestellung, Zahlungsaktion,
+Belegabfrage und Preisprüfung haben weiterhin ihre bisherigen Wiederholungsregeln. Die bestehende
+Behandlung von HTTP 410 bleibt erhalten. 105 Shop-Tests, Typprüfung, Lint der geänderten Dateien und
+Shop-Build sind bestanden.
+
+### Wiederholungsprüfung und Abschluss der praktischen Pilotabnahme
+
+Die Korrektur aus `9a00ce6` wurde am 04.11.2026 in der gemeinsamen Shop-Vorschau bereitgestellt.
+Shop-Version `fe8d0617-bb5d-4988-a5ae-f966617b4577`. Der ausgelieferte Client stimmte anhand der
+SHA-256-Prüfsumme mit dem geprüften Build überein. Die Vorschau-Versionen von API und Dashboard
+wurden parallel abgeglichen.
+
+Der Checkout-Client wurde mit zwei getrennten Sitzungen am tatsächlichen Vorschau-Gateway geprüft.
+Nach der erwarteten HTTP-403-Antwort holte er einmal den passenden Sitzungskontext und wiederholte
+die Statusabfrage. Der absichtlich ungültige Gastnachweis wurde dann erwartungsgemäß mit HTTP 404
+abgewiesen. Der gültige Nachweis für **BS-00000022** wurde separat im Browser auf der
+veröffentlichten Shop-Version aktualisiert. Der Shop zeigte weiterhin **„Bestellung
+abgeschlossen“**, die Bestellnummer und **15,30 €**. Für die Wiederholungsprüfung wurde die
+vorhandene Testbestellung weiterverwendet.
+
+Die praktische Pilotabnahme für Bestellsystem 16 ist damit abgeschlossen. Die technische
+Produktivfreigabe und der Live-Zahlungsnachweis liegen bei Bestellsystem 15.
