@@ -118,7 +118,7 @@ unten gilt für die spätere Einrichtung eines echten Betriebs.
 | Wirksame Abholregeln der Testküche         | Version 1 im Dashboard. Täglich 00:00–23:59 Uhr als Vorschau-Testfenster, 15 Minuten Vorlauf und Slotlänge, 14 Tage Bestellhorizont. Fünf Minuten Annahmefrist, kein Liefergebiet. Die oben aufgeführten Demo-Website-Zeiten sind separat.                                                                                                                  |
 | Alarm bei neuem Eingang                    | In isoliertem Chromium 151 bei 1440 × 1000 und 390 × 844 Pixeln. Der echte Dashboard-Code zeigte einen synthetischen Neueingang trotz gesetztem Suchfilter. Nach bewusster Aktivierung endeten der Testton und genau ein weiterer Ton für den Neueingang nativ im Browser. Erneutes Laden derselben Eingangsdaten blieb stumm.                              |
 | Alarm und Ausfallverhalten                 | Überfälliger Eingang, Stummschaltung, Nachladen ohne Realtime, Neuladen ohne Tonfreigabe und Rechteentzug im selben Browserlauf geprüft. 68 Dashboard-Tests in 21 Dateien bestanden, darunter sieben Alarmtests.                                                                                                                                            |
-| Gemeinsame Vorschau                        | Im angemeldeten Dashboard der Testküche fehlt „Ton aktivieren und testen“. Die gelieferte Seite meldet `alertsEnabled=false` und `liveEnabled=false`. Das Dashboard-Gateway antwortet mit HTTP 503. Die API beantwortet `GET /v1/dashboard/restaurants/{restaurantId}/locations/{locationId}/order-alerts` mit HTTP 503 und `Order alerts are not enabled.` |
+| Gemeinsame Vorschau vor Freischaltung      | Im angemeldeten Dashboard der Testküche fehlt „Ton aktivieren und testen“. Die gelieferte Seite meldet `alertsEnabled=false` und `liveEnabled=false`. Das Dashboard-Gateway antwortet mit HTTP 503. Die API beantwortet `GET /v1/dashboard/restaurants/{restaurantId}/locations/{locationId}/order-alerts` mit HTTP 503 und `Order alerts are not enabled.` |
 | Hörbarkeit am vorgesehenen Restaurantgerät | Ausstehend. Der Browserlauf verwendet einen virtuellen Audioausgang und simuliert die Mobilansicht. Die separate Smartphone-Bestellprüfung betrifft den Shop.                                                                                                                                                                                               |
 
 ### Gemeinsame Vorschau · Befund für Bestellsystem 15
@@ -156,6 +156,23 @@ Nach dem Einschalten zuerst den API-Endpunkt ohne Anmeldung prüfen. HTTP 401 is
 erwartete Ergebnis für die aktive, geschützte Route. Danach mit der vorhandenen Standortrolle die
 erfolgreiche Dashboard-Abfrage und den sichtbaren Testton prüfen. Die Abnahme der Hörbarkeit erfolgt
 auf dem vorgesehenen Restaurantgerät.
+
+### Freischaltung und Vorschauprüfung am 04.11.2026, 17:10 Uhr
+
+In der gemeinsamen Vorschau steht `DASHBOARD_ORDER_ALERTS_ENABLED=true` in der API
+(`c336277d-897b-4c9a-a80d-8f8af42b2b7d`) und im Dashboard (`72ad8772-f3e3-4d0d-bd01-b031ff1cadd8`).
+Cloudflare-Abgleich bestätigte alle anderen Einstellungen, Bindungen, Zeitpläne und den Shop-Stand.
+Die geschützten Alarmrouten liefern ohne Anmeldung HTTP 401.
+
+Im angemeldeten Dashboard mit AAL2 zeigte der Teststandort Mitte zwei ältere offene Bestellungen.
+Ihre überschrittenen Annahmefristen waren als Eskalation protokolliert (BS-00000017 und
+BS-00000022). „Ton aktivieren und testen“ wechselte nach dem Testton zu „Ton stummschalten“ und „Ton
+aktiviert“. Die Vorschau lädt den Eingang alle 15 Sekunden nach. Der Test wurde mit den vorhandenen
+Bestellungen durchgeführt.
+
+Die Hörbarkeit am vorgesehenen Restaurantgerät ist noch separat zu bestätigen. Nach Neuladen im
+Dashboard unter **PROVIDE Testküche → Offener Bestelleingang** die Schaltfläche **Ton aktivieren und
+testen** antippen und den Höreindruck festhalten.
 
 ## Geprüfter Einrichtungsstand für Marktgarten
 
