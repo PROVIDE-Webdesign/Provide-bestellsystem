@@ -20,7 +20,28 @@ export async function verifyOnlineIntegration(
   let creates = 0;
   let failFirstCreate = true;
   let refundStatus: "failed" | "succeeded" = "failed";
+  let captures = 0,
+    releases = 0;
+  let loseCaptureReply = true;
   const provider: SandboxProvider = {
+    async settleAuthorization(merchant, job, action) {
+      expect(merchant.merchantAccount).toBe("acct_restaurantA");
+      const session = sessions.get(job.id);
+      if (!session || !session.authorized || session.intent !== job.intentId)
+        throw new Error("Unexpected settlement");
+      session.authorized = false;
+      if (action === "capture") {
+        captures++;
+        session.paid = true;
+        if (loseCaptureReply) {
+          loseCaptureReply = false;
+          throw new Error("Synthetic loss after Stripe accepted capture");
+        }
+      } else {
+        releases++;
+        session.authorizationReleased = true;
+      }
+    },
     session(_config, j) {
       expect(_config.merchantAccount).toBe("acct_restaurantA");
       let session = sessions.get(j.id);
@@ -140,11 +161,17 @@ export async function verifyOnlineIntegration(
     privacyNoticeVersion: "preview-v1",
     fulfillmentType: "pickup",
   };
+  const markExistingAutomatic = (id: string) =>
+    admin.query("update public.online_payment_jobs set capture_method=$2 where order_id=$1", [
+      id,
+      "automatic",
+    ]);
   const response = await post("online-orders", command);
   expect(response.status).toBe(201);
   const raw: unknown = await response.json();
   const confirmation = parseOnlineOrderConfirmation(object(raw)?.data);
   if (!confirmation) throw new Error("Invalid online confirmation");
+  await markExistingAutomatic(confirmation.orderId);
   expect(
     (
       await admin.query<{ n: number }>(
@@ -353,6 +380,7 @@ export async function verifyOnlineIntegration(
   ).json();
   const timelyOrder = parseOnlineOrderConfirmation(object(timelyRaw)?.data);
   if (!timelyOrder) throw new Error("Timely order missing");
+  await markExistingAutomatic(timelyOrder.orderId);
   await post("payment-session", {
     orderId: timelyOrder.orderId,
     paymentAccessToken: timelyOrder.paymentAccessToken,
@@ -404,6 +432,7 @@ export async function verifyOnlineIntegration(
   ).json();
   const uncertainOrder = parseOnlineOrderConfirmation(object(uncertainRaw)?.data);
   if (!uncertainOrder) throw new Error("Uncertain order missing");
+  await markExistingAutomatic(uncertainOrder.orderId);
   await post("payment-session", {
     orderId: uncertainOrder.orderId,
     paymentAccessToken: uncertainOrder.paymentAccessToken,
@@ -459,4 +488,102 @@ export async function verifyOnlineIntegration(
     "select count(*) from public.online_refund_retries",
   );
   expect(audit.rows[0]?.count).toBe("1");
+
+  const read = (id: string) =>
+    postgresOnlineRepository.read(env.HYPERDRIVE!.connectionString, config.account, id);
+  async function authorizeFixture(label: string, hours: number) {
+    const response = await post("online-orders", {
+      ...command,
+      submissionKey: "p2-manual-" + label,
+      requestedFor: when(hours),
+    });
+    expect(response.status).toBe(201);
+    const order = parseOnlineOrderConfirmation(object(await response.json())?.data);
+    if (!order) throw new Error("Manual fixture missing");
+    expect(
+      (
+        await post("payment-session", {
+          orderId: order.orderId,
+          paymentAccessToken: order.paymentAccessToken,
+          paymentDeadline: order.paymentDeadline,
+        })
+      ).status,
+    ).toBe(200);
+    const job = await read(order.orderId);
+    expect(job?.capture_method).toBe("manual");
+    const session = sessions.get(job!.id)!;
+    session.status = "complete";
+    session.authorized = true;
+    session.intent = "pi_" + job!.id.replaceAll("-", "");
+    await run(order.orderId);
+    expect(await read(order.orderId)).toMatchObject({
+      order_status: "submitted",
+      payment_status: "authorized",
+    });
+    return order.orderId;
+  }
+  const accepted = await authorizeFixture("accept-retry", 10);
+  const accept = { expectedStatus: "submitted", targetStatus: "accepted" };
+  expect((await dashboardPost(accepted, "status", accept)).status).toBe(200);
+  expect(await read(accepted)).toMatchObject({
+    order_status: "submitted",
+    payment_status: "authorized",
+  });
+  await run(accepted);
+  expect(await read(accepted)).toMatchObject({
+    order_status: "submitted",
+    payment_status: "authorized",
+  });
+  await run(accepted);
+  expect(await read(accepted)).toMatchObject({
+    order_status: "accepted",
+    payment_status: "captured",
+  });
+  expect((await dashboardPost(accepted, "status", accept)).status).toBe(409);
+  await run(accepted);
+  expect(captures).toBe(1);
+  expect(
+    (
+      await dashboardPost(accepted, "status", {
+        expectedStatus: "accepted",
+        targetStatus: "cancelled",
+      })
+    ).status,
+  ).toBe(200);
+  await run(accepted);
+  expect(await read(accepted)).toMatchObject({
+    order_status: "cancelled",
+    refund_state: "succeeded",
+  });
+  const rejected = await authorizeFixture("reject", 11);
+  expect(
+    (
+      await dashboardPost(rejected, "status", {
+        expectedStatus: "submitted",
+        targetStatus: "rejected",
+      })
+    ).status,
+  ).toBe(200);
+  await run(rejected);
+  expect(await read(rejected)).toMatchObject({
+    order_status: "rejected",
+    payment_status: "expired",
+    refund_state: "none",
+  });
+  const expiredAuth = await authorizeFixture("expire", 12);
+  await admin.query(
+    "update public.online_payment_jobs set acceptance_deadline=statement_timestamp()-interval '1 second' where order_id=$1",
+    [expiredAuth],
+  );
+  await run(expiredAuth);
+  expect(await read(expiredAuth)).toMatchObject({
+    order_status: "cancelled",
+    payment_status: "expired",
+    refund_state: "none",
+  });
+  expect(captures).toBe(1);
+  expect(releases).toBe(2);
+  console.log(
+    "P2 matrix: authorized, no early acceptance, lost capture response, duplicate action, captured refund, rejected authorization, expired authorization",
+  );
 }
