@@ -215,9 +215,13 @@ describe("O3 client recovery state (unit)", () => {
     replies[1]!(Response.json({ data: { ready: true, csrf: "b".repeat(43) } }));
     await Promise.all([current, shared]);
   });
-  it.each(["order-status", "payment-session"])(
-    "O3-T46 %s retains its capability after cookie expiry without issuing an intent",
-    async (resource) => {
+  it.each([
+    ["order-status", 410, "checkout_session_expired"],
+    ["payment-session", 410, "checkout_session_expired"],
+    ["order-status", 403, "forbidden"],
+  ] as const)(
+    "%s retains its capability after context rejection %s without issuing an intent",
+    async (resource, status, code) => {
       const calls: { resource: string; body: string; csrf: string | null }[] = [];
       let boots = 0,
         attempts = 0;
@@ -239,7 +243,7 @@ describe("O3 client recovery state (unit)", () => {
           );
         return Promise.resolve(
           ++attempts === 1
-            ? Response.json({ error: { code: "checkout_session_expired" } }, { status: 410 })
+            ? Response.json({ error: { code } }, { status })
             : Response.json({ data: { ready: true } }),
         );
       };
@@ -265,9 +269,17 @@ describe("O3 client recovery state (unit)", () => {
       expect(client.currentIntent).toBeNull();
     },
   );
-  it.each(["orders", "checkout-receipt", "cart-quote"])(
-    "O3-T40/T46 %s never retries or renews after cookie expiry",
-    async (resource) => {
+  it.each([
+    ["orders", 410, "checkout_session_expired"],
+    ["checkout-receipt", 410, "checkout_session_expired"],
+    ["cart-quote", 410, "checkout_session_expired"],
+    ["orders", 403, "forbidden"],
+    ["checkout-receipt", 403, "forbidden"],
+    ["cart-quote", 403, "forbidden"],
+    ["payment-session", 403, "forbidden"],
+  ] as const)(
+    "%s never retries or renews after context rejection %s",
+    async (resource, status, code) => {
       const calls: string[] = [];
       const fetcher: typeof fetch = (input) => {
         const name = (input instanceof Request ? input.url : input.toString()).split("/").at(-1)!;
@@ -275,11 +287,11 @@ describe("O3 client recovery state (unit)", () => {
         return Promise.resolve(
           name === "checkout-context"
             ? Response.json({ data: { ready: true, csrf: "a".repeat(43) } })
-            : Response.json({ error: { code: "checkout_session_expired" } }, { status: 410 }),
+            : Response.json({ error: { code } }, { status }),
         );
       };
       const client = new CheckoutClient(base, fetcher, store());
-      expect((await client.request(resource, { method: "POST", body: "{}" })).status).toBe(410);
+      expect((await client.request(resource, { method: "POST", body: "{}" })).status).toBe(status);
       expect(calls).toEqual(["checkout-context", resource]);
     },
   );

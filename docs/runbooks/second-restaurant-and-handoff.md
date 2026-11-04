@@ -334,3 +334,44 @@ synthetischen Daten. Die Beispielsummen waren 30,00 € bei zwei Gerichten in A 
 Gerichten in B. Es gab null Bestell- oder Zahlungsaufrufe, Bestellungen und Zahlungsaufträge. Die
 späteren Vorschau- und Smartphone-Nachweise stehen im Abschnitt zum abgeschlossenen Testfall
 BS16-WEB-E2E-01.
+
+## Paket 5 · Praktische Pilotabnahme am 04.11.2026
+
+Gemeinsame Vorschau beim Abgleich:
+
+- Shop `f60362b7-4e80-4702-b40c-e7c0178eea64`
+- API `c336277d-897b-4c9a-a80d-8f8af42b2b7d`
+- Dashboard `81d45a6b-f06a-4dfd-947d-d5583cc0b70f`
+
+Shop und Dashboard meldeten HTTP 200, die API bestätigte den Datenbankzugriff. Die Website- und
+Warenkorbprüfungen liefen im Desktop-Browser auf der gemeinsamen Vorschau. Der bereits bestätigte
+Smartphone-Durchlauf bezieht sich auf denselben Shop-Stand. Die separate Hörprobe am iPhone steht in
+Paket 4.
+
+| Fall                               | Ergebnis                                                                                                                                                                                                                                                                                      |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Asian Kitchen · Teststandort Mitte | Website-Übergabe mit Frühlingsrollen plus Extra (7,40 €) und Gyoza Hähnchen (7,90 €). Abholzeit 05.11., 18:45 Uhr Ortszeit. Der Shop bestätigte 15,30 € serverseitig.                                                                                                                         |
+| TEST Marktgarten Mitte             | Website-Übergabe mit zweimal Ofengemüse Groß (31,80 €) und einmal Apfelschorle (3,90 €). Abholzeit 05.11., 18:15 Uhr Ortszeit. Verfügbarkeit geprüft und 35,70 € serverseitig bestätigt.                                                                                                      |
+| BS-00000022 · Testküche            | Die bestehende Testbestellung mit Zahlung bei Abholung wurde angenommen, in Zubereitung versetzt, abholbereit markiert und abgeschlossen. Alle fünf Ereignisse ab Eingang sind in der Vorschau-Datenbank belegt. Dashboard und Gastansicht zeigen den Abschluss, dieselbe Nummer und 15,30 €. |
+| BS-00000010 · Marktgarten          | Der bestehende abgeschlossene Abholnachweis wurde im richtigen Restaurant abgeglichen. Der aktuelle Website-Test in Marktgarten endete an der Preisbestätigung.                                                                                                                               |
+
+Beide aktuellen Warenkorbprüfungen endeten vor dem Absenden. Der Ablauf wurde mit bestehenden
+Testbestellungen belegt.
+
+### Befund zum Gaststatus und Korrektur im Shop-Branch
+
+In einem länger geöffneten Gast-Tab schlug „Status aktualisieren“ bei BS-00000022 fehl. Ein Neuladen
+stellte den gespeicherten Gastzugang wieder her und zeigte den Abschluss. In der Vorschau ließ sich
+der betroffene Fehlerpfad mit zwei getrennten Checkout-Kontexten nachstellen. Alter CSRF-Wert plus
+neues Sitzungscookie ergab HTTP 403. Der zum neuen Cookie passende Wert erreichte die
+Gaststatusprüfung, die den absichtlich ungültigen Nachweis mit HTTP 404 abwies.
+
+Die Korrektur baut bei HTTP 403 mit `forbidden` den Sitzungskontext für den Gaststatus einmal neu
+auf. Dabei verwendet sie denselben vorhandenen Gastnachweis. Bestellung, Zahlungsaktion,
+Belegabfrage und Preisprüfung haben weiterhin ihre bisherigen Wiederholungsregeln. Die bestehende
+Behandlung von HTTP 410 bleibt erhalten. 105 Shop-Tests, Typprüfung, Lint der geänderten Dateien und
+Shop-Build sind bestanden.
+
+Die Korrektur liegt im Branch für die abgestimmte Vorschau. Danach den Gaststatus nach einem
+Kontextwechsel in einem offenen Tab erneut prüfen. Der vorliegende Abholnachweis bleibt für die
+Bestellung gültig. Live-Zahlung und technische Freigabe liegen bei Bestellsystem 15.
