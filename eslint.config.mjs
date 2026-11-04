@@ -9,6 +9,8 @@ export default tseslint.config(
       "**/coverage/**",
       "**/node_modules/**",
       "**/.wrangler/**",
+      "**/public/asian-kitchen/**",
+      "**/output/**",
     ],
   },
   eslint.configs.recommended,

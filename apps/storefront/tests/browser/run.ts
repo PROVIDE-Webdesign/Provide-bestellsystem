@@ -1,3 +1,4 @@
+import { verifyPaymentStatusPolling } from "./payment-status.ts";
 import { verifyTwoRestaurantsBrowser } from "./two-restaurants.ts";
 import { verifySupportBrowser } from "./support.ts";
 import { verifyCheckoutProtectionBrowser } from "./checkout-protection.ts";
@@ -518,6 +519,7 @@ try {
   await verifyCheckoutProtectionBrowser(browser, output);
   await verifyReceiptScopeBrowser(browser, output);
   await verifyTwoRestaurantsBrowser(browser, output);
+  await verifyPaymentStatusPolling(browser);
 } finally {
   await browser.close();
   await server.close();

@@ -452,9 +452,9 @@ it("runs the website and shop in Chromium against the real handoff and PostgreSQ
         0,
       );
     }
-    await mkdir(resolve(".git/bs16-check"), { recursive: true });
+    await mkdir(resolve("output/cart-handoff"), { recursive: true });
     await writeFile(
-      resolve(".git/bs16-check/" + (storageOff ? "storage" : "browser") + "-evidence.json"),
+      resolve("output/cart-handoff/" + (storageOff ? "storage" : "browser") + "-evidence.json"),
       JSON.stringify(evidence, null, 2),
     );
   } finally {

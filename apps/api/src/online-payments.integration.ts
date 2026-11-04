@@ -788,5 +788,54 @@ export async function verifyOnlineIntegration(
     console.log(
       "Live matrix: opt-in, atomic receipt replay, test isolation, signed Connect webhook, capture on acceptance, refund after disable",
     );
+    // An authorized acceptance can outlive the member's access. A confirmed
+    // provider capture must remain in the ledger and be compensated, not rolled back.
+    for (const [label, change, hours] of [
+      ["suspended", "status='suspended'", 14],
+      ["viewer", "role='viewer'", 15],
+      ["unassigned", "role='manager'", 16],
+    ] as const) {
+      const order = await authorizeFixture("access-lost-" + label, hours);
+      expect((await dashboardPost(order, "status", accept)).status).toBe(200);
+      const beforeCaptures = captures;
+      await admin.query(
+        "update public.restaurant_memberships set " +
+          change +
+          " where restaurant_id='f2000000-0000-0000-0000-000000000001' and user_id='f1000000-0000-0000-0000-000000000001'",
+      );
+      try {
+        await run(order);
+        expect(await read(order)).toMatchObject({
+          order_status: "cancelled",
+          payment_status: "captured",
+          refund_state: "requested",
+          last_error: null,
+        });
+        await run(order);
+        expect(await read(order)).toMatchObject({
+          order_status: "cancelled",
+          payment_status: "refunded",
+          refund_state: "succeeded",
+          last_error: null,
+        });
+        await run(order);
+        expect(captures).toBe(beforeCaptures + 1);
+        expect(
+          (
+            await admin.query<{ n: number }>(
+              "select count(*)::integer n from public.order_status_events where order_id=$1 and to_status='accepted'",
+              [order],
+            )
+          ).rows[0]?.n,
+        ).toBe(0);
+      } finally {
+        await admin.query(
+          "update public.restaurant_memberships set status='active',role='owner' where restaurant_id='f2000000-0000-0000-0000-000000000001' and user_id='f1000000-0000-0000-0000-000000000001'",
+        );
+      }
+    }
+    console.log(
+      "Settlement access-loss matrix: suspended, viewer and unassigned actors compensated without duplicate capture",
+    );
   };
 }

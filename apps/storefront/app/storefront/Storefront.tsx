@@ -576,7 +576,7 @@ export default function Storefront(scope: StorefrontProps) {
       document.removeEventListener("visibilitychange", refreshVisible);
       statusRequest.current?.abort();
     };
-  }, [orderStatus?.status, refreshOrderStatus, statusAccess]);
+  }, [orderStatus?.status, orderStatus?.paymentState, refreshOrderStatus, statusAccess]);
 
   useEffect(() => {
     const controller = new AbortController();
