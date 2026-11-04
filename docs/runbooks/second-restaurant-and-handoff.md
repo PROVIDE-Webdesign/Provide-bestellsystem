@@ -174,6 +174,21 @@ Die Hörbarkeit am vorgesehenen Restaurantgerät ist noch separat zu bestätigen
 Dashboard unter **PROVIDE Testküche → Offener Bestelleingang** die Schaltfläche **Ton aktivieren und
 testen** antippen und den Höreindruck festhalten.
 
+### Nachprüfung nach stummem Testton auf dem Mobilgerät
+
+Der Nutzer meldete bei der ersten Hörprobe einen stummen Testton. Der isolierte Lauf mit WebKit 26.5
+und emuliertem iPhone 13 bestand mit der aktuellen Dashboard-Komponente. Testton und Ton beim neuen
+synthetischen Eingang wurden nativ beendet. Der virtuelle Audioausgang zeichnete ein messbares
+Signal auf. Der Lauf bildet die Einstellungen und den Lautsprecher des tatsächlichen iPhones nicht
+ab.
+
+Beim Wiederholungstest auf dem iPhone den Stummmodus deaktivieren, Medienlautstärke und Ausgabeziel
+prüfen und den Testton im sichtbaren Dashboard erneut auslösen. „Ton aktiviert“ zeigt an, dass der
+Browser den Testton als abgespielt gemeldet hat. Für die Abnahme zählt die Rückmeldung zur
+tatsächlichen Hörbarkeit. Bei erneut stummer Ausgabe den Status oder die angezeigte Fehlermeldung
+und den verwendeten Browser erfassen.
+[WebKit-Befund zum Stummmodus](https://bugs.webkit.org/show_bug.cgi?id=237322)
+
 ## Geprüfter Einrichtungsstand für Marktgarten
 
 Am 04.11.2026 in der gemeinsamen Vorschau lesend abgeglichen. TEST Marktgarten und TEST Marktgarten
