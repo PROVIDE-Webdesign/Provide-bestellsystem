@@ -64,6 +64,8 @@ describe("acceptance alarm", () => {
   });
   it("bounds and disconnects a tone if the device stops advancing its clock", async () => {
     vi.useFakeTimers();
+    const audioSession = { type: "ambient" };
+    vi.stubGlobal("navigator", { audioSession });
     const disconnect = vi.fn();
     vi.stubGlobal(
       "AudioContext",
@@ -96,8 +98,10 @@ describe("acceptance alarm", () => {
     const tone = createOrderTone();
     await tone.enable();
     const result = expect(tone.play()).rejects.toThrow("Audio output unavailable");
+    expect(audioSession.type).toBe("playback");
     await vi.advanceTimersByTimeAsync(5000);
     await result;
+    expect(audioSession.type).toBe("ambient");
     expect(disconnect).toHaveBeenCalledTimes(2);
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -161,6 +165,19 @@ describe("acceptance alarm", () => {
     (finish as (() => void) | null)?.();
     await restarted;
     expect(disconnect).toHaveBeenCalledTimes(6);
+
+    const audioSession = { type: "auto" };
+    vi.stubGlobal("navigator", { audioSession });
+    const first = tone.play();
+    const finishFirst = finish as (() => void) | null;
+    const second = tone.play();
+    expect(audioSession.type).toBe("playback");
+    finishFirst?.();
+    await first;
+    expect(audioSession.type).toBe("playback");
+    (finish as (() => void) | null)?.();
+    await second;
+    expect(audioSession.type).toBe("auto");
     expect(vi.getTimerCount()).toBe(0);
   });
 });
