@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import "./styles.css";
+import "./shop-design.css";
 
 export const metadata = {
   description: "Speisekarte, Warenkorb und sicherer Abhol-Checkout direkt beim Restaurant",

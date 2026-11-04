@@ -1,0 +1,7 @@
+{
+  "serverBase": "aff32dd",
+  "originals": {
+    "apps/storefront/app/layout.tsx": "a8c2c8b7d340064c88c27baf10fb9b3e6ae96acc60eeb52c1492fcd3294f06fe",
+    "apps/storefront/app/storefront/Storefront.tsx": "aeca6f2e8e714ee7210fa919712b496f7ca13d7bf68298a76eb4222abec68275"
+  }
+}

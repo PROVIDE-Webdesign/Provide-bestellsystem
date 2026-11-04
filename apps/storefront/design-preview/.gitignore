@@ -1,0 +1,3 @@
+dist/
+.openai/
+node_modules/

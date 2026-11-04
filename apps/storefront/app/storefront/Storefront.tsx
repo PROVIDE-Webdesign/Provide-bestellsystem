@@ -2,7 +2,7 @@
 import { buildImportedCart } from "./cart-import";
 import { CheckoutPrivacyNotice } from "./CheckoutPrivacyNotice";
 import { TaxBreakdown } from "./TaxBreakdown";
-import { ItemPicker } from "./ItemPicker";
+import { ShopHeader, ShopMenu, ShopNavigation, type ShopTab } from "./ShopMenu";
 import { cartStorageKey, serializeCart, restoreCart } from "./cart-storage";
 
 import CheckoutChallenge from "./CheckoutChallenge";
@@ -78,6 +78,8 @@ const statusLabels: Record<PublicOrderStatus["status"], string> = {
 };
 
 export default function Storefront(scope: StorefrontProps) {
+  const [shopTab, setShopTab] = useState<ShopTab>("menu");
+  function navigateShop(tab: ShopTab) { setShopTab(tab); window.scrollTo({ top: 0, behavior: "instant" }); }
   const [pendingImport, setPendingImport] = useState<{ id: string; token: string } | null>(null);
   const [importMessage, setImportMessage] = useState("");
   const [importBusy, setImportBusy] = useState(false);
@@ -175,6 +177,7 @@ export default function Storefront(scope: StorefrontProps) {
       setLocalTime("");
       cartCreatedAt.current = Date.now();
       setCart(next);
+      setShopTab("cart");
       clearImport();
       setImportMessage(
         "Warenkorb übernommen. Bitte Abholzeit wählen und aktuelle Preise sowie Verfügbarkeit prüfen und bestätigen.",
@@ -572,6 +575,7 @@ export default function Storefront(scope: StorefrontProps) {
     if (window.location.hash)
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
     if (fromEmail) {
+      setShopTab("orders");
       setStatusAccess(fromEmail);
       rememberOrder(fromEmail);
       try {
@@ -584,6 +588,7 @@ export default function Storefront(scope: StorefrontProps) {
     try {
       const stored = parseStoredOrderStatusAccess(sessionStorage.getItem(key));
       if (stored) {
+        setShopTab("orders");
         setStatusAccess(stored);
         if (!history.some((order) => order.orderId === stored.orderId)) rememberOrder(stored);
       } else sessionStorage.removeItem(key);
@@ -726,6 +731,7 @@ export default function Storefront(scope: StorefrontProps) {
     client.complete();
     setChallengeId(null);
     setProtectionTick((n) => n + 1);
+    setShopTab("orders");
     setConfirmation(result);
     if (result.paymentCollectionMode === "online") {
       const action = {
@@ -1041,20 +1047,12 @@ export default function Storefront(scope: StorefrontProps) {
   }
 
   return (
-    <main className="storefront">
+    <main className="storefront shop-shell">
       <a className="skip-link" href="#menu">
         Zur Speisekarte
       </a>
-      <header className="brand">
-        <a href="/">
-          PROVIDE<span> BESTELLEN</span>
-        </a>
-        <span className="preview-label">
-          {protectionConfigured
-            ? "Testansicht · Test-Checkout aktiviert"
-            : "Testansicht · Checkout nicht freigeschaltet"}
-        </span>
-      </header>
+      {catalog && <ShopHeader disabled={checkoutState === "submitting"} catalog={catalog} fulfillment={fulfillmentType} onTimes={() => navigateShop("cart")} onFulfillment={(type) => { clearAnswer(); invalidateSubmission(); setFulfillmentType(type); }} />}
+      {shopTab === "orders" && savedOrders.length === 0 && !confirmation && !orderStatus && <section className="shop-empty"><h2>Meine Bestellungen</h2><p>Hier findest du deine auf diesem Gerät gespeicherten Bestellungen.</p><button onClick={() => navigateShop("menu")}>Zur Speisekarte</button></section>}
       {(pendingImport || importMessage) && (
         <section className="order-status" aria-label="Warenkorb übernehmen" aria-live="polite">
           <h2>Warenkorb von der Restaurant-Website</h2>
@@ -1092,7 +1090,7 @@ export default function Storefront(scope: StorefrontProps) {
         </section>
       )}
       {savedOrders.length > 0 && (
-        <section className="order-status" aria-labelledby="saved-orders-title">
+        <section hidden={shopTab !== "orders"} className="order-status" aria-labelledby="saved-orders-title">
           <h2 id="saved-orders-title">Meine Bestellungen</h2>
           <p>Auf diesem Gerät gespeicherte Bestellungen mit gültigem Statuszugang.</p>
           <ul>
@@ -1130,7 +1128,7 @@ export default function Storefront(scope: StorefrontProps) {
         </section>
       )}
       {(confirmation || orderStatus || statusMessage) && (
-        <section className="order-status" aria-labelledby="order-status-title" aria-live="polite">
+        <section hidden={shopTab !== "orders"} className="order-status" aria-labelledby="order-status-title" aria-live="polite">
           <p className="eyebrow">DEINE BESTELLUNG</p>
           <h2 id="order-status-title">
             {orderStatus?.paymentState &&
@@ -1250,73 +1248,23 @@ export default function Storefront(scope: StorefrontProps) {
       )}
       {catalog && (
         <>
-          <section className="restaurant-heading">
-            <p className="eyebrow">GUT ESSEN. EINFACH AUSWÄHLEN.</p>
-            <h1>{catalog.restaurant.name}</h1>
-            <p className="location-name">{catalog.location.name}</p>
-            <address>
-              {catalog.location.address.line1}
-              {catalog.location.address.line2 && <>, {catalog.location.address.line2}</>}
-              <br />
-              {catalog.location.address.postalCode} {catalog.location.address.city} ·{" "}
-              {catalog.location.address.countryCode}
-            </address>
-          </section>
+
           <fieldset
             disabled={checkoutState === "submitting"}
             style={{ border: 0, padding: 0, minWidth: 0 }}
           >
             <div className="storefront-grid">
-              <div id="menu" tabIndex={-1}>
-                {catalog.menus.length === 0 && (
-                  <p>Hier sind derzeit keine Gerichte veröffentlicht.</p>
-                )}
-                {catalog.menus.map((menu) => (
-                  <section className="menu" key={menu.id} aria-label={menu.name}>
-                    <h2>{menu.name}</h2>
-                    {menu.sections.map((section) => (
-                      <div className="menu-section" key={section.key}>
-                        <h3>{section.name}</h3>
-                        <ul className="dishes">
-                          {section.items.map((item) => (
-                            <li key={item.id} className="dish">
-                              <div>
-                                <h4>{item.name}</h4>
-                                {item.description && <p>{item.description}</p>}
-                                {item.availability !== "available" && (
-                                  <span className="availability-badge">
-                                    {item.availability === "sold_out"
-                                      ? "Ausverkauft"
-                                      : "Nicht verfügbar"}
-                                  </span>
-                                )}
-                              </div>
-                              <ItemPicker
-                                key={menu.versionId + ":" + item.id}
-                                item={item}
-                                currency={menu.currency}
-                                onAdd={(selection) => {
-                                  const next = addCartItem(cart, menu, item, selection);
-                                  if (next === cart)
-                                    setCartMessage(
-                                      "Diese Auswahl ist nicht gültig oder passt nicht zu deinem Warenkorb. Bitte prüfe Auswahl und Speisekarte.",
-                                    );
-                                  else {
-                                    setCart(next);
-                                    setCartMessage("");
-                                    invalidateSubmission();
-                                  }
-                                }}
-                              />
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </section>
-                ))}
+              <div id="menu" tabIndex={-1} hidden={shopTab !== "menu"}>
+                <ShopMenu catalog={catalog} disabled={checkoutState === "submitting"} onAdd={(menu, item, selection) => {
+                  const next = addCartItem(cart, menu, item, selection);
+                  if (next === cart) setCartMessage("Diese Auswahl passt nicht zu deinem Warenkorb. Bitte prüfe Auswahl und Speisekarte.");
+                  else { setCart(next); setCartMessage(""); invalidateSubmission(); }
+                }} />
+                {cartMessage && (shopTab !== "menu" || !cartMessage.startsWith("Dein gespeicherter Warenkorb")) && <p className="shop-message" role="status">{cartMessage}</p>}
               </div>
-              <div className="side-column">
+              <div className="side-column" hidden={shopTab !== "cart"}>
+                <button className="secondary" type="button" onClick={() => navigateShop("menu")}>← Zur Speisekarte</button>
+                <address className="shop-address">{catalog.restaurant.name} · {catalog.location.name}<br />{catalog.location.address.line1}, {catalog.location.address.postalCode} {catalog.location.address.city}</address>
                 <aside className="availability-panel" aria-labelledby="availability-title">
                   <p className="eyebrow">DEIN WUNSCHTERMIN</p>
                   <h2 id="availability-title">Wann passt es dir?</h2>
@@ -1709,7 +1657,7 @@ export default function Storefront(scope: StorefrontProps) {
               </div>
             </div>
           </fieldset>
-          <footer>
+          <footer hidden={shopTab === "menu"}>
             <span>Testsystem · keine Livezahlung und kein produktiver Bestellbetrieb.</span>
             <button
               className="secondary"
@@ -1722,6 +1670,7 @@ export default function Storefront(scope: StorefrontProps) {
               Speisekarte aktualisieren
             </button>
           </footer>
+          <ShopNavigation tab={shopTab} onTab={navigateShop} quantity={totalQuantity} total={money(cartTotalAmountMinor(cart), cart[0]?.currency ?? "EUR")} hasOrder={savedOrders.length > 0 || !!confirmation} />
         </>
       )}
     </main>

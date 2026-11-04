@@ -1,0 +1,92 @@
+{
+  "restaurant": {
+    "slug": "storefront-restaurant-a",
+    "name": "ASIAN KITCHEN"
+  },
+  "location": {
+    "slug": "storefront-a-mitte",
+    "name": "Teststandort Mitte",
+    "timezone": "Europe/Berlin",
+    "address": {
+      "line1": "Testweg 1",
+      "line2": null,
+      "postalCode": "52062",
+      "city": "Aachen",
+      "countryCode": "DE"
+    }
+  },
+  "menus": [
+    {
+      "id": "f4000000-0000-0000-0000-000000000001",
+      "versionId": "f5000000-0000-0000-0000-000000000001",
+      "name": "Unsere Speisekarte",
+      "currency": "EUR",
+      "sections": [
+        {
+          "key": "beliebt",
+          "name": "Beliebt",
+          "items": [
+            {
+              "id": "f6000000-0000-0000-0000-000000000001",
+              "name": "Chicken Teriyaki",
+              "description": "Gegrilltes Hähnchen mit Teriyaki-Sauce, Reis und Gemüse",
+              "priceAmountMinor": 1390,
+              "availability": "available"
+            },
+            {
+              "id": "f6000000-0000-0000-0000-000000000002",
+              "name": "Veggie Bowl",
+              "description": "Gebratener Tofu mit Avocado, Edamame, Gemüse und Reis",
+              "priceAmountMinor": 1290,
+              "availability": "available"
+            },
+            {
+              "id": "f6000000-0000-0000-0000-000000000003",
+              "name": "Salmon Bowl",
+              "description": "Gegrillter Lachs mit Avocado, Gemüse und Reis",
+              "priceAmountMinor": 1590,
+              "availability": "available"
+            }
+          ]
+        },
+        {
+          "key": "bowls",
+          "name": "Bowls",
+          "items": [
+            {
+              "id": "f6000000-0000-0000-0000-000000000001",
+              "name": "Chicken Teriyaki",
+              "description": "Gegrilltes Hähnchen mit Teriyaki-Sauce, Reis und Gemüse",
+              "priceAmountMinor": 1390,
+              "availability": "available"
+            },
+            {
+              "id": "f6000000-0000-0000-0000-000000000002",
+              "name": "Veggie Bowl",
+              "description": "Gebratener Tofu mit Avocado, Edamame, Gemüse und Reis",
+              "priceAmountMinor": 1290,
+              "availability": "available"
+            },
+            {
+              "id": "f6000000-0000-0000-0000-000000000003",
+              "name": "Salmon Bowl",
+              "description": "Gegrillter Lachs mit Avocado, Gemüse und Reis",
+              "priceAmountMinor": 1590,
+              "availability": "available"
+            }
+          ]
+        },
+        {
+          "key": "sushi",
+          "name": "Sushi",
+          "items": []
+        },
+        {
+          "key": "wok",
+          "name": "Wok",
+          "items": []
+        }
+      ]
+    }
+  ]
+}
