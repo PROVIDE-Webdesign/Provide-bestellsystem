@@ -52,3 +52,22 @@ Abgeschlossen. Der Abschluss und der Zahlungsstatus `captured` sind lesend in de
 Der Eintrag im priorisierten Bestelleingang entstand erst nach der Erfassungsanforderung. Der Alarm
 bei der Reservierung bleibt daher offen. Der ursprüngliche Gast-Tab war nicht wiederherstellbar. Der
 Gast-Endstatus dieser Testbestellung bleibt ohne eigenen Sichtnachweis.
+
+## Gaststatus nach geschlossenem Tab und Alarm bei geschlossenem Dashboard
+
+Der Shop-Commit `8c69f57` speichert befristete Statuszugänge und Bestellnummern nach Restaurant und
+Standort im Browser. Die Vorschau-Version `4cdc1618-a9a6-4acc-bf7f-8b4c8fbf6c62` wurde mit
+BS-00000022 geprüft. Ein neuer Tab zeigte „Meine Bestellungen“ und lud den aktuellen
+Abschlussstatus. 106 Shop-Tests, Typprüfung, Lint und Build bestanden. Bei BS-00000024 fehlt der
+vorherige Gastzugang.
+
+Für Bestellsystem 15: Der Alarm bei geschlossenem Dashboard benötigt einen serverseitigen
+Web-Push-Versand und die Korrektur der Eingangsberechtigung für reservierte Zahlungen. Die
+Versandgrundlage ist ein dauerhaft gespeichertes Eingangsereignis mit eindeutiger Zustellung je
+Gerät. Geräte-Abos werden nach Restaurant und Standort autorisiert, bei Rechteentzug gesperrt und
+bei ungültigem Endpunkt entfernt. Die Meldung auf dem Sperrbildschirm enthält keine Kundendaten.
+Testfälle sind Zahlung bei Abholung, manuelle Reservierung vor Annahme, doppelte Ereignisse und ein
+geschlossenes Dashboard auf einem echten Gerät. Die Dashboard-Web-App wird auf dem iPhone dem
+Home-Bildschirm hinzugefügt und die Mitteilungen werden per Bedienaktion freigegeben.
+
+[WebKit zum iPhone-Setup](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/)
