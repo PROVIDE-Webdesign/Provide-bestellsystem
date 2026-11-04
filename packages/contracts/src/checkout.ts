@@ -2,17 +2,19 @@ import { parseOrderSelectionLines, type OrderSelectionLine } from "./menu-select
 import { isOrderNumber } from "./order-number.js";
 import { isExplicitInstant, isStorefrontScope, type StorefrontScope } from "./storefront.js";
 
+export interface GuestCheckoutCustomer {
+  readonly contactName: string;
+  readonly phoneE164: string | null;
+  readonly email: string | null;
+}
+
 export interface GuestPickupOrderRequest {
   readonly menuId: string;
   readonly menuVersionId: string;
   readonly requestedFor: string;
   readonly lines: readonly OrderSelectionLine[];
   readonly submissionKey: string;
-  readonly customer: {
-    readonly contactName: string;
-    readonly phoneE164: string;
-    readonly email: string;
-  };
+  readonly customer: GuestCheckoutCustomer;
   readonly privacyNoticeVersion: string;
 }
 
@@ -39,13 +41,19 @@ const phonePattern = /^\+[1-9][0-9]{7,14}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const statusAccessTokenPattern = /^[A-Za-z0-9_-]{43}$/;
 
+function hasControlCharacters(value: string): boolean {
+  return [...value].some(
+    (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+  );
+}
+
 export function isValidGuestEmail(value: unknown): value is string {
   return (
     typeof value === "string" &&
     value.length >= 3 &&
     value.length <= 254 &&
     emailPattern.test(value) &&
-    ![...value].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)
+    !hasControlCharacters(value)
   );
 }
 
@@ -57,6 +65,34 @@ function record(value: unknown): Record<string, unknown> | undefined {
 
 function exactKeys(value: Record<string, unknown>, allowed: readonly string[]): boolean {
   return Object.keys(value).every((key) => allowed.includes(key));
+}
+
+/** Missing contact methods normalize to null; every supplied method must be valid. */
+export function parseGuestCheckoutCustomer(value: unknown): GuestCheckoutCustomer | undefined {
+  const customer = record(value);
+  if (
+    !customer ||
+    !exactKeys(customer, ["contactName", "phoneE164", "email"]) ||
+    typeof customer.contactName !== "string" ||
+    (customer.phoneE164 != null && typeof customer.phoneE164 !== "string") ||
+    (customer.email != null && typeof customer.email !== "string") ||
+    (typeof customer.email === "string" && hasControlCharacters(customer.email))
+  )
+    return undefined;
+  const contactName = customer.contactName.trim();
+  const phoneE164 =
+    typeof customer.phoneE164 === "string" ? customer.phoneE164.trim() || null : null;
+  const email =
+    typeof customer.email === "string" ? customer.email.trim().toLowerCase() || null : null;
+  if (
+    !contactName ||
+    contactName.length > 120 ||
+    (!phoneE164 && !email) ||
+    (phoneE164 !== null && !phonePattern.test(phoneE164)) ||
+    (email !== null && !isValidGuestEmail(email))
+  )
+    return undefined;
+  return { contactName, phoneE164, email };
 }
 
 export function parseGuestPickupOrderRequest(value: unknown): GuestPickupOrderRequest | undefined {
@@ -88,18 +124,8 @@ export function parseGuestPickupOrderRequest(value: unknown): GuestPickupOrderRe
   )
     return undefined;
 
-  const customer = record(source.customer);
-  if (!customer || !exactKeys(customer, ["contactName", "phoneE164", "email"])) return undefined;
-  const contactName = typeof customer.contactName === "string" ? customer.contactName.trim() : "";
-  const phoneE164 = typeof customer.phoneE164 === "string" ? customer.phoneE164.trim() : "";
-  const email = typeof customer.email === "string" ? customer.email.trim().toLowerCase() : "";
-  if (
-    contactName.length < 1 ||
-    contactName.length > 120 ||
-    !phonePattern.test(phoneE164) ||
-    !isValidGuestEmail(email)
-  )
-    return undefined;
+  const customer = parseGuestCheckoutCustomer(source.customer);
+  if (!customer) return undefined;
 
   const lines = parseOrderSelectionLines(source.lines);
   if (!lines) return undefined;
@@ -110,7 +136,7 @@ export function parseGuestPickupOrderRequest(value: unknown): GuestPickupOrderRe
     requestedFor: source.requestedFor,
     lines,
     submissionKey: source.submissionKey,
-    customer: { contactName, phoneE164, email },
+    customer,
     privacyNoticeVersion: source.privacyNoticeVersion,
   };
 }

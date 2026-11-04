@@ -154,6 +154,10 @@ describe.skipIf(!database)(
         "insert into public.restaurant_feature_flags(restaurant_id,feature_key,enabled) values($1,'payment.online',true)",
         [restaurant],
       );
+      await admin.query(
+        "insert into private.restaurant_test_payment_accounts(restaurant_id,platform_account_id,merchant_account_id,enabled,expires_at,reason) values($1,'acct_synthetic','acct_nativeO3',true,clock_timestamp()+interval '1 day','Synthetic protected Connect fixture')",
+        [restaurant],
+      );
       const provider: SandboxProvider = {
         session: () => {
           providerCalls++;
@@ -266,6 +270,20 @@ describe.skipIf(!database)(
           claims: 1,
           jobs: mode === "online-orders" ? 1 : 0,
         });
+        if (mode === "online-orders") {
+          const paymentJob = await admin.query(
+            "select j.capture_method,j.session_id,j.capture_requested_at,p.status from public.online_payment_jobs j join public.orders o on o.id=j.order_id join public.order_payments p on p.order_id=o.id where o.restaurant_id=$1 and o.submission_key=$2",
+            [restaurant, c.submissionKey],
+          );
+          expect(paymentJob.rows).toEqual([
+            {
+              capture_method: "manual",
+              session_id: null,
+              capture_requested_at: null,
+              status: "created",
+            },
+          ]);
+        }
         expect(providerCalls).toBe(0);
       },
       15000,

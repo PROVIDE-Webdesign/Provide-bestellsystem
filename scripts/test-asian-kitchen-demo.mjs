@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import "./test-checkout-recovery.mjs";
 import { readFile } from "node:fs/promises";
 import { AsianKitchenCheckout } from "../apps/storefront/public/asian-kitchen/checkout.mjs";
 import { mapDraft, wallDate } from "../apps/storefront/public/asian-kitchen/model.mjs";
@@ -76,7 +77,12 @@ const storage = () => {
     removeItem: (k) => m.delete(k),
   };
 };
-function backend({ uncertain = false, quoteMismatch = false, issueFailure = false } = {}) {
+function backend({
+  uncertain = false,
+  quoteMismatch = false,
+  issueFailure = false,
+  expectedCustomer = customer,
+} = {}) {
   const calls = [];
   let confirmation = null,
     issue = null,
@@ -147,7 +153,7 @@ function backend({ uncertain = false, quoteMismatch = false, issueFailure = fals
       assert.ok(parseGuestPickupOrderRequest(body.command));
       assert.equal(body.sessionId, issue.sessionId);
       assert.equal(body.command.submissionKey, issue.submissionKey);
-      assert.deepEqual(body.command.customer, customer);
+      assert.deepEqual(body.command.customer, expectedCustomer);
       assert.equal("unitPriceCents" in body.command.lines[0], false);
       confirmation = {
         orderId: "f6000000-0000-0000-0000-000000000001",
@@ -297,6 +303,42 @@ test("a changed cart invalidates the reviewed quote before issuing a session", a
   );
   assert.equal(b.calls.filter((x) => x.resource === "checkout-session").length, 0);
 });
+
+for (const contact of [
+  { ...customer, phoneE164: null },
+  { ...customer, email: null },
+])
+  test(
+    "pickup submits one contact and keeps browser status access: " +
+      (contact.email ? "email" : "phone"),
+    async () => {
+      const b = backend({ expectedCustomer: contact }),
+        c = controller(b),
+        d = draft();
+      await c.quote(d);
+      const result = await c.submit(d, contact, "token", crypto.randomUUID());
+      assert.equal(b.calls.filter((x) => x.resource === "orders").length, 1);
+      assert.equal((await c.status(result)).status, "ready");
+    },
+  );
+
+test("invalid or missing contacts are rejected before a session or order is issued", async () => {
+  const b = backend(),
+    c = controller(b),
+    d = draft();
+  await c.quote(d);
+  for (const contact of [
+    { ...customer, phoneE164: null, email: null },
+    { ...customer, email: "invalid" },
+    { ...customer, phoneE164: "0170" },
+    { ...customer, contactName: " " },
+  ])
+    await assert.rejects(c.submit(d, contact, "token", crypto.randomUUID()), /Kontaktmöglichkeit/);
+  assert.equal(
+    b.calls.filter((x) => ["checkout-session", "orders"].includes(x.resource)).length,
+    0,
+  );
+});
 test("uncertain transport blocks resubmission and recovers the same committed order", async () => {
   const b = backend({ uncertain: true }),
     c = controller(b),
@@ -307,6 +349,29 @@ test("uncertain transport blocks resubmission and recovers the same committed or
   await assert.rejects(c.submit(d, customer, "token", crypto.randomUUID()));
   const receipt = await c.receipt();
   assert.equal(receipt.confirmation.orderNumber, "BS-00000099");
+  assert.equal(b.calls.filter((x) => x.resource === "orders").length, 1);
+});
+test("an incomplete committed receipt keeps submission blocked until valid recovery", async () => {
+  const b = backend({ uncertain: true });
+  const fetcher = b.fetcher;
+  let incomplete = true;
+  b.fetcher = async (url, init) => {
+    if (incomplete && String(url).endsWith("/checkout-receipt"))
+      return Response.json({ data: { state: "committed", mode: "orders", confirmation: {} } });
+    return fetcher(url, init);
+  };
+  const c = controller(b),
+    d = draft();
+  await c.quote(d);
+  await assert.rejects(c.submit(d, customer, "token", crypto.randomUUID()));
+  await assert.rejects(c.receipt(), /ursprünglichen Bestellweg/);
+  assert.equal(c.client.needsReceipt, true);
+  await assert.rejects(c.quote(d));
+  await assert.rejects(c.submit(d, customer, "token", crypto.randomUUID()));
+  assert.equal(b.calls.filter((x) => x.resource === "orders").length, 1);
+  incomplete = false;
+  assert.equal((await c.receipt()).confirmation.orderNumber, "BS-00000099");
+  assert.equal(c.completed, true);
   assert.equal(b.calls.filter((x) => x.resource === "orders").length, 1);
 });
 test("page reload restores pending intent and permits receipt recovery before any new quote", async () => {
@@ -408,4 +473,35 @@ test("obsolete import IDs cannot select items from the published version", () =>
   for (const [dish, name] of Object.entries(expectedNames))
     stale.items[dish].menuItemId = originalFixture.items.find((i) => i.name === name).id;
   assert.throws(() => mapDraft(draft(), catalog(), stale, clock()), /veröffentlicht/);
+});
+
+test("missing metadata requires explicit acknowledgement and a new price review without issuing an order", async () => {
+  const b = backend(),
+    original = b.fetcher;
+  b.fetcher = async (url, init) =>
+    String(url).endsWith("/checkout-context")
+      ? Response.json({ data: { ready: true, csrf: "a".repeat(43), hasExistingIntents: true } })
+      : original(url, init);
+  const c = controller(b);
+  assert.equal(c.acknowledgeMissingIntent(), false);
+  await assert.rejects(c.quote(draft()), /Belegdaten/);
+  assert.equal(c.preview, null);
+  assert.equal(c.acknowledgeMissingIntent(), true);
+  assert.equal(c.preview, null);
+  await assert.rejects(c.submit(draft(), customer, "token", crypto.randomUUID()), /Gesamtpreis/);
+  await c.quote(draft());
+  assert.ok(c.preview);
+  assert.equal(
+    b.calls.filter((x) => x.resource === "orders" || x.resource === "checkout-session").length,
+    0,
+  );
+});
+
+test("missing metadata acknowledgement cannot discard a recoverable or completed intent", async () => {
+  const b = backend(),
+    c = controller(b);
+  await c.quote(draft());
+  await c.submit(draft(), customer, "token", crypto.randomUUID());
+  assert.equal(c.acknowledgeMissingIntent(), false);
+  assert.equal(b.calls.filter((x) => x.resource === "orders").length, 1);
 });

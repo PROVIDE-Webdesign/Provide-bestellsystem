@@ -13,12 +13,16 @@ export async function verifyOnlineIntegration(
   await admin.query(
     "insert into public.restaurant_feature_flags(restaurant_id,feature_key,enabled) values('f2000000-0000-0000-0000-000000000001','payment.online',true)",
   );
+  await admin.query(
+    "insert into private.restaurant_test_payment_accounts(restaurant_id,platform_account_id,merchant_account_id,enabled,expires_at,reason) values('f2000000-0000-0000-0000-000000000001','acct_synthetic','acct_restaurantA',true,clock_timestamp()+interval '1 day','Synthetic Connect integration fixture')",
+  );
   const sessions = new Map<string, ProviderSession>();
   let creates = 0;
   let failFirstCreate = true;
   let refundStatus: "failed" | "succeeded" = "failed";
   const provider: SandboxProvider = {
     session(_config, j) {
+      expect(_config.merchantAccount).toBe("acct_restaurantA");
       let session = sessions.get(j.id);
       if (!session) {
         creates++;
@@ -39,6 +43,7 @@ export async function verifyOnlineIntegration(
       return Promise.resolve({ ...session });
     },
     expire(_config, id) {
+      expect(_config.merchantAccount).toBe("acct_restaurantA");
       const s = [...sessions.values()].find((s) => s.id === id);
       if (!s) throw new Error("Unknown synthetic session");
       s.status = "expired";
@@ -46,6 +51,7 @@ export async function verifyOnlineIntegration(
       return Promise.resolve();
     },
     refund(_config, _intent, id, refundId, _amount, sequence) {
+      expect(_config.merchantAccount).toBe("acct_restaurantA");
       return Promise.resolve({
         id: refundId ?? "re_" + id.replaceAll("-", "") + String(sequence),
         status: refundStatus,
@@ -370,6 +376,8 @@ export async function verifyOnlineIntegration(
     timelyJob.session_id,
     "a".repeat(64),
     new Date().toISOString(),
+    "acct_restaurantA",
+    true,
   );
   const timelySession = sessions.get(timelyJob.id)!;
   timelySession.paid = true;
@@ -434,6 +442,8 @@ export async function verifyOnlineIntegration(
     uncertainSession.intent,
     "b".repeat(64),
     confirmedBeforeDeadline,
+    "acct_restaurantA",
+    true,
   );
   await run(uncertainOrder.orderId);
   const recovered = await postgresOnlineRepository.read(

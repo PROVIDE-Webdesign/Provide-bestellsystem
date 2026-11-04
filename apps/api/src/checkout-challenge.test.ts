@@ -9,7 +9,10 @@ const positive = () => ({
   cdata: issueId,
   challenge_ts: new Date().toISOString(),
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 describe("O3 server Siteverify adapter (local HTTP response doubles)", () => {
   it("O3-T33/T35 binds hostname/action/context and sends the same provider UUID without raw IP", async () => {
     const bodies: string[] = [];
@@ -124,5 +127,29 @@ describe("O3 server Siteverify adapter (local HTTP response doubles)", () => {
         }),
       ).toBeUndefined();
     },
+  );
+});
+
+it("keeps a transient provider failure retryable without leaking a token", async () => {
+  const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  vi.stubGlobal("fetch", () =>
+    Promise.resolve(
+      Response.json({
+        success: false,
+        "error-codes": ["internal-error", "secret-untrusted-provider-string"],
+      }),
+    ),
+  );
+  await expect(
+    turnstileCheckoutChallenge.verify(
+      { secret, hostname: "storefront.test" },
+      "private-token",
+      issueId,
+    ),
+  ).rejects.toThrow("Challenge unavailable");
+  const diagnostic = JSON.parse(String(warning.mock.calls[0]?.[0]));
+  expect(diagnostic.codes).toEqual(["internal-error"]);
+  expect(JSON.stringify(diagnostic)).not.toMatch(
+    /private-token|secret-untrusted|synthetic-challenge/,
   );
 });

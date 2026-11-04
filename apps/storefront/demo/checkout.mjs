@@ -1,7 +1,10 @@
 import { CheckoutClient } from "./checkout-client.js";
 import { parsePublicCatalog } from "./contracts/storefront-output.js";
 import { parseCartQuote } from "./contracts/cart-quote.js";
-import { parseGuestPickupOrderConfirmation } from "./contracts/checkout.js";
+import {
+  parseGuestPickupOrderConfirmation,
+  parseGuestCheckoutCustomer,
+} from "./contracts/checkout.js";
 import { parsePublicOrderStatus } from "./contracts/order-status.js";
 import { mapDraft, draftFingerprint, assertQuoteMatches } from "./model.mjs";
 
@@ -18,6 +21,20 @@ export class AsianKitchenCheckout {
     this.busy = false;
     this.completed = false;
     this.renewAllowed = false;
+    this.missingIntentAcknowledged = false;
+  }
+  acknowledgeMissingIntent() {
+    if (
+      this.busy ||
+      this.completed ||
+      this.client.currentIntent ||
+      this.client.needsReceipt ||
+      !this.client.missingMetadataWarning
+    )
+      return false;
+    this.missingIntentAcknowledged = true;
+    this.preview = null;
+    return true;
   }
   invalidate() {
     this.preview = null;
@@ -52,7 +69,7 @@ export class AsianKitchenCheckout {
           }),
         ),
       );
-      if (this.client.missingMetadataWarning)
+      if (this.client.missingMetadataWarning && !this.missingIntentAcknowledged)
         throw Error(
           "Zu einem früheren Bestellversuch fehlen die lokalen Belegdaten. Bitte zuerst im Dashboard prüfen lassen. Es wird keine weitere Bestellung ausgelöst.",
         );
@@ -74,9 +91,14 @@ export class AsianKitchenCheckout {
     if (Date.parse(this.preview.command.requestedFor) <= this.now().getTime())
       throw Error("Die Abholzeit ist verstrichen. Bitte neu auswählen.");
     if (this.client.needsReceipt) throw Error("Bitte zuerst den bisherigen Bestellstatus prüfen.");
-    if (this.client.missingMetadataWarning)
+    if (this.client.missingMetadataWarning && !this.missingIntentAcknowledged)
       throw Error(
         "Die Belegdaten eines früheren Versuchs fehlen. Bitte zuerst im Dashboard prüfen lassen.",
+      );
+    const parsedCustomer = parseGuestCheckoutCustomer(customer);
+    if (!parsedCustomer)
+      throw Error(
+        "Bitte gib einen Namen und mindestens eine gültige Kontaktmöglichkeit an: E-Mail oder Telefon mit Landesvorwahl. Prüfe auch zusätzlich ausgefüllte Felder.",
       );
     const preview = this.preview;
     this.busy = true;
@@ -90,7 +112,7 @@ export class AsianKitchenCheckout {
           "orders",
           {
             ...preview.command,
-            customer: { ...customer },
+            customer: parsedCustomer,
             privacyNoticeVersion: this.config.privacyNoticeVersion,
           },
           AbortSignal.timeout(15000),

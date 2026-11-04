@@ -333,6 +333,36 @@ describe("O3 client recovery state (unit)", () => {
       command: { submissionKey: intent.submissionKey },
     });
   });
+  it("keeps a committed receipt locked until the caller accepts its confirmation", async () => {
+    const requests: string[] = [];
+    const client = new CheckoutClient(
+      base,
+      (input) => {
+        const url = input instanceof Request ? input.url : input.toString();
+        requests.push(url);
+        return Promise.resolve(
+          Response.json({
+            data: url.endsWith("checkout-context")
+              ? { ready: true, csrf: "a".repeat(43) }
+              : { state: "committed", mode: "orders", confirmation: {} },
+          }),
+        );
+      },
+      store(JSON.stringify({ scope: base, intent })),
+    );
+    await expect(client.receipt()).resolves.toMatchObject({ state: "committed" });
+    expect(client.needsReceipt).toBe(true);
+    await expect(client.submit("orders", {})).rejects.toMatchObject({
+      code: "checkout_result_unknown",
+    });
+    await expect(client.issue("challenge", crypto.randomUUID(), true)).rejects.toMatchObject({
+      code: "checkout_result_unknown",
+    });
+    expect(requests).toHaveLength(2);
+    client.complete();
+    expect(client.needsReceipt).toBe(false);
+    expect(client.currentIntent).toBeNull();
+  });
   it("O3-T35 uncertain issue retries preserve the exact provider UUID, challenge and key", async () => {
     const bodies: string[] = [];
     let fail = true;

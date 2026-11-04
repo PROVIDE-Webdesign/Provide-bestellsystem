@@ -68,8 +68,8 @@ const request = (
 ) => new Request(url, { method: "POST", headers, body: JSON.stringify(value) });
 
 describe("guest pickup domain handler (unit; O3 transport tested separately)", () => {
-  it.each([null, "", "bad-email"])(
-    "rejects missing email before storing an order",
+  it.each(["bad-email", 42, "guest@example.invalid\r\n"])(
+    "rejects an invalid supplied email before storing an order",
     async (email) => {
       const writer = { submit: vi.fn() };
       const w = domainWorker(vi.fn(), { error: vi.fn() }, undefined, writer);
@@ -79,6 +79,34 @@ describe("guest pickup domain handler (unit; O3 transport tested separately)", (
       expect(writer.submit).not.toHaveBeenCalled();
     },
   );
+  it.each([
+    { contactName: "Synthetic Guest", email: " Synthetic@Example.invalid ", phoneE164: null },
+    { contactName: "Synthetic Guest", email: null, phoneE164: "+999100000001" },
+  ])("submits one contact method without inventing the other", async (customer) => {
+    const writer = { submit: vi.fn().mockResolvedValue(confirmation) };
+    const worker = domainWorker(vi.fn(), { error: vi.fn() }, undefined, writer);
+    expect((await worker.fetch(request({ ...body, customer }), env)).status).toBe(201);
+    expect(writer.submit).toHaveBeenCalledWith(
+      env.HYPERDRIVE.connectionString,
+      expect.objectContaining({
+        customer: { ...customer, email: customer.email?.trim().toLowerCase() ?? null },
+      }),
+      30,
+    );
+  });
+  it("rejects a name without either contact before SQL", async () => {
+    const writer = { submit: vi.fn() };
+    const worker = domainWorker(vi.fn(), { error: vi.fn() }, undefined, writer);
+    expect(
+      (
+        await worker.fetch(
+          request({ ...body, customer: { contactName: "Test", phoneE164: null, email: null } }),
+          env,
+        )
+      ).status,
+    ).toBe(400);
+    expect(writer.submit).not.toHaveBeenCalled();
+  });
   it("submits only normalized values and returns an allowlisted confirmation", async () => {
     const writer = { submit: vi.fn().mockResolvedValue({ ...confirmation, internal: "hidden" }) };
     const worker = domainWorker(vi.fn(), { error: vi.fn() }, undefined, writer);

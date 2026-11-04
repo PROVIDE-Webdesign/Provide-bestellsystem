@@ -18,6 +18,37 @@ describe("guest pickup checkout contracts", () => {
     });
   });
 
+  it.each([null, undefined, "", "  "])(
+    "accepts only phone and normalizes missing email %s",
+    (email) => {
+      expect(
+        parseGuestPickupOrderRequest({ ...request, customer: { ...request.customer, email } })
+          ?.customer,
+      ).toEqual({ contactName: "Test Gast", phoneE164: "+999100000001", email: null });
+    },
+  );
+
+  it.each([null, undefined, "", "  "])(
+    "accepts only email and normalizes missing phone %s",
+    (phoneE164) => {
+      expect(
+        parseGuestPickupOrderRequest({ ...request, customer: { ...request.customer, phoneE164 } })
+          ?.customer,
+      ).toEqual({ contactName: "Test Gast", phoneE164: null, email: "a@b.de" });
+    },
+  );
+
+  it.each([
+    { contactName: "Test" },
+    { contactName: "Test", phoneE164: null, email: null },
+    { contactName: "Test", phoneE164: "  ", email: " " },
+    { ...request.customer, contactName: " " },
+    { ...request.customer, phoneE164: 123 },
+    { ...request.customer, email: [] },
+  ])("rejects a missing contact method, missing name or wrong field type", (customer) => {
+    expect(parseGuestPickupOrderRequest({ ...request, customer })).toBeUndefined();
+  });
+
   it.each([
     { ...request, extra: "blocked" },
     { ...request, orderNumber: "BS-00000001" },
@@ -26,10 +57,6 @@ describe("guest pickup checkout contracts", () => {
     { ...request, customer: { ...request.customer, marketing: true } },
     { ...request, customer: { ...request.customer, phoneE164: "0170" } },
     ...[
-      null,
-      undefined,
-      "",
-      "  ",
       "invalid",
       "a@b.de\r\nBcc:c@d.de",
       "guest\b@example.invalid",

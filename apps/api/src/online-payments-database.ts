@@ -7,6 +7,9 @@ export interface OnlineJob {
   account_id: string;
   session_id: string | null;
   intent_id: string | null;
+  capture_method?: "automatic" | "manual";
+  capture_requested_at?: string | null;
+  acceptance_deadline?: string | null;
   refund_id: string | null;
   refund_state: string;
   refund_sequence: number;
@@ -57,9 +60,16 @@ export interface OnlineRepository {
     object: string,
     digest: string,
     occurredAt: string,
+    merchantAccount?: string,
+    paymentSucceeded?: boolean,
   ): Promise<string | null>;
 }
-async function query<T>(connectionString: string, sql: string, values: unknown[]): Promise<T> {
+async function query<T>(
+  connectionString: string,
+  sql: string,
+  values: unknown[],
+  manualCapture = false,
+): Promise<T> {
   const client = new Client({
     connectionString,
     connectionTimeoutMillis: 5000,
@@ -70,6 +80,8 @@ async function query<T>(connectionString: string, sql: string, values: unknown[]
     await client.query("BEGIN");
     await client.query("SET LOCAL ROLE service_role");
     await client.query("SET LOCAL statement_timeout='8s'");
+    if (manualCapture)
+      await client.query("select set_config('provide.manual_capture', 'on', true)");
     const r = await client.query<{ data: T }>(sql, values);
     await client.query("COMMIT");
     return r.rows[0]!.data;
@@ -114,26 +126,25 @@ export const postgresOnlineRepository: OnlineRepository = {
         retention,
         account,
       ],
+      true,
     );
   },
-  read: (c, a, o) => query(c, "select private.read_online_payment_job($1,$2) as data", [a, o]),
+  read: (c, a, o) =>
+    query(c, "select private.read_platform_online_payment_job($1,$2) as data", [a, o]),
   resume: (c, a, o) =>
-    query(c, "select private.allow_online_payment_resume($1,$2) as data", [a, o]),
+    query(c, "select private.allow_platform_online_payment_resume($1,$2) as data", [a, o]),
   claim: (c, a, o, l) =>
-    query(c, "select private.claim_online_payment_job($1,$2,$3) as data", [a, o, l]),
+    query(c, "select private.claim_platform_online_payment_job($1,$2,$3) as data", [a, o, l]),
   bind: (c, j, l, s) =>
     query(c, "select private.bind_online_payment_session($1,$2,$3) as data", [j, l, s]),
   sync: (c, j, l, s, i, r, d) =>
     query(c, "select private.sync_online_payment($1,$2,$3,$4,$5,$6) as data", [j, l, s, i, r, d]),
   fail: (c, j, l, m) =>
     query(c, "select private.fail_online_payment_job($1,$2,$3) as data", [j, l, m]),
-  event: (c, a, e, t, o, d, occurredAt) =>
-    query(c, "select private.receive_online_payment_event($1,$2,$3,$4,$5,$6) as data", [
-      a,
-      e,
-      t,
-      o,
-      d,
-      occurredAt,
-    ]),
+  event: (c, a, e, t, o, d, occurredAt, merchantAccount = a, paymentSucceeded = false) =>
+    query(
+      c,
+      "select private.receive_platform_online_payment_event($1,$2,$3,$4,$5,$6,$7,$8) as data",
+      [a, merchantAccount, e, t, o, d, occurredAt, paymentSucceeded],
+    ),
 };

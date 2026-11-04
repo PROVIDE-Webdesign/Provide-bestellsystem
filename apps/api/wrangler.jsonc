@@ -11,7 +11,7 @@
     "CHECKOUT_PROTECTION_ENABLED": "false",
     "CHECKOUT_STOREFRONT_ORIGIN": "https://replace-with-preview-storefront.example.invalid",
     "CHECKOUT_PRIVACY_NOTICE_VERSION": "preview-v1",
-    "CHECKOUT_RETENTION_DAYS": "30",
+    "CHECKOUT_RETENTION_DAYS": "14",
     "ORDER_STATUS_READ_ENABLED": "false",
     "DASHBOARD_AUTH_ENABLED": "false",
     "DASHBOARD_PERSONNEL_ENABLED": "false",

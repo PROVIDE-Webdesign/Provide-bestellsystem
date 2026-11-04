@@ -3,6 +3,7 @@ create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,public;
 select no_plan();
 \ir fixtures/storefront.fixture.inc
+insert into private.restaurant_test_payment_accounts(restaurant_id,platform_account_id,merchant_account_id,enabled,expires_at,reason) values('f2000000-0000-0000-0000-000000000001','acct_testplatform','acct_synthetic',true,clock_timestamp()+interval '1 day','Synthetic payment routing fixture');
 \ir fixtures/delivery.fixture.inc
 
 create function pg_temp.pickup(key text,email text default 'synthetic@example.invalid') returns jsonb language sql as $$
@@ -57,7 +58,7 @@ select private.submit_public_guest_online_order('storefront-restaurant-a','store
  '[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":1}]','email-review-online-0001',
  '{"contact_name":"Synthetic","phone_e164":"+999100000041","email":"synthetic@example.invalid"}',
  'delivery','{"address_line_1":"Synthetic Lieferweg 10","address_line_2":null,"postal_code":"52062","city":"Aachen","country_code":"DE"}',
- :'quote','preview-v1',30,'acct_synthetic') as online \gset
+ :'quote','preview-v1',30,'acct_testplatform') as online \gset
 select private.claim_online_payment_job('acct_synthetic',(:'online'::jsonb->>'orderId')::uuid,
   'fc200000-0000-0000-0000-000000000001') as payment_job \gset
 select private.bind_online_payment_session((:'payment_job'::jsonb->>'id')::uuid,

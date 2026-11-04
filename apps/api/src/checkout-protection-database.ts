@@ -54,7 +54,12 @@ export interface CheckoutProtectionRepository {
   ): Promise<unknown>;
   cleanup(connection: string): Promise<unknown>;
 }
-async function query(connectionString: string, sql: string, values: unknown[]): Promise<unknown> {
+async function query(
+  connectionString: string,
+  sql: string,
+  values: unknown[],
+  manualCapture = false,
+): Promise<unknown> {
   const client = new Client({
     connectionString,
     connectionTimeoutMillis: 5000,
@@ -65,6 +70,8 @@ async function query(connectionString: string, sql: string, values: unknown[]): 
     await client.query("BEGIN");
     await client.query("SET LOCAL ROLE service_role");
     await client.query("SET LOCAL statement_timeout='8s'");
+    if (manualCapture)
+      await client.query("select set_config('provide.manual_capture', 'on', true)");
     const result = await client.query<{ data: unknown }>(sql, values);
     if (result.rows.length !== 1) throw new Error("Invalid checkout boundary result");
     await client.query("COMMIT");
@@ -122,16 +129,11 @@ export const postgresCheckoutProtection: CheckoutProtectionRepository = {
       k,
     ]),
   submit: (c, h, id, s, m, f, cmd, r, a) =>
-    query(c, "select private.checkout_submit($1,$2::uuid,$3,$4,$5,$6,$7::jsonb,$8,$9) as data", [
-      h,
-      id,
-      s.restaurantSlug,
-      s.locationSlug,
-      m,
-      f,
-      JSON.stringify(cmd),
-      r,
-      a,
-    ]),
+    query(
+      c,
+      "select private.checkout_submit($1,$2::uuid,$3,$4,$5,$6,$7::jsonb,$8,$9) as data",
+      [h, id, s.restaurantSlug, s.locationSlug, m, f, JSON.stringify(cmd), r, a],
+      m === "online-orders",
+    ),
   cleanup: (c) => query(c, "select private.checkout_cleanup(1000) as data", []),
 };

@@ -12,8 +12,8 @@ select throws_ok($sql$
   select private.submit_public_guest_pickup_order('storefront-restaurant-a','storefront-a-mitte',
     'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001',
     date_trunc('hour',now())+interval '2 hours','[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":1}]',
-    'email-missing-0001','{"contact_name":"Synthetic","phone_e164":"+999100000011","email":null}','preview-v1',30)
-$sql$,'P0001','guest checkout email is required','database rejects a new order without email');
+    'email-missing-0001','{"contact_name":"Synthetic","phone_e164":null,"email":null}','preview-v1',30)
+$sql$,'P0001','guest checkout contact method is required','database rejects a new order without any contact method');
 select is((select count(*)::integer from public.orders),0,'contact error rolls back the order and capacity transaction');
 
 set local role service_role;

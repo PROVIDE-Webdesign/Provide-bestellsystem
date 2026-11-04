@@ -147,7 +147,7 @@ export async function verifyMenuSelectionIntegration(admin: Client, baseEnv: Env
   const online = parseOnlineOrderConfirmation(await responseData(onlineResponse))!;
   expect(online.totalAmountMinor).toBe(3000);
   const payment = await admin.query<{ amount: number }>(
-    "select (private.read_online_payment_job('acct_synthetic',$1)->>'amount')::integer as amount",
+    "select (private.read_platform_online_payment_job('acct_synthetic',$1)->>'amount')::integer as amount",
     [online.orderId],
   );
   expect(payment.rows[0]!.amount).toBe(3000);
@@ -161,7 +161,7 @@ export async function verifyMenuSelectionIntegration(admin: Client, baseEnv: Env
   const onlineDelivery = parseOnlineOrderConfirmation(await responseData(onlineDeliveryResponse))!;
   expect(onlineDelivery.totalAmountMinor).toBe(deliveryReview.deliveryQuote.totalAmountMinor);
   const deliveryPayment = await admin.query<{ amount: number }>(
-    "select (private.read_online_payment_job('acct_synthetic',$1)->>'amount')::integer as amount",
+    "select (private.read_platform_online_payment_job('acct_synthetic',$1)->>'amount')::integer as amount",
     [onlineDelivery.orderId],
   );
   expect(deliveryPayment.rows[0]!.amount).toBe(deliveryReview.deliveryQuote.totalAmountMinor);

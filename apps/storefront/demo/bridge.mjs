@@ -1,4 +1,5 @@
 import { AsianKitchenCheckout } from "./checkout.mjs";
+import { parseGuestCheckoutCustomer } from "./contracts/checkout.js";
 
 const $ = (selector) => document.querySelector(selector);
 const money = (value) =>
@@ -32,8 +33,9 @@ async function start() {
     <form data-provide-form>
       <fieldset data-provide-fields disabled><legend>Deine Kontaktdaten</legend>
       <label>Name<input name="contactName" autocomplete="name" required maxlength="120"></label>
-      <label>Telefon mit Landesvorwahl<input name="phoneE164" type="tel" autocomplete="tel" placeholder="+49 …" required pattern="\\+[1-9][0-9]{7,14}"></label>
-      <label>E-Mail<input name="email" type="email" autocomplete="email" required maxlength="254"></label>
+      <p id="provide-contact-help">E-Mail oder Telefon mit Landesvorwahl ist erforderlich. Du kannst auch beides angeben.</p>
+      <label>Telefon mit Landesvorwahl<input name="phoneE164" type="tel" autocomplete="tel" placeholder="+49 …" aria-describedby="provide-contact-help" pattern="\\+[1-9][0-9]{7,14}"></label>
+      <label>E-Mail<input name="email" type="email" autocomplete="email" aria-describedby="provide-contact-help" maxlength="254"></label>
       <button type="button" class="btn secondary" data-provide-quote>Gesamtpreis prüfen</button>
       <div data-provide-summary hidden></div>
       <label class="provide-check"><input type="checkbox" data-provide-price required> Ich habe Gerichte, Gesamtpreis und Abholzeit geprüft.</label>
@@ -45,6 +47,7 @@ async function start() {
     <p data-provide-message role="status" aria-live="polite">Bestellverbindung wird geprüft …</p>
     <button type="button" class="btn secondary" data-provide-receipt hidden>Bisherigen Bestellversuch prüfen</button>
     <button type="button" class="btn secondary" data-provide-retry-issue hidden>Sicherheitsprüfung erneut starten</button>
+    <button type="button" class="btn secondary" data-provide-acknowledge-missing hidden>Vorherigen Bestellstatus geprüft - neuen Testversuch vorbereiten</button>
     <button type="button" class="btn secondary" data-provide-new-order hidden>Neue Testbestellung beginnen</button>`;
   if (oldContact) oldContact.replaceWith(box);
   else panel.prepend(box);
@@ -61,6 +64,7 @@ async function start() {
   const summary = box.querySelector("[data-provide-summary]");
   const priceAccepted = box.querySelector("[data-provide-price]");
   const privacyAccepted = box.querySelector("[data-provide-privacy]");
+  const acknowledgeMissing = box.querySelector("[data-provide-acknowledge-missing]");
   const newOrder = box.querySelector("[data-provide-new-order]");
   let config, manifest;
   try {
@@ -126,7 +130,10 @@ async function start() {
     }
     const needsChallenge =
       (!checkout.client.currentIntent || checkout.renewAllowed) && !checkout.client.hasPendingIssue;
-    fields.disabled = uiBusy || checkout.completed || checkout.client.missingMetadataWarning;
+    fields.disabled =
+      uiBusy ||
+      checkout.completed ||
+      (checkout.client.missingMetadataWarning && !checkout.missingIntentAcknowledged);
     previewButton.disabled = uiBusy || checkout.completed || checkout.client.needsReceipt;
     submit.disabled =
       uiBusy ||
@@ -140,6 +147,13 @@ async function start() {
     receiptButton.disabled = uiBusy;
     retryChallenge.hidden = checkout.completed || !!challenge || !needsChallenge;
     retryChallenge.disabled = uiBusy || challengeLoading;
+    acknowledgeMissing.hidden =
+      !checkout.client.missingMetadataWarning ||
+      checkout.missingIntentAcknowledged ||
+      checkout.completed ||
+      checkout.client.needsReceipt ||
+      !!checkout.client.currentIntent;
+    acknowledgeMissing.disabled = uiBusy;
     newOrder.hidden = !checkout.completed;
   }
   function invalidate() {
@@ -317,19 +331,22 @@ async function start() {
     )
       return;
     const values = new FormData(form);
-    const customer = {
+    const customer = parseGuestCheckoutCustomer({
       contactName: String(values.get("contactName") || "").trim(),
       phoneE164: String(values.get("phoneE164") || "").trim(),
       email: String(values.get("email") || "")
         .trim()
         .toLowerCase(),
-    };
+    });
+    if (!customer) {
+      message.textContent =
+        "Bitte gib einen Namen und mindestens eine gültige Kontaktmöglichkeit an: E-Mail oder Telefon mit Landesvorwahl. Prüfe auch zusätzlich ausgefüllte Felder.";
+      return;
+    }
     uiBusy = true;
     controls();
     message.textContent = "Bestellung wird übermittelt …";
     try {
-      if (!customer.contactName || !customer.phoneE164 || !customer.email)
-        throw Error("Bitte die Kontaktdaten prüfen.");
       const result = await bridge.executeAdapter("onlineShop", { customer, challenge, issueId });
       confirmed(result);
     } catch (error) {
@@ -362,6 +379,14 @@ async function start() {
     }
   });
   retryChallenge.addEventListener("click", () => loadChallenge());
+  acknowledgeMissing.addEventListener("click", () => {
+    if (!checkout.acknowledgeMissingIntent()) return;
+    priceAccepted.checked = false;
+    summary.hidden = true;
+    message.textContent =
+      "Neuer Testversuch ausdrücklich vorbereitet. Bitte Gesamtpreis neu prüfen und anschließend die Sicherheitsprüfung abschließen. Es wurde keine Bestellung ausgelöst.";
+    controls();
+  });
   newOrder.addEventListener("click", () => {
     checkout.client.complete();
     checkout.completed = false;

@@ -5,6 +5,7 @@ import {
   verifyPaymentToken,
   processOnlinePayment,
   handleStripeWebhook,
+  handleOnlinePayment,
 } from "./online-payments.js";
 import { createStatusAccessToken } from "./status-token.js";
 import { verifyStripeWebhook, type SandboxProvider } from "./stripe-sandbox.js";
@@ -177,6 +178,7 @@ describe("online payment boundaries", () => {
     const job = {
       id,
       order_id: id,
+      account_id: "acct_restaurantA",
       session_id: "cs_test_synthetic",
       created_at: new Date().toISOString(),
       deadline: new Date(Date.now() - 1000).toISOString(),
@@ -214,5 +216,265 @@ describe("online payment boundaries", () => {
     await processOnlinePayment("synthetic", config, repo, provider);
     expect(sync.mock.calls[0]?.[3]).toBe("open");
     expect(refund.mock.calls).toHaveLength(0);
+  });
+});
+
+describe("connected restaurant reconciliation", () => {
+  const jobFor = (account: string, deadline = Date.now() + 300000): OnlineJob => ({
+    id,
+    order_id: id,
+    account_id: account,
+    session_id: "cs_test_connected",
+    intent_id: null,
+    refund_id: null,
+    refund_state: "none",
+    refund_sequence: 0,
+    close_requested: null,
+    provider_terminal: false,
+    deadline: new Date(deadline).toISOString(),
+    created_at: new Date().toISOString(),
+    amount: 2500,
+    currency: "EUR",
+    payment_status: "pending_customer",
+    order_status: "submitted",
+    restaurant_slug: "restaurant-a",
+    location_slug: "location-a",
+    last_error: null,
+  });
+  const repository = (job: OnlineJob) => ({
+    submit: vi.fn(),
+    read: vi.fn().mockResolvedValue(job),
+    resume: vi.fn(),
+    claim: vi.fn().mockResolvedValue(job),
+    bind: vi.fn(),
+    sync: vi.fn(),
+    fail: vi.fn(),
+    event: vi.fn(),
+  });
+  it.each(
+    ["acct_restaurantA", "acct_restaurantB"].flatMap((account) =>
+      (["wait", "accept", "reject", "expire"] as const).map((decision) => [account, decision] as const),
+    ),
+  )("reconciles manual payment for %s after %s", async (account, decision) => {
+    const now = Date.now();
+    const job: OnlineJob = {
+      ...jobFor(account),
+      capture_method: "manual",
+      acceptance_deadline: new Date(now + (decision === "expire" ? -1000 : 60000)).toISOString(),
+      capture_requested_at: decision === "accept" ? new Date(now - 1000).toISOString() : null,
+      close_requested: decision === "reject" ? "rejected" : null,
+    };
+    const repo = repository(job);
+    const held = {
+      id: job.session_id, status: "complete", paid: false, authorized: true, intent: "pi_connected", url: null,
+    };
+    const provider = {
+      session: vi.fn().mockResolvedValueOnce(held).mockResolvedValue({
+        ...held, authorized: false, paid: decision === "accept", authorizationReleased: decision !== "accept",
+      }),
+      expire: vi.fn(),
+      refund: vi.fn(),
+      settleAuthorization: vi.fn(),
+    };
+    await processOnlinePayment("synthetic", config, repo, provider, id);
+    if (decision === "wait") expect(provider.settleAuthorization).not.toHaveBeenCalled();
+    else {
+      expect(provider.settleAuthorization).toHaveBeenCalledExactlyOnceWith(
+        { ...config, merchantAccount: account },
+        { id, intentId: "pi_connected", amount: 2500 },
+        decision === "accept" ? "capture" : "cancel",
+      );
+    }
+    expect(repo.sync).toHaveBeenCalledExactlyOnceWith(
+      "synthetic", id, expect.any(String),
+      decision === "wait" ? "authorized" : decision === "accept" ? "paid" : "expired",
+      "pi_connected", null, expect.any(String),
+    );
+    expect(repo.fail).not.toHaveBeenCalled();
+    expect(provider.refund).not.toHaveBeenCalled();
+  });
+  it.each(["acct_restaurantA", "acct_restaurantB"])(
+    "refunds using the job's immutable payee %s",
+    async (account) => {
+      const job = { ...jobFor(account), close_requested: "cancelled", order_status: "cancelled" };
+      const repo = repository(job);
+      const provider = {
+        session: vi.fn().mockResolvedValue({
+          id: job.session_id,
+          status: "complete",
+          paid: true,
+          intent: "pi_connected",
+          url: null,
+        }),
+        expire: vi.fn(),
+        refund: vi.fn().mockResolvedValue({ id: "re_connected", status: "succeeded" }),
+      };
+      await processOnlinePayment("synthetic", config, repo, provider, id);
+      expect(provider.session).toHaveBeenCalledWith({ ...config, merchantAccount: account }, job);
+      expect(provider.refund).toHaveBeenCalledWith(
+        { ...config, merchantAccount: account },
+        "pi_connected",
+        id,
+        null,
+        2500,
+        0,
+      );
+      expect(repo.sync).toHaveBeenCalledWith(
+        "synthetic",
+        id,
+        expect.any(String),
+        "refunded",
+        "pi_connected",
+        "re_connected",
+        expect.any(String),
+      );
+      expect(repo.fail).not.toHaveBeenCalled();
+    },
+  );
+  it("releases a completed but unpaid asynchronous reservation at the local deadline", async () => {
+    const job = jobFor("acct_restaurantA", Date.now() - 1000),
+      repo = repository(job);
+    const provider = {
+      session: vi.fn().mockResolvedValue({
+        id: job.session_id,
+        status: "complete",
+        paid: false,
+        intent: null,
+        url: null,
+      }),
+      expire: vi.fn(),
+      refund: vi.fn(),
+    };
+    await processOnlinePayment("synthetic", config, repo, provider);
+    expect(repo.sync).toHaveBeenCalledWith(
+      "synthetic",
+      id,
+      expect.any(String),
+      "expired",
+      null,
+      null,
+      expect.any(String),
+    );
+    expect(provider.expire).not.toHaveBeenCalled();
+    expect(provider.refund).not.toHaveBeenCalled();
+  });
+  it.each([
+    ["checkout.session.completed", "unpaid", false],
+    ["checkout.session.completed", "paid", true],
+    ["checkout.session.async_payment_succeeded", "paid", true],
+    ["checkout.session.async_payment_failed", "unpaid", false],
+  ])(
+    "records account and actual payment evidence for %s (%s)",
+    async (type, paymentStatus, succeeded) => {
+      const env = {
+        APP_ENV: "test",
+        ONLINE_PAYMENT_PROCESSING_ENABLED: "true",
+        STRIPE_TEST_SECRET_KEY: config.key,
+        STRIPE_TEST_ACCOUNT_ID: config.account,
+        STRIPE_TEST_WEBHOOK_SECRET: config.webhookSecret,
+        PAYMENT_ACCESS_SECRET: secret,
+        PAYMENT_RETURN_ORIGIN: config.returnOrigin,
+        HYPERDRIVE: { connectionString: "synthetic" },
+        HYPERDRIVE_CACHE_DISABLED: "true",
+      };
+      const repo = repository(jobFor("acct_restaurantA"));
+      const timestamp = Math.floor(Date.now() / 1000);
+      const raw = JSON.stringify({
+        id: "evt_connected",
+        livemode: false,
+        account: "acct_restaurantA",
+        type,
+        created: timestamp,
+        data: { object: { id: "cs_test_connected", payment_status: paymentStatus } },
+      });
+      const key = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(config.webhookSecret),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"],
+      );
+      const signed = await crypto.subtle.sign(
+        "HMAC",
+        key,
+        new TextEncoder().encode(timestamp + "." + raw),
+      );
+      const signature = Array.from(new Uint8Array(signed), (b) =>
+        b.toString(16).padStart(2, "0"),
+      ).join("");
+      const response = await handleStripeWebhook(
+        new Request("https://api.test/v1/payments/stripe/webhook", {
+          method: "POST",
+          body: raw,
+          headers: { "stripe-signature": `t=${timestamp},v1=${signature}` },
+        }),
+        env,
+        repo,
+        { requestId: id },
+        { session: vi.fn(), expire: vi.fn(), refund: vi.fn() },
+      );
+      expect(response.status).toBe(204);
+      expect(repo.event).toHaveBeenCalledWith(
+        "synthetic",
+        config.account,
+        "evt_connected",
+        type,
+        "cs_test_connected",
+        expect.any(String),
+        new Date(timestamp * 1000).toISOString(),
+        "acct_restaurantA",
+        succeeded,
+      );
+    },
+  );
+  it("shows checking when completed Checkout is still unpaid", async () => {
+    const job = jobFor("acct_restaurantA"),
+      repo = repository(job);
+    repo.claim.mockResolvedValue(null);
+    repo.resume.mockResolvedValue(true);
+    const env = {
+      APP_ENV: "test",
+      ONLINE_PAYMENT_PROCESSING_ENABLED: "true",
+      STRIPE_TEST_SECRET_KEY: config.key,
+      STRIPE_TEST_ACCOUNT_ID: config.account,
+      STRIPE_TEST_WEBHOOK_SECRET: config.webhookSecret,
+      PAYMENT_ACCESS_SECRET: secret,
+      PAYMENT_RETURN_ORIGIN: config.returnOrigin,
+      HYPERDRIVE: { connectionString: "synthetic" },
+      HYPERDRIVE_CACHE_DISABLED: "true",
+    };
+    const provider = {
+      session: vi.fn().mockResolvedValue({
+        id: job.session_id,
+        status: "complete",
+        paid: false,
+        intent: null,
+        url: null,
+      }),
+      expire: vi.fn(),
+      refund: vi.fn(),
+    };
+    const response = await handleOnlinePayment(
+      new Request("https://api.test/v1/storefront/restaurant-a/location-a/payment-session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          orderId: id,
+          paymentDeadline: job.deadline,
+          paymentAccessToken: await createPaymentToken(secret, scope, id, job.deadline),
+        }),
+      }),
+      scope,
+      false,
+      env,
+      repo,
+      provider,
+      { requestId: id },
+      new Headers(),
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: { checkoutUrl: null, paymentState: "checking" },
+    });
   });
 });

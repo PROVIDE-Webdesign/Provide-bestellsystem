@@ -96,9 +96,71 @@ describe("acceptance alarm", () => {
     const tone = createOrderTone();
     await tone.enable();
     const result = expect(tone.play()).rejects.toThrow("Audio output unavailable");
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(5000);
     await result;
     expect(disconnect).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it("allows cold output to finish after two seconds and keeps later alarms bounded", async () => {
+    vi.useFakeTimers();
+    const disconnect = vi.fn();
+    let finish: (() => void) | null = null;
+    vi.stubGlobal(
+      "AudioContext",
+      class {
+        state = "running";
+        currentTime = 0;
+        destination = {};
+        resume() {
+          return Promise.resolve();
+        }
+        close() {
+          return Promise.resolve();
+        }
+        createOscillator() {
+          const oscillator = {
+            frequency: { value: 0 },
+            onended: null as (() => void) | null,
+            connect: vi.fn(),
+            start() {
+              finish = () => oscillator.onended?.();
+            },
+            stop: vi.fn(),
+            disconnect,
+          };
+          return oscillator;
+        }
+        createGain() {
+          return {
+            gain: { setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() },
+            connect: vi.fn(),
+            disconnect,
+          };
+        }
+      },
+    );
+    const tone = createOrderTone();
+    await tone.enable();
+    const cold = tone.play();
+    // Reproduce the measured Chromium event delay without real wall-clock waits.
+    await vi.advanceTimersByTimeAsync(2255);
+    expect(disconnect).not.toHaveBeenCalled();
+    (finish as (() => void) | null)?.();
+    await cold;
+    expect(disconnect).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
+    const stalled = expect(tone.play()).rejects.toThrow("Audio output unavailable");
+    await vi.advanceTimersByTimeAsync(2000);
+    await stalled;
+    expect(disconnect).toHaveBeenCalledTimes(4);
+    expect(vi.getTimerCount()).toBe(0);
+    await tone.close();
+    await tone.enable();
+    const restarted = tone.play();
+    await vi.advanceTimersByTimeAsync(2255);
+    (finish as (() => void) | null)?.();
+    await restarted;
+    expect(disconnect).toHaveBeenCalledTimes(6);
     expect(vi.getTimerCount()).toBe(0);
   });
 });

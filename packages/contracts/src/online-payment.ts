@@ -8,6 +8,8 @@ import { isExplicitInstant } from "./storefront.js";
 export const paymentStates = [
   "open",
   "checking",
+  "authorized",
+  "capture_pending",
   "paid",
   "expired",
   "cancelling",
@@ -20,6 +22,8 @@ export type PaymentState = (typeof paymentStates)[number];
 export const paymentStateLabels: Record<PaymentState, string> = {
   open: "Zahlung offen",
   checking: "Zahlung wird geprüft",
+  authorized: "Zahlung reserviert",
+  capture_pending: "Abbuchung wird bestätigt",
   paid: "Bezahlt",
   expired: "Zahlung beendet",
   cancelling: "Stornierung wird geprüft",

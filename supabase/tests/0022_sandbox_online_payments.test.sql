@@ -3,13 +3,14 @@ create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,public;
 select no_plan();
 \ir fixtures/storefront.fixture.inc
+insert into private.restaurant_test_payment_accounts(restaurant_id,platform_account_id,merchant_account_id,enabled,expires_at,reason) values('f2000000-0000-0000-0000-000000000001','acct_testplatform','acct_synthetic',true,clock_timestamp()+interval '1 day','Synthetic payment routing fixture');
 \ir fixtures/delivery.fixture.inc
 create function pg_temp.submit(key text,hours integer default 6) returns jsonb language sql as $$
  select private.submit_public_guest_online_order('storefront-restaurant-a','storefront-a-mitte',
  'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001',date_trunc('hour',now())+make_interval(hours=>hours),
  '[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":2}]',key,
  '{"contact_name":"Synthetic Online Guest","phone_e164":"+999100000041","email":"synthetic@example.invalid"}',
- 'pickup',null,null,'preview-v1',30,'acct_synthetic')
+ 'pickup',null,null,'preview-v1',30,'acct_testplatform')
 $$;
 select ok(not has_table_privilege('service_role','public.online_payment_jobs','update'),'service cannot directly modify orchestration');
 select ok(not has_table_privilege('authenticated','public.online_payment_jobs','select'),'browser cannot read provider references');

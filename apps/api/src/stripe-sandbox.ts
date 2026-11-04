@@ -2,6 +2,7 @@ import { object } from "@provide/contracts";
 export interface SandboxConfig {
   key: string;
   account: string;
+  merchantAccount?: string;
   webhookSecret: string;
   returnOrigin: string;
 }
@@ -9,6 +10,8 @@ export interface ProviderSession {
   id: string;
   status: "open" | "complete" | "expired";
   paid: boolean;
+  authorized?: boolean;
+  authorizationReleased?: boolean;
   intent: string | null;
   url: string | null;
 }
@@ -17,11 +20,13 @@ export interface ProviderRefund {
   status: "pending" | "succeeded" | "failed";
 }
 export interface SandboxProvider {
+  settleAuthorization?(config: SandboxConfig, job: AuthorizationJob, action: "capture" | "cancel"): Promise<void>;
   session(
     config: SandboxConfig,
     job: {
       id: string;
       session_id: string | null;
+      captureMethod?: "manual";
       amount: number;
       currency: string;
       restaurant_slug: string;
@@ -45,10 +50,12 @@ async function request(
   body?: URLSearchParams,
   idempotency?: string,
 ) {
-  const response = await fetch(api + path, {
+  const response = await fetch((path.startsWith("/v2/") ? "https://api.stripe.com" : api) + path, {
     method: body ? "POST" : "GET",
     headers: {
       authorization: `Bearer ${c.key}`,
+      "stripe-version": "2026-09-30.endive",
+      ...(c.merchantAccount ? { "stripe-account": c.merchantAccount } : {}),
       ...(body ? { "content-type": "application/x-www-form-urlencoded" } : {}),
       ...(idempotency ? { "idempotency-key": idempotency } : {}),
     },
@@ -64,12 +71,81 @@ async function request(
   return result;
 }
 async function verifyAccount(c: SandboxConfig) {
-  const a = await request(c, "/account");
+  const platform: SandboxConfig = {
+    key: c.key,
+    account: c.account,
+    webhookSecret: c.webhookSecret,
+    returnOrigin: c.returnOrigin,
+  };
+  const a = await request(platform, "/account");
   if (a.id !== c.account) throw new Error("Account mismatch");
+  if (c.merchantAccount) {
+    const merchant = await request(c, "/account");
+    if (merchant.id !== c.merchantAccount) throw new Error("Account mismatch");
+  }
+  return platform;
 }
-export const stripeSandboxProvider: SandboxProvider = {
+interface AuthorizationJob {
+  id: string;
+  intentId: string;
+  amount: number;
+}
+
+function assertAuthorizationIntent(intent: Record<string, unknown>, job: AuthorizationJob) {
+  if (
+    intent.id !== job.intentId ||
+    intent.livemode !== false ||
+    intent.capture_method !== "manual" ||
+    intent.amount !== job.amount ||
+    intent.currency !== "eur" ||
+    object(intent.metadata)?.provide_job !== job.id
+  )
+    throw new Error("Invalid authorization intent");
+}
+
+export const stripeSandboxProvider: SandboxProvider & {
+  settleAuthorization(config: SandboxConfig, job: AuthorizationJob, action: "capture" | "cancel"): Promise<void>;
+} = {
+  async settleAuthorization(config: SandboxConfig, job: AuthorizationJob, action: "capture" | "cancel") {
+    await verifyAccount(config);
+    if (!/^pi_[A-Za-z0-9]+$/.test(job.intentId)) throw new Error("Invalid intent ID");
+    const path = "/payment_intents/" + encodeURIComponent(job.intentId);
+    const before = await request(config, path);
+    assertAuthorizationIntent(before, job);
+    const expected = action === "capture" ? "succeeded" : "canceled";
+    let result = before;
+    if (before.status !== expected) {
+      if (before.status !== "requires_capture" || before.amount_capturable !== job.amount)
+        throw new Error("Authorization no longer available");
+      const body = new URLSearchParams();
+      if (action === "capture") body.set("amount_to_capture", String(job.amount));
+      result = await request(
+        config, path + "/" + action, body, "provide-online-" + action + ":" + job.id,
+      );
+    }
+    assertAuthorizationIntent(result, job);
+    if (result.status !== expected || result.amount_received !== (action === "capture" ? job.amount : 0))
+      throw new Error("Unexpected authorization outcome");
+  },
   async session(c, j) {
-    await verifyAccount(c);
+    const platform = await verifyAccount(c);
+    if (!j.session_id) {
+      // Read v2 capability before creating a payment. Existing sessions and refunds must
+      // remain reconcilable after a merchant loses the ability to accept new payments.
+      const merchant = c.merchantAccount ?? c.account;
+      const a = await request(
+        platform,
+        "/v2/core/accounts/" + encodeURIComponent(merchant) + "?include[0]=configuration.merchant",
+      );
+      const configuration = object(a.configuration);
+      const capabilities = object(object(configuration?.merchant)?.capabilities);
+      if (
+        a.id !== merchant ||
+        a.livemode !== false ||
+        object(capabilities?.card_payments)?.status !== "active"
+      )
+        throw new Error("Merchant cannot accept test payments");
+    }
     // Derive a stable eight-letter suffix from the random job UUID so retries keep identical
     // Checkout parameters while each integration identifier remains unique to this payment job.
     const integrationSuffix = j.id
@@ -89,6 +165,10 @@ export const stripeSandboxProvider: SandboxProvider = {
       success_url: `${c.returnOrigin}/r/${j.restaurant_slug}/${j.location_slug}`,
       cancel_url: `${c.returnOrigin}/r/${j.restaurant_slug}/${j.location_slug}`,
     });
+    if (j.captureMethod === "manual") {
+      // Stripe filters out methods that cannot reserve funds for manual capture.
+      body.set("payment_intent_data[capture_method]", "manual");
+    }
     // Do not include a relative expiry in the idempotent request: all retry parameters stay identical.
     const s = j.session_id
       ? await request(c, "/checkout/sessions/" + encodeURIComponent(j.session_id))
@@ -106,16 +186,25 @@ export const stripeSandboxProvider: SandboxProvider = {
     )
       throw new Error("Invalid checkout session");
     let intent: string | null = null;
-    if (s.payment_status === "paid") {
+    let authorized = false;
+    let authorizationReleased = false;
+    if (s.payment_status === "paid" || (j.captureMethod === "manual" && s.status === "complete")) {
       if (typeof s.payment_intent !== "string" || !/^pi_[A-Za-z0-9]+$/.test(s.payment_intent))
         throw new Error("Missing intent");
       const p = await request(c, "/payment_intents/" + encodeURIComponent(s.payment_intent));
+      if (j.captureMethod === "manual") {
+        assertAuthorizationIntent(p, { id: j.id, intentId: s.payment_intent, amount: j.amount });
+        authorizationReleased = p.status === "canceled" && p.amount_received === 0;
+        authorized =
+          p.status === "requires_capture" && p.amount_capturable === j.amount && p.amount_received === 0;
+      }
       if (
+        !authorized && !authorizationReleased && (
         p.livemode !== false ||
         p.status !== "succeeded" ||
         p.amount_received !== j.amount ||
         p.currency !== "eur" ||
-        object(p.metadata)?.provide_job !== j.id
+        object(p.metadata)?.provide_job !== j.id)
       )
         throw new Error("Invalid capture");
       intent = s.payment_intent;
@@ -123,7 +212,8 @@ export const stripeSandboxProvider: SandboxProvider = {
     return {
       id: s.id,
       status: s.status as ProviderSession["status"],
-      paid: s.payment_status === "paid",
+      paid: !authorized && !authorizationReleased && intent !== null,
+      ...(j.captureMethod === "manual" ? { authorized, authorizationReleased } : {}),
       intent,
       url: typeof s.url === "string" ? s.url : null,
     };

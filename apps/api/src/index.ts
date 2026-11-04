@@ -1,3 +1,5 @@
+import { handleCartHandoff, cleanupCartHandoffs } from "./cart-handoff.js";
+
 import {
   handleProtectedStorefront,
   checkoutProtectionConfigured,
@@ -149,6 +151,9 @@ export function createApiWorker(
       if (request.method === "OPTIONS") {
         return new Response(null, { headers: cors, status: 204 });
       }
+
+      if (new URL(request.url).pathname === "/v1/cart-handoff")
+        return handleCartHandoff(request, env);
 
       const route = routeRequest(request);
       if (!route) {
@@ -390,6 +395,11 @@ export function createApiWorker(
             }
           })().catch(() => logger.error(createRequestContext(), "checkout_cleanup_failed")),
         );
+      context.waitUntil(
+        cleanupCartHandoffs(env).catch(() =>
+          logger.error(createRequestContext(), "cart_handoff_cleanup_failed"),
+        ),
+      );
       context.waitUntil(dispatchGuestPurge(env, logger, guestPurge));
       context.waitUntil(dispatchAcceptanceAlerts(env, dashboardOrdersReader, logger));
       context.waitUntil(dispatchOnlinePayments(env, onlineRepository, onlineProvider));

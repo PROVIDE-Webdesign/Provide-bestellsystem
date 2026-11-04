@@ -64,6 +64,16 @@ describe("delivery contracts", () => {
     };
     expect(parseGuestDeliveryOrderRequest(order)).toEqual(order);
     expect(
+      parseGuestDeliveryOrderRequest({ ...order, customer: { ...order.customer, email: null } })
+        ?.customer.email,
+    ).toBeNull();
+    expect(
+      parseGuestDeliveryOrderRequest({
+        ...order,
+        customer: { ...order.customer, phoneE164: null },
+      }),
+    ).toBeUndefined();
+    expect(
       parseGuestDeliveryOrderRequest({
         ...order,
         delivery: { ...order.delivery, countryCode: "NL" },

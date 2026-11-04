@@ -69,3 +69,5 @@ export * from "./personnel.js";
 export * from "./account-recovery.js";
 export * from "./support.js";
 export * from "./checkout-protection.js";
+
+export * from "./cart-handoff.js";

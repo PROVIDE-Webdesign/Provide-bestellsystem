@@ -352,8 +352,12 @@ export async function handleProtectedStorefront(
       }
       if (claim?.outcome !== "pending")
         return fail(
-          claim?.outcome === "unavailable" ? 503 : 403,
-          claim?.outcome === "unavailable" ? "service_unavailable" : "forbidden",
+          claim?.outcome === "unavailable" ? 503 : claim?.outcome === "expired" ? 410 : 403,
+          claim?.outcome === "unavailable"
+            ? "service_unavailable"
+            : claim?.outcome === "expired"
+              ? "checkout_session_expired"
+              : "forbidden",
         );
       // Transport uncertainty leaves the same pending provider UUID available for an explicit retry.
       const valid = await challenge.verify(config, issue.challenge, issue.issueId);
@@ -364,8 +368,20 @@ export async function handleProtectedStorefront(
       return result?.outcome === "issued" && intent
         ? jsonSuccess(intent, ctx.requestId, 201, cors)
         : fail(
-            result?.outcome === "unavailable" ? 503 : 409,
-            result?.outcome === "unavailable" ? "service_unavailable" : "conflict",
+            result?.outcome === "unavailable"
+              ? 503
+              : result?.outcome === "expired"
+                ? 410
+                : result?.outcome === "forbidden"
+                  ? 403
+                  : 409,
+            result?.outcome === "unavailable"
+              ? "service_unavailable"
+              : result?.outcome === "expired"
+                ? "checkout_session_expired"
+                : result?.outcome === "forbidden"
+                  ? "forbidden"
+                  : "conflict",
           );
     }
     if (route.name === "checkout-receipt") {

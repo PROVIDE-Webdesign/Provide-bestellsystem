@@ -106,9 +106,14 @@ export function onlineState(j: OnlineJob): PaymentState {
   if (j.refund_state === "failed") return "refund_failed";
   if (["requested", "pending"].includes(j.refund_state)) return "refund_pending";
   if (j.close_requested && !j.provider_terminal) return "cancelling";
+  if (j.payment_status === "authorized") return j.capture_requested_at ? "capture_pending" : "authorized";
   if (j.payment_status === "captured") return "paid";
   if (["failed", "cancelled", "expired"].includes(j.payment_status)) return "expired";
   return j.last_error || Date.parse(j.deadline) <= Date.now() ? "checking" : "open";
+}
+function paymentAccountConfig(config: SandboxConfig, account: string): SandboxConfig {
+  if (!/^acct_[A-Za-z0-9]+$/.test(account)) throw new Error("Missing merchant account");
+  return account === config.account ? config : { ...config, merchantAccount: account };
 }
 export async function processOnlinePayment(
   connection: string,
@@ -121,14 +126,17 @@ export async function processOnlinePayment(
   const j = await repo.claim(connection, config.account, order, lease);
   if (!j) return;
   try {
+    const merchantConfig = paymentAccountConfig(config, j.account_id);
     if (!j.session_id && Date.now() - Date.parse(j.created_at) > 20 * 60 * 60 * 1000) {
       await repo.fail(connection, j.id, lease, true);
       return;
     }
-    let session = await provider.session(config, j);
+    const manual = j.capture_method === "manual";
+    const providerJob = manual ? { ...j, captureMethod: "manual" as const } : j;
+    let session = await provider.session(merchantConfig, providerJob);
     if (!j.session_id) {
       await repo.bind(connection, j.id, lease, session.id);
-      j.session_id = session.id;
+      providerJob.session_id = session.id;
     }
     const latest = await repo.read(connection, config.account, j.order_id);
     if (!latest) throw new Error("Missing online job");
@@ -137,10 +145,42 @@ export async function processOnlinePayment(
       (latest.close_requested || Date.parse(j.deadline) <= Date.now())
     ) {
       // A concurrent success may make expiration fail. Re-read before deciding anything.
-      await provider.expire(config, session.id).catch(() => undefined);
-      session = await provider.session(config, j);
+      await provider.expire(merchantConfig, session.id).catch(() => undefined);
+      session = await provider.session(merchantConfig, providerJob);
     }
-    let state = session.paid ? "paid" : session.status === "expired" ? "expired" : "open",
+    if (manual && session.authorized) {
+      if (!session.intent || !provider.settleAuthorization)
+        throw new Error("Manual settlement unavailable");
+      const acceptanceDeadline = Date.parse(latest.acceptance_deadline ?? "");
+      const requestedAt = Date.parse(latest.capture_requested_at ?? "");
+      const closing = !!latest.close_requested || ["cancelled", "rejected"].includes(latest.order_status);
+      const requestedInTime = latest.order_status === "submitted" &&
+        Number.isFinite(requestedAt) && requestedAt <= Date.now() && requestedAt < acceptanceDeadline;
+      const action = requestedInTime && !closing
+        ? "capture"
+        : closing || Date.now() >= (Number.isFinite(acceptanceDeadline) ? acceptanceDeadline : Date.parse(j.deadline))
+          ? "cancel"
+          : null;
+      if (action) {
+        await provider.settleAuthorization(
+          merchantConfig, { id: j.id, intentId: session.intent, amount: j.amount }, action,
+        );
+        session = await provider.session(merchantConfig, providerJob);
+        if (action === "capture" ? !session.paid : !session.authorizationReleased)
+          throw new Error("Settlement not yet confirmed");
+      }
+    }
+    // Completed but unpaid Checkout sessions can still have an asynchronous payment pending.
+    // Expire the local reservation at its deadline; any later capture is compensated.
+    let state = session.paid
+        ? "paid"
+        : session.authorized
+          ? "authorized"
+          : session.authorizationReleased || session.status === "expired" ||
+            (session.status === "complete" &&
+              (latest.close_requested || Date.parse(j.deadline) <= Date.now()))
+          ? "expired"
+          : "open",
       refundId = j.refund_id;
     if (
       session.paid &&
@@ -149,7 +189,7 @@ export async function processOnlinePayment(
         ["cancelled", "rejected"].includes(latest.order_status))
     ) {
       const refund = await provider.refund(
-        config,
+        merchantConfig,
         session.intent!,
         j.id,
         j.refund_id,
@@ -306,11 +346,13 @@ export async function handleOnlinePayment(
     j = await repo.read(env.HYPERDRIVE!.connectionString, config.account, action.orderId);
     if (!j) return fail(404);
     let url: string | null = null;
-    if (j.session_id && onlineState(j) === "open") {
-      const session = await provider.session(config, j);
+    let paymentState = onlineState(j);
+    if (j.session_id && paymentState === "open") {
+      const session = await provider.session(paymentAccountConfig(config, j.account_id), j);
       if (session.status === "open" && !session.paid) url = session.url;
+      else paymentState = "checking";
     }
-    const result = parsePaymentSession({ checkoutUrl: url, paymentState: onlineState(j) });
+    const result = parsePaymentSession({ checkoutUrl: url, paymentState });
     return result ? jsonSuccess(result, ctx.requestId, 200, cors) : fail(503);
   } catch (e) {
     if (e instanceof RequestBodyError) return fail(e.status);
@@ -374,7 +416,8 @@ export async function handleStripeWebhook(
     if (
       !event ||
       event.livemode !== false ||
-      (event.account !== undefined && event.account !== config.account) ||
+      (event.account !== undefined &&
+        (typeof event.account !== "string" || !/^acct_[A-Za-z0-9]+$/.test(event.account))) ||
       typeof event.id !== "string" ||
       !/^evt_[A-Za-z0-9]+$/.test(event.id)
     )
@@ -390,6 +433,8 @@ export async function handleStripeWebhook(
       typeof event.type !== "string" ||
       ![
         "checkout.session.completed",
+        "checkout.session.async_payment_succeeded",
+        "checkout.session.async_payment_failed",
         "checkout.session.expired",
         "payment_intent.succeeded",
         "payment_intent.payment_failed",
@@ -414,6 +459,10 @@ export async function handleStripeWebhook(
       value.id,
       await digest(raw),
       new Date(event.created * 1000).toISOString(),
+      typeof event.account === "string" ? event.account : config.account,
+      event.type === "payment_intent.succeeded" ||
+        event.type === "checkout.session.async_payment_succeeded" ||
+        (event.type === "checkout.session.completed" && value.payment_status === "paid"),
     );
     if (order) {
       // Storage is durable even if provider reconciliation fails; the cron retries it.

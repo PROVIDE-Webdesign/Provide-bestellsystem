@@ -11,7 +11,7 @@ export class CheckoutClientError extends Error {
         : status === 410
           ? "Der Bestellversuch ist abgelaufen. Prüfe zuerst den bisherigen Bestellstatus oder kontaktiere das Restaurant."
           : status === 403
-            ? "Die Sicherheitsprüfung konnte nicht bestätigt werden. Cookies müssen für diese Seite erlaubt sein."
+            ? "Die Sicherheitsprüfung wurde nicht freigegeben. Bitte starte sie erneut. Cookies müssen für diese Seite erlaubt sein."
             : "Der Bestellversuch konnte gerade nicht geprüft werden. Dein Warenkorb bleibt erhalten.",
     );
   }
@@ -190,6 +190,7 @@ export class CheckoutClient {
       const error = await this.error(response);
       this.assertCurrent(generation, signal);
       if (response.status !== 503 && response.status !== 429) this.issueAttempt = null;
+      if (response.status === 410) this.csrf = null;
       throw error;
     }
     const intent = parseCheckoutIntent(record(await response.json())?.data);
@@ -224,7 +225,9 @@ export class CheckoutClient {
     this.assertCurrent(generation, signal);
     if (result?.state !== "unsubmitted" && result?.state !== "committed")
       throw new CheckoutClientError(503);
-    this.mustCheck = false;
+    // A committed receipt must never reopen checkout. The caller still needs to
+    // validate its confirmation; only complete() may release that recovery state.
+    this.mustCheck = result.state === "committed";
     return result;
   }
   async submit(

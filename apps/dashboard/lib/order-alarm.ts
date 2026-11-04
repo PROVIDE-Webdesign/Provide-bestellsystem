@@ -27,13 +27,13 @@ export interface OrderTone {
   play(): Promise<void>;
   close(): Promise<void>;
 }
-async function boundedAudioOperation(operation: Promise<void>) {
+async function boundedAudioOperation(operation: Promise<void>, timeoutMs = 2000) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
       operation,
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(Error("Audio output unavailable")), 2000);
+        timer = setTimeout(() => reject(Error("Audio output unavailable")), timeoutMs);
       }),
     ]);
   } finally {
@@ -42,6 +42,7 @@ async function boundedAudioOperation(operation: Promise<void>) {
 }
 export function createOrderTone(): OrderTone {
   let context: AudioContext | undefined;
+  let outputReady = false;
   return {
     async enable() {
       context ??= new AudioContext();
@@ -66,7 +67,10 @@ export function createOrderTone(): OrderTone {
       oscillator.start();
       oscillator.stop(context.currentTime + 0.26);
       try {
-        await boundedAudioOperation(ended);
+        // The first native output can include device startup before its short tone.
+        // Keep later alarms on the shorter failure deadline once output is confirmed.
+        await boundedAudioOperation(ended, outputReady ? 2000 : 5000);
+        outputReady = true;
       } finally {
         oscillator.onended = null;
         oscillator.disconnect();
@@ -76,6 +80,7 @@ export function createOrderTone(): OrderTone {
     async close() {
       if (context) await context.close();
       context = undefined;
+      outputReady = false;
     },
   };
 }

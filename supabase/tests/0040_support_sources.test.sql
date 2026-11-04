@@ -14,8 +14,8 @@ end $$;
 create temporary table source_orders(n integer,id uuid);
 insert into source_orders select n,(private.submit_public_guest_pickup_order('storefront-restaurant-a','storefront-a-mitte','f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001',date_trunc('hour',statement_timestamp())+interval '4 hours'+n*interval '15 minutes','[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":1}]','support-synthetic-'||n,'{"contact_name":"Synthetic","phone_e164":"+999100000011","email":"synthetic@example.invalid"}','preview-v1',30)->>'orderId')::uuid from generate_series(1,40)n;
 -- Disposable administrator fault fixtures only; O1 is never given DML on these sources.
-insert into public.online_payment_jobs(restaurant_id,location_id,order_id,account_id,deadline,last_error,refund_state)
- select 'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',id,'acct_synthetic',now()+interval '30 minutes','manual_review','failed' from source_orders where n=1;
+insert into public.online_payment_jobs(restaurant_id,location_id,order_id,account_id,platform_account_id,deadline,last_error,refund_state)
+ select 'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',id,'acct_synthetic','acct_synthetic',now()+interval '30 minutes','manual_review','failed' from source_orders where n=1;
 update private.email_deliveries set status=case when order_id=(select id from source_orders where n=1) then 'dead_letter' else 'uncertain' end;
 update private.order_acceptance_alerts set started_at=now()-interval '10 minutes',deadline=now()-interval '1 minute';
 create temporary table scan_results(n integer,result jsonb);

@@ -41,13 +41,15 @@ export default function CheckoutChallenge({
 }: {
   siteKey: string;
   issueId: string;
-  onToken: (token: string | null) => void;
+  onToken: (token: string | null, issueId: string) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const callback = useRef(onToken);
   callback.current = onToken;
   const [message, setMessage] = useState("Sicherheitsprüfung wird geladen …");
   useEffect(() => {
+    setMessage("Sicherheitsprüfung wird geladen …");
+    let delivered = false;
     let disposed = false,
       id: string | undefined,
       api: Turnstile | undefined;
@@ -61,16 +63,20 @@ export default function CheckoutChallenge({
           cData: issueId,
           "response-field": false,
           callback: (token) => {
-            setMessage("Sicherheitsprüfung bestätigt.");
-            callback.current(token);
+            if (disposed || delivered) return;
+            delivered = true;
+            setMessage("Sicherheitsnachweis erhalten. Bestellfreigabe wird geprüft …");
+            callback.current(token, issueId);
           },
           "error-callback": () => {
+            if (disposed || delivered) return;
             setMessage("Sicherheitsprüfung nicht verfügbar. Dein Warenkorb bleibt erhalten.");
-            callback.current(null);
+            callback.current(null, issueId);
           },
           "expired-callback": () => {
+            if (disposed || delivered) return;
             setMessage("Sicherheitsprüfung abgelaufen. Bitte starte sie erneut.");
-            callback.current(null);
+            callback.current(null, issueId);
           },
         });
       })

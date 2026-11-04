@@ -190,6 +190,11 @@ export async function verifyTwoRestaurantsBrowser(browser: Browser, output: stri
         assert.equal(command.menuVersionId, current.versionId);
         assert.equal(command.submissionKey, current.submissionKey);
         assert.equal(command.customer.contactName, `Synthetic Guest ${current.letter}`);
+        assert.equal(
+          command.customer.email,
+          current.letter === "a" ? null : "guest-b@example.invalid",
+        );
+        assert.equal(command.customer.phoneE164, current.letter === "b" ? null : "+999100000001");
         assert.deepEqual(command.lines, [
           {
             menuItemId: current.item.id,
@@ -354,8 +359,6 @@ export async function verifyTwoRestaurantsBrowser(browser: Browser, output: stri
         }).format(current.confirmation.totalAmountMinor / 100);
         assert.ok((await page.locator(".cart-panel").innerText()).includes(formatted));
         await page.getByLabel("Name", { exact: true }).fill(`Synthetic Guest ${current.letter}`);
-        await page.getByLabel("Telefonnummer").fill("+999100000001");
-        await page.getByLabel("E-Mail-Adresse").fill(`guest-${current.letter}@example.invalid`);
         await page.getByRole("checkbox", { name: /Datenschutzhinweis/ }).check();
         await page.getByRole("button", { name: "Sicherheitsprüfung starten", exact: true }).click();
         await page
@@ -364,6 +367,28 @@ export async function verifyTwoRestaurantsBrowser(browser: Browser, output: stri
             { exact: true },
           )
           .waitFor();
+        // Missing or additionally malformed contacts must never reach the order endpoint.
+        const send = page.getByRole("button", { name: "Abholbestellung absenden", exact: true });
+        await send.click();
+        await page
+          .getByText(/Bitte gib einen Namen und mindestens eine gültige Kontaktmöglichkeit/)
+          .waitFor();
+        assert.equal(current.writes, 0);
+        if (current.letter === "a") {
+          await page
+            .getByLabel("Telefonnummer mit Landesvorwahl", { exact: true })
+            .fill("+999100000001");
+          await page.getByLabel("E-Mail-Adresse").fill("invalid");
+          await send.click();
+          assert.equal(current.writes, 0);
+          await page.getByLabel("E-Mail-Adresse").fill("");
+        } else {
+          await page.getByLabel("E-Mail-Adresse").fill("guest-b@example.invalid");
+          await page.getByLabel("Telefonnummer mit Landesvorwahl", { exact: true }).fill("0170");
+          await send.click();
+          assert.equal(current.writes, 0);
+          await page.getByLabel("Telefonnummer mit Landesvorwahl", { exact: true }).fill("");
+        }
         await page.getByRole("button", { name: "Abholbestellung absenden", exact: true }).click();
         await page
           .getByText(`Bestellnummer: ${current.confirmation.orderNumber}`, { exact: true })

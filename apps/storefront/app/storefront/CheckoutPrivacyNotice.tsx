@@ -10,12 +10,19 @@ export function CheckoutPrivacyNotice({ noticeVersion }: { readonly noticeVersio
         <strong>Bitte nur erfundene Testdaten verwenden.</strong> Dies ist keine echte
         Restaurantbestellung.
       </p>
+      <h3>Welche Angaben sind Pflicht?</h3>
+      <p>
+        Für die Abholung benötigen wir deinen Namen und mindestens eine Kontaktmöglichkeit: E-Mail
+        oder Telefon mit Landesvorwahl. Du kannst auch beides angeben. Bei einer Lieferung ist eine
+        Telefonnummer erforderlich; E-Mail ist optional.
+      </p>
       <h3>Welche Angaben werden verarbeitet?</h3>
       <p>
         Für die Preis- und Verfügbarkeitsprüfung werden Gerichtsauswahl, Mengen und gewünschter
-        Bestellzeitpunkt an das Bestellsystem übertragen. Beim Absenden werden zusätzlich Name,
-        Telefonnummer und E-Mail-Adresse für die Testbestellung gespeichert und im geschützten
-        Restaurant-Dashboard angezeigt. Bei Lieferung kommen Postleitzahl und Lieferadresse hinzu.
+        Bestellzeitpunkt an das Bestellsystem übertragen. Beim Absenden werden zusätzlich Name und
+        die angegebenen Kontaktmöglichkeiten (Telefon oder E-Mail, auf Wunsch beides) für die
+        Testbestellung gespeichert. Der Kontaktname wird im geschützten Restaurant-Dashboard
+        angezeigt. Bei Lieferung kommen Postleitzahl und Lieferadresse hinzu.
       </p>
       <h3>Browser und Sicherheitsprüfung</h3>
       <p>
@@ -30,10 +37,23 @@ export function CheckoutPrivacyNotice({ noticeVersion }: { readonly noticeVersio
         verarbeitet. Beim Starten der Sicherheitsprüfung wird Cloudflare Turnstile geladen. Dabei
         werden technische Verbindungsdaten an Cloudflare übertragen.
       </p>
+      <h3>Wie lange bleiben Test-Kontaktdaten gespeichert?</h3>
+      <p>
+        Für Name und angegebene Kontaktmöglichkeiten haben wir eine Frist von 14 Tagen ab Eingang
+        der Testbestellung festgelegt. Die vorgesehene automatische Bereinigung entfernt diese
+        Angaben nach Ablauf der Frist, sobald die Bestellung abgeschlossen, abgelehnt oder storniert
+        ist. Offene Bestellungen bleiben bis zur Klärung von der Bereinigung ausgenommen.
+      </p>
+      <p>
+        Bestellnummer, Artikel, Preise und Bestellstatus bleiben für die Prüfung des Testbetriebs
+        gespeichert. Das Ablaufen des Zugangs zum Bestellstatus löst keine Löschung der Bestellung
+        aus.
+      </p>
       <p className="fine-print">
-        Die tatsächlichen Speicher- und Löschfristen der Bestelldaten sind noch nicht abschließend
-        bestätigt. Das Ablaufen eines Statuszugangs bedeutet nicht, dass die gespeicherte Bestellung
-        bereits gelöscht wurde.
+        Die 14-Tage-Frist gilt für die Kontaktdaten der Testbestellungen. Die Fristen für die
+        übrigen Bestelldaten, technische Protokolle und Sicherungskopien sind noch zu klären. Für
+        den späteren Betrieb mit echten Restaurants werden die Aufbewahrungsregeln gesondert
+        festgelegt.
       </p>
     </details>
   );

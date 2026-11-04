@@ -1,4 +1,5 @@
 "use client";
+import { buildImportedCart } from "./cart-import";
 import { CheckoutPrivacyNotice } from "./CheckoutPrivacyNotice";
 import { TaxBreakdown } from "./TaxBreakdown";
 import { ItemPicker } from "./ItemPicker";
@@ -6,7 +7,7 @@ import { cartStorageKey, serializeCart, restoreCart } from "./cart-storage";
 
 import CheckoutChallenge from "./CheckoutChallenge";
 import { CheckoutClient, CheckoutClientError } from "./checkout-client";
-import { record } from "@provide/contracts";
+import { record, handoffIdPattern, handoffTokenPattern } from "@provide/contracts";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -19,7 +20,7 @@ import {
   paymentStateLabels,
   type PaymentAction,
   isStorefrontScope,
-  isValidGuestEmail,
+  parseGuestCheckoutCustomer,
   parseGuestDeliveryOrderConfirmation,
   type DeliveryQuote,
   type GuestDeliveryOrderConfirmation,
@@ -75,6 +76,109 @@ const statusLabels: Record<PublicOrderStatus["status"], string> = {
 };
 
 export default function Storefront(scope: StorefrontProps) {
+  const [pendingImport, setPendingImport] = useState<{ id: string; token: string } | null>(null);
+  const [importMessage, setImportMessage] = useState("");
+  const [importBusy, setImportBusy] = useState(false);
+  useEffect(() => {
+    const key = "provide:cart-import:" + scope.restaurantSlug + ":" + scope.locationSlug;
+    try {
+      const match = /^#cart-import=([a-z0-9][a-z0-9-]{2,79})\.([a-f0-9]{64})$/.exec(
+        window.location.hash,
+      );
+      if (match) {
+        const saved = { id: match[1]!, token: match[2]!, expiresAt: Date.now() + 600000 };
+        sessionStorage.setItem(key, JSON.stringify(saved));
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+        setPendingImport(saved);
+      } else {
+        const saved = record(JSON.parse(sessionStorage.getItem(key) ?? "null"));
+        if (
+          saved &&
+          typeof saved.id === "string" &&
+          handoffIdPattern.test(saved.id) &&
+          typeof saved.token === "string" &&
+          handoffTokenPattern.test(saved.token) &&
+          typeof saved.expiresAt === "number" &&
+          saved.expiresAt > Date.now() &&
+          saved.expiresAt <= Date.now() + 600000
+        )
+          setPendingImport({ id: saved.id, token: saved.token });
+        else sessionStorage.removeItem(key);
+      }
+    } catch {
+      setImportMessage(
+        "Die Warenkorbübergabe konnte nicht wiederhergestellt werden. Bitte erneut auf der Restaurant-Website starten.",
+      );
+    }
+  }, [scope.restaurantSlug, scope.locationSlug]);
+  function clearImport() {
+    sessionStorage.removeItem(
+      "provide:cart-import:" + scope.restaurantSlug + ":" + scope.locationSlug,
+    );
+    setPendingImport(null);
+  }
+  async function importCart() {
+    if (!pendingImport || !catalog || importBusy) return;
+    if (checkoutState === "submitting" || needsReceipt || confirmation || client.currentIntent) {
+      setImportMessage(
+        "Bitte kläre zuerst deinen bisherigen Bestellversuch. Dein Warenkorb bleibt erhalten.",
+      );
+      return;
+    }
+    setImportBusy(true);
+    try {
+      const path = "/api/cart-handoff/" + pendingImport.id;
+      const post = (body: unknown) =>
+        fetch(path, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      const prepared = await post({ action: "prepare" });
+      if (!prepared.ok) throw new Error();
+      const response = await post({
+        action: "redeem",
+        token: pendingImport.token,
+        restaurantSlug: scope.restaurantSlug,
+        locationSlug: scope.locationSlug,
+      });
+      if (!response.ok) {
+        setImportMessage(
+          response.status === 410
+            ? "Der Übergabelink ist abgelaufen oder bereits in einem anderen Browser verwendet. Dein Warenkorb bleibt erhalten."
+            : "Die Übernahme ist gerade nicht möglich. Du kannst es erneut versuchen.",
+        );
+        return;
+      }
+      const data = (await response.json()) as { data?: { selection?: unknown } };
+      const next = buildImportedCart(data.data?.selection, catalog);
+      if (!next) {
+        setImportMessage(
+          "Die Auswahl passt nicht mehr zur aktuellen Speisekarte. Bitte stelle sie neu zusammen. Dein Warenkorb bleibt erhalten.",
+        );
+        return;
+      }
+      reviewRequest.current?.abort();
+      availabilityRequest.current?.abort();
+      setReview(null);
+      setDeliveryQuote(null);
+      setQuoteAccepted(false);
+      setFulfillmentType("pickup");
+      setLocalTime("");
+      cartCreatedAt.current = Date.now();
+      setCart(next);
+      clearImport();
+      setImportMessage(
+        "Warenkorb übernommen. Bitte Abholzeit wählen und aktuelle Preise sowie Verfügbarkeit prüfen und bestätigen.",
+      );
+    } catch {
+      setImportMessage(
+        "Die Antwort ist ausgeblieben. Erneut übernehmen ist im selben Browser möglich; dein bisheriger Warenkorb bleibt bis dahin erhalten.",
+      );
+    } finally {
+      setImportBusy(false);
+    }
+  }
   const [catalog, setCatalog] = useState<PublicCatalog | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "missing" | "error">("loading");
   const [refresh, setRefresh] = useState(0);
@@ -725,9 +829,14 @@ export default function Storefront(scope: StorefrontProps) {
     setChallengeId(crypto.randomUUID());
     setCartMessage("Bitte schließe die Sicherheitsprüfung für diesen Bestellversuch ab.");
   }
-  async function challengeAnswered(token: string | null) {
-    if (!protection.active || !token || !challengeId || preparingIntent) return;
-    await prepareIntent((signal) => client.issue(token, challengeId, renewIntent.current, signal));
+  async function challengeAnswered(token: string | null, answeredIssueId: string) {
+    if (!protection.active || !token || answeredIssueId !== challengeId || preparingIntent) return;
+    // A widget delivers one token for one issue. Remove it before the server check,
+    // so refresh/late callbacks cannot bind a second token to the same issue UUID.
+    setChallengeId(null);
+    await prepareIntent((signal) =>
+      client.issue(token, answeredIssueId, renewIntent.current, signal),
+    );
   }
   async function prepareIntent(
     issue: (signal: AbortSignal) => Promise<unknown>,
@@ -735,6 +844,7 @@ export default function Storefront(scope: StorefrontProps) {
   ) {
     if (!currentProtection(controller)) return;
     setPreparingIntent(true);
+    setCartMessage("Bestellfreigabe wird geprüft …");
     try {
       await issue(controller.signal);
       if (!currentProtection(controller)) return;
@@ -774,12 +884,15 @@ export default function Storefront(scope: StorefrontProps) {
       setCartMessage("Bitte prüfe und bestätige zuerst die Lieferkosten.");
       return;
     }
-    if (!contactName.trim() || !/^\+[1-9][0-9]{7,14}$/.test(phoneE164.trim())) {
-      setCartMessage("Bitte gib einen Namen und eine Telefonnummer im internationalen Format an.");
+    const customer = parseGuestCheckoutCustomer({ contactName, phoneE164, email });
+    if (!customer) {
+      setCartMessage(
+        "Bitte gib einen Namen und mindestens eine gültige Kontaktmöglichkeit an: E-Mail oder Telefon mit Landesvorwahl. Prüfe auch zusätzlich ausgefüllte Felder.",
+      );
       return;
     }
-    if (!isValidGuestEmail(email.trim())) {
-      setCartMessage("Bitte gib eine gültige E-Mail-Adresse für deine Bestellnachrichten ein.");
+    if (fulfillmentType === "delivery" && customer.phoneE164 === null) {
+      setCartMessage("Für die Zustellung ist eine Telefonnummer mit Landesvorwahl erforderlich.");
       return;
     }
     if (!privacyAccepted) {
@@ -815,11 +928,7 @@ export default function Storefront(scope: StorefrontProps) {
           requestedFor,
           lines: cartSelectionLines(cart),
           submissionKey: key,
-          customer: {
-            contactName: contactName.trim(),
-            phoneE164: phoneE164.trim(),
-            email: email.trim().toLowerCase(),
-          },
+          customer,
           privacyNoticeVersion: scope.privacyNoticeVersion,
           ...(fulfillmentType === "delivery"
             ? {
@@ -896,6 +1005,42 @@ export default function Storefront(scope: StorefrontProps) {
             : "Testansicht · Checkout nicht freigeschaltet"}
         </span>
       </header>
+      {(pendingImport || importMessage) && (
+        <section className="order-status" aria-label="Warenkorb übernehmen" aria-live="polite">
+          <h2>Warenkorb von der Restaurant-Website</h2>
+          {pendingImport && (
+            <>
+              <p>
+                {cart.length
+                  ? "Du hast bereits einen Warenkorb. Möchtest du ihn behalten oder durch die übertragene Auswahl ersetzen?"
+                  : "Möchtest du die übertragene Auswahl übernehmen? Danach prüfst du die aktuellen Preise und die Abholzeit."}
+              </p>
+              <button
+                type="button"
+                disabled={importBusy || !catalog}
+                onClick={() => void importCart()}
+              >
+                {importBusy
+                  ? "Wird übernommen …"
+                  : cart.length
+                    ? "Vorhandenen Warenkorb ersetzen"
+                    : "Auswahl übernehmen"}
+              </button>
+              <button
+                type="button"
+                disabled={importBusy}
+                onClick={() => {
+                  clearImport();
+                  setImportMessage("Dein bisheriger Warenkorb bleibt erhalten.");
+                }}
+              >
+                Bisherigen Warenkorb behalten
+              </button>
+            </>
+          )}
+          {importMessage && <p role="status">{importMessage}</p>}
+        </section>
+      )}
       {(confirmation || orderStatus || statusMessage) && (
         <section className="order-status" aria-labelledby="order-status-title" aria-live="polite">
           <p className="eyebrow">DEINE BESTELLUNG</p>
@@ -1355,14 +1500,20 @@ export default function Storefront(scope: StorefrontProps) {
                         setContactName(event.target.value);
                       }}
                     />
-                    <label htmlFor="contact-phone">Telefonnummer</label>
+                    <p id="checkout-contact-help">
+                      {fulfillmentType === "delivery"
+                        ? "Für die Zustellung ist Telefon mit Landesvorwahl erforderlich. E-Mail ist optional."
+                        : "Für die Abholung reicht E-Mail oder Telefon mit Landesvorwahl. Du kannst auch beides angeben."}
+                    </p>
+                    <label htmlFor="contact-phone">Telefonnummer mit Landesvorwahl</label>
                     <input
                       id="contact-phone"
                       type="tel"
                       inputMode="tel"
                       autoComplete="tel"
                       placeholder="+491701234567"
-                      required
+                      aria-describedby="checkout-contact-help"
+                      required={fulfillmentType === "delivery"}
                       value={phoneE164}
                       onChange={(event) => {
                         invalidateSubmission(false);
@@ -1374,7 +1525,7 @@ export default function Storefront(scope: StorefrontProps) {
                       id="contact-email"
                       type="email"
                       autoComplete="email"
-                      required
+                      aria-describedby="checkout-contact-help"
                       maxLength={254}
                       value={email}
                       onChange={(event) => {
@@ -1423,9 +1574,10 @@ export default function Storefront(scope: StorefrontProps) {
                       )}
                       {challengeId && !readyToSubmit && (
                         <CheckoutChallenge
+                          key={challengeId}
                           siteKey={scope.checkoutTurnstileSiteKey!}
                           issueId={challengeId}
-                          onToken={(token) => void challengeAnswered(token)}
+                          onToken={(token, issueId) => void challengeAnswered(token, issueId)}
                         />
                       )}
                       {intent && (

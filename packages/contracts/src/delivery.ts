@@ -28,6 +28,7 @@ export interface DeliveryQuoteRequest {
   readonly postalCode: string;
 }
 export interface GuestDeliveryOrderRequest extends GuestPickupOrderRequest {
+  readonly customer: GuestPickupOrderRequest["customer"] & { readonly phoneE164: string };
   readonly delivery: DeliveryAddress;
   readonly expectedQuote: DeliveryQuote;
 }
@@ -146,8 +147,13 @@ export function parseGuestDeliveryOrderRequest(
   const parsed = parseGuestPickupOrderRequest(order),
     address = parseDeliveryAddress(delivery),
     quote = parseDeliveryQuote(expectedQuote);
-  return parsed && address && quote
-    ? { ...parsed, delivery: address, expectedQuote: quote }
+  return parsed && parsed.customer.phoneE164 !== null && address && quote
+    ? {
+        ...parsed,
+        customer: { ...parsed.customer, phoneE164: parsed.customer.phoneE164 },
+        delivery: address,
+        expectedQuote: quote,
+      }
     : undefined;
 }
 export function parseGuestDeliveryOrderConfirmation(

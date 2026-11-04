@@ -26,6 +26,7 @@ end $$;
 
 select no_plan();
 \ir fixtures/storefront.fixture.inc
+insert into private.restaurant_test_payment_accounts(restaurant_id,platform_account_id,merchant_account_id,enabled,expires_at,reason) values('f2000000-0000-0000-0000-000000000001','acct_testplatform','acct_a3synthetic',true,clock_timestamp()+interval '1 day','Synthetic payment routing fixture');
 
 create function pg_temp.v_uid(n int default 21) returns uuid language sql as $$
  select ('f1000000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid $$;
@@ -112,7 +113,7 @@ create temporary table v_online as select (private.submit_public_guest_online_or
  'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001',date_trunc('hour',now())+interval '6 hours',
  '[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":2}]','a3-viewer-online-001',
  '{"contact_name":"A3 Private Online Guest","phone_e164":"+999100000023","email":"online-private@example.invalid"}',
- 'pickup',null,null,'preview-v1',30,'acct_a3synthetic')->>'orderId')::uuid id;
+ 'pickup',null,null,'preview-v1',30,'acct_testplatform')->>'orderId')::uuid id;
 select is(private.read_dashboard_order(pg_temp.v_uid(1),'aal2',pg_temp.v_r(),pg_temp.v_l(),(select id from v_online))->'data'->>'paymentState','open','owner still receives actual payment state');
 select is(private.read_dashboard_order(pg_temp.v_uid(),'aal1',pg_temp.v_r(),pg_temp.v_l(),(select id from v_online))->'data'->'paymentState','null'::jsonb,'Viewer never receives actual online payment state');
 select is(private.read_dashboard_order(pg_temp.v_uid(),'aal1',pg_temp.v_r(),pg_temp.v_l(),(select id from v_online))->'data'->'allowedTransitions','[]'::jsonb,'unpaid online order grants Viewer no cancellation');

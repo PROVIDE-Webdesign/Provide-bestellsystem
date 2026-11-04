@@ -29,14 +29,50 @@ export const turnstileCheckoutChallenge: CheckoutChallengeVerifier = {
     const result = record(JSON.parse(text));
     const timestamp =
       typeof result?.challenge_ts === "string" ? Date.parse(result.challenge_ts) : NaN;
-    return (
+    const valid =
       result?.success === true &&
       result.hostname === config.hostname &&
       result.action === "checkout_issue" &&
       result.cdata === issueId &&
       timestamp <= Date.now() + 2000 &&
-      timestamp > Date.now() - 300_000
-    );
+      timestamp > Date.now() - 300_000;
+    if (!valid) {
+      const codes = Array.isArray(result?.["error-codes"])
+        ? result["error-codes"].filter(
+            (code): code is string =>
+              typeof code === "string" &&
+              [
+                "missing-input-secret",
+                "invalid-input-secret",
+                "missing-input-response",
+                "invalid-input-response",
+                "bad-request",
+                "timeout-or-duplicate",
+                "internal-error",
+              ].includes(code),
+          )
+        : [];
+      console.warn(
+        JSON.stringify({
+          event: "checkout_challenge_rejected",
+          codes,
+          providerSuccess: result?.success === true,
+          hostnameMatches: result?.hostname === config.hostname,
+          actionMatches: result?.action === "checkout_issue",
+          issueMatches: result?.cdata === issueId,
+          timestampValid: timestamp <= Date.now() + 2000 && timestamp > Date.now() - 300_000,
+        }),
+      );
+      // Provider outages are retryable with the SAME token and idempotency key.
+      // Never persist them as a definitive rejected claim.
+      if (
+        codes.includes("internal-error") ||
+        codes.includes("missing-input-secret") ||
+        codes.includes("invalid-input-secret")
+      )
+        throw new Error("Challenge unavailable");
+    }
+    return valid;
   },
 };
 export function checkoutChallengeConfig(env: {

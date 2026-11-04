@@ -277,6 +277,59 @@ describe("O3 actual dispatcher / protected handler units (repository doubles)", 
             challenge: "invalid",
           })
         ).status,
+      ).toBe(403);
+      expect(x.repo.submit).not.toHaveBeenCalled();
+    },
+  );
+  it.each(["email", "phone"])(
+    "normalizes an absent %s for replay and rejects a changed contact",
+    async (missing) => {
+      const x = setup();
+      const customer =
+        missing === "email"
+          ? { contactName: command.customer.contactName, phoneE164: command.customer.phoneE164 }
+          : { contactName: command.customer.contactName, email: command.customer.email };
+      const first = { ...command, customer };
+      expect((await x.run("orders", { sessionId: session, command: first })).status).toBe(201);
+      const args = x.repo.submit.mock.calls[0]!;
+      expect(args[6]).toMatchObject({
+        customer: {
+          contact_name: customer.contactName,
+          phone_e164: missing === "phone" ? null : command.customer.phoneE164,
+          email: missing === "email" ? null : command.customer.email,
+        },
+      });
+      x.repo.receipt.mockResolvedValue({
+        outcome: "committed",
+        mode: "orders",
+        receipt: rawReceipt,
+        fingerprint: args[5],
+      });
+      x.repo.submit.mockClear();
+      const absent = missing === "email" ? "email" : "phoneE164";
+      for (const value of [null, "", "  "]) {
+        expect(
+          (
+            await x.run("orders", {
+              sessionId: session,
+              command: { ...first, customer: { ...customer, [absent]: value } },
+            })
+          ).status,
+        ).toBe(200);
+      }
+      expect(
+        (
+          await x.run("orders", {
+            sessionId: session,
+            command: {
+              ...first,
+              customer: {
+                ...customer,
+                [absent]: missing === "email" ? "other@example.invalid" : "+999100000002",
+              },
+            },
+          })
+        ).status,
       ).toBe(409);
       expect(x.repo.submit).not.toHaveBeenCalled();
     },
@@ -431,3 +484,24 @@ describe("O3 actual dispatcher / protected handler units (repository doubles)", 
     expect(x.repo.guard.mock.calls[0]![3] as unknown[]).toHaveLength(2);
   });
 });
+
+it.each([
+  ["forbidden", 403, "forbidden"],
+  ["expired", 410, "checkout_session_expired"],
+  ["conflict", 409, "conflict"],
+  ["unavailable", 503, "service_unavailable"],
+])(
+  "maps definitive issue finish %s to a recoverable client response",
+  async (outcome, status, code) => {
+    const x = setup();
+    x.repo.finishIssue.mockResolvedValue({ outcome });
+    const response = await x.run("checkout-session", {
+      issueId: crypto.randomUUID(),
+      submissionKey: command.submissionKey,
+      challenge: "synthetic-valid",
+    });
+    expect(response.status).toBe(status);
+    expect(await response.json()).toMatchObject({ error: { code } });
+    expect(x.repo.submit).not.toHaveBeenCalled();
+  },
+);

@@ -13,6 +13,7 @@ export async function verifyCheckoutProtectionBrowser(browser: Browser, output: 
     for (const scenario of [
       "rate",
       "outage",
+      "rejected",
       "write-expiry",
       "receipt-expiry",
       "missing-metadata",
@@ -31,7 +32,12 @@ export async function verifyCheckoutProtectionBrowser(browser: Browser, output: 
               _element: HTMLElement,
               options: { cData: string; callback: (token: string) => void },
             ) => {
-              queueMicrotask(() => options.callback("synthetic-" + options.cData));
+              queueMicrotask(() => {
+                options.callback("synthetic-" + options.cData);
+                // Provider refresh and delayed callbacks must not submit again.
+                options.callback("synthetic-refreshed-" + options.cData);
+                setTimeout(() => options.callback("synthetic-late-" + options.cData), 50);
+              });
               return options.cData;
             },
             remove: () => undefined,
@@ -98,13 +104,20 @@ export async function verifyCheckoutProtectionBrowser(browser: Browser, output: 
         if (resource === "checkout-session") {
           const issue = route.request().postDataJSON() as { submissionKey: string };
           issues.push(issue);
-          if (failIssue && ["rate", "outage"].includes(scenario)) {
+          if (failIssue && ["rate", "outage", "rejected"].includes(scenario)) {
             failIssue = false;
             await route.fulfill({
-              status: scenario === "rate" ? 429 : 503,
+              status: scenario === "rate" ? 429 : scenario === "rejected" ? 403 : 503,
               headers: { "retry-after": "10" },
               json: {
-                error: { code: scenario === "rate" ? "rate_limited" : "service_unavailable" },
+                error: {
+                  code:
+                    scenario === "rate"
+                      ? "rate_limited"
+                      : scenario === "rejected"
+                        ? "forbidden"
+                        : "service_unavailable",
+                },
               },
             });
             return;
@@ -198,6 +211,37 @@ export async function verifyCheckoutProtectionBrowser(browser: Browser, output: 
             )
             .waitFor();
           assert.deepEqual(issues[1], issues[0]);
+        } else if (scenario === "rejected") {
+          await page
+            .getByText(
+              "Die Sicherheitsprüfung wurde nicht freigegeben. Bitte starte sie erneut. Cookies müssen für diese Seite erlaubt sein.",
+              { exact: true },
+            )
+            .waitFor();
+          assert.equal(issues.length, 1);
+          assert.equal(
+            await page
+              .getByRole("button", { name: "Abholbestellung absenden", exact: true })
+              .isDisabled(),
+            true,
+          );
+          assert.equal(
+            await page.getByText("Sicherheitsprüfung bestätigt.", { exact: true }).count(),
+            0,
+          );
+          await start.click();
+          await page
+            .getByText(
+              "Bestellversuch vorbereitet. Du kannst die Bestellung jetzt ausdrücklich absenden.",
+              { exact: true },
+            )
+            .waitFor();
+          assert.equal(issues.length, 2);
+          assert.notEqual(
+            (issues[0] as { issueId: string }).issueId,
+            (issues[1] as { issueId: string }).issueId,
+          );
+          assert.equal(writes, 0, "Preparation never places an order");
         } else if (scenario === "missing-metadata") {
           await page
             .getByText(/Für diesen Browser gibt es einen bisherigen Bestellversuch/)
