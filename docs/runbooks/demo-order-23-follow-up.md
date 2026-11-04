@@ -41,3 +41,14 @@ Dashboard-Tests, Build und die Prüfsummen der ausgelieferten Dashboard- und Ver
 bestätigt. Im angemeldeten Dashboard war BS-00000023 anschließend als „Storniert · Zahlung beendet“
 mit 14,80 € sichtbar. Der nächste Bestellalarm-Test folgt auf die Korrektur der Eingangslogik. Die
 bestehende Bestellung bleibt ein Nachweis für die abgelaufene Reservierung.
+
+## Wiederholung mit BS-00000024
+
+Die Sandbox reservierte 14,80 €. Eine Erfassung wurde über die Annahme im Dashboard angefordert. In
+der Vorschau ist genau ein Stripe-Ereignis `payment_intent.succeeded` zum Zahlungsauftrag
+hinterlegt. Die Bestellung durchlief Eingegangen → Angenommen → In Zubereitung → Abholbereit →
+Abgeschlossen. Der Abschluss und der Zahlungsstatus `captured` sind lesend in der Vorschau belegt.
+
+Der Eintrag im priorisierten Bestelleingang entstand erst nach der Erfassungsanforderung. Der Alarm
+bei der Reservierung bleibt daher offen. Der ursprüngliche Gast-Tab war nicht wiederherstellbar. Der
+Gast-Endstatus dieser Testbestellung bleibt ohne eigenen Sichtnachweis.
