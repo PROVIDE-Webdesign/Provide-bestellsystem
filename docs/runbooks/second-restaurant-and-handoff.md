@@ -44,6 +44,72 @@ HTTPS-Ursprung und ihre eigene Integrations-ID. Shop und Checkout bleiben gemein
    Vorschau, Datenbank, Stripe und zentralem Projektprotokoll koordiniert Bestellsystem 15. Eine
    Händler- oder Produktivfreigabe ist ein eigener Vorgang.
 
+## Paket 4 · Restaurantbetrieb mit Asian Kitchen Demo
+
+Asian Kitchen Demo dient als interner Übungsbetrieb für das Restaurantteam. Die angebundene
+[Demo-Website](https://provide-bs-storefront-preview.alpaysey.workers.dev/asian-kitchen/) nutzt
+Restaurant A. Das Team öffnet im
+[Vorschau-Dashboard](https://provide-bs-dashboard-preview.alpaysey.workers.dev/) die PROVIDE
+Testküche und wählt den Teststandort Mitte. Marktgarten bleibt der getrennte zweite Testbetrieb für
+die Standortzuordnung und behält seine eigene Karte.
+
+### Standort und Abholung
+
+| Feld                             | Wert für den Test                                                                                        |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Restaurant und Standort          | Asian Kitchen Demo → PROVIDE Testküche · Teststandort Mitte                                              |
+| Zuordnung                        | `storefront-restaurant-a/storefront-a-mitte`                                                             |
+| Abholadresse im Shop             | Testweg 1, 52062 Aachen, DE · Testadresse                                                                |
+| Zeitzone                         | Europe/Berlin                                                                                            |
+| Öffnungszeiten laut Demo-Website | Mo–Do 11:30–22:30 Uhr, Fr–Sa 11:30–23:00 Uhr, So 12:00–22:00 Uhr                                         |
+| Abholplanung laut Demo-Website   | 30 Minuten Vorlauf, 15 Minuten je Zeitfenster, Bestellschluss 30 Minuten vor Ende                        |
+| Betriebsumfang                   | Abholung. Der Checkout bestätigt den Termin serverseitig. Lieferung bleibt außerhalb des Übungsbetriebs. |
+
+Die Website-Angaben sind Demo-Werte. Für die Übung gilt der vom Checkout bestätigte Termin. Beim
+lesenden Abgleich am 04.11.2026 bestätigte der Shop die Abholung für zwei Artikel am 05.11.2026 um
+18:45 Uhr Ortszeit. Adresse und Standortname stammen aus dem angebundenen Shop.
+
+### Veröffentlichte Test-Speisekarte
+
+Am 04.11.2026 waren im angebundenen Shop alle zwölf Gerichte der Testkarte verfügbar. Die Preise
+sind in Euro. Die Karte verwendet Testdeklarationen für Steuern, Allergene und Zusatzstoffe.
+
+| Kategorie     | Gericht           | Basispreis | Varianten oder Extras                        |
+| ------------- | ----------------- | ---------- | -------------------------------------------- |
+| Vorspeisen    | Frühlingsrollen   | 6,90 €     | Optionales Test-Extra +0,50 €                |
+| Vorspeisen    | Gyoza             | 7,50 €     | Gemüse +0,00 €, Hähnchen +0,40 €             |
+| Vorspeisen    | Edamame Meersalz  | 5,90 €     | —                                            |
+| Vorspeisen    | Tempura Garnelen  | 9,90 €     | —                                            |
+| Hauptgerichte | Crispy Duck       | 19,90 €    | —                                            |
+| Hauptgerichte | Beef Teriyaki     | 18,90 €    | —                                            |
+| Hauptgerichte | Miso Lachs        | 21,90 €    | —                                            |
+| Hauptgerichte | Thai Green Curry  | 16,90 €    | Tofu +0,00 €, Hähnchen +1,00 €, Ente +3,00 € |
+| Desserts      | Mochi Trio        | 7,90 €     | Mango, Kokos oder Matcha ohne Aufpreis       |
+| Desserts      | Matcha Cheesecake | 8,50 €     | —                                            |
+| Desserts      | Mango Sticky Rice | 7,50 €     | —                                            |
+| Desserts      | Yuzu Crème Brûlée | 8,90 €     | —                                            |
+
+Referenz im Shop: Menüversion `a64cd93a-4200-41d6-871a-637c756f71e1`. Die im
+[Quellstand gesicherte Demo-Karte](../pilot/asian-kitchen-12-0-r1-pending.json) dokumentiert die
+Herkunft von Gerichten, Basispreisen und Varianten. Das optionale Extra stammt aus der
+veröffentlichten Testkarte.
+
+### Übung und Bestellnachweise
+
+- Mit **BS-00000022** Bestellung, Abholzeit, Varianten, Extra und Gesamtsumme im Dashboard
+  nachvollziehen. Belegt sind der Website-Warenkorb bis zum Dashboard und die separate
+  Smartphone-Prüfung des Bestellwegs. Für diesen Datenabgleich genügt die vorhandene Bestellung.
+- **BS-00000010** belegt den abgeschlossenen Abholablauf in Marktgarten. **BS-00000020** belegt die
+  Sandbox-Zahlung bei Annahme in Restaurant A. **BS-00000021** belegt den vollständig erstatteten
+  Sandbox-Fall in Marktgarten. Bestehende Zahlungsfälle bleiben Referenzen.
+- Für die Geräteabnahme die Kurzanleitung unten auf dem vorgesehenen Restaurantgerät verwenden.
+  Sichtbarer Neueingang und hörbarer Bestellalarm auf diesem Gerät separat festhalten. Der
+  bestätigte Smartphone-Test deckt den Gast-Bestellweg ab. Für einen Live-Alarm ist ein
+  tatsächliches neues Ereignis nötig.
+
+Die Demo-Daten decken den Standort- und Speisekartenbedarf für diese Übung ab. Die Betreiberliste
+unten gilt für die spätere Einrichtung eines echten Betriebs.
+
 ## Geprüfter Einrichtungsstand für Marktgarten
 
 Am 04.11.2026 in der gemeinsamen Vorschau lesend abgeglichen. TEST Marktgarten und TEST Marktgarten
