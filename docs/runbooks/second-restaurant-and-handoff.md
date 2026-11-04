@@ -202,8 +202,9 @@ bestätigte Testton und Ton für einen neuen synthetischen Eingang am virtuellen
 ausgelieferte Dashboard-Code stimmte mit dem Build überein. Im angemeldeten Vorschau-Dashboard
 wechselte die Anzeige nach dem Testton zu „Ton aktiviert“.
 
-Die Hörprobe am echten iPhone bleibt ausstehend. Safari direkt öffnen, das Dashboard neu laden und
-den Testton im offenen Bestelleingang auslösen.
+Die Hörprobe am echten iPhone ist bestanden. Der Nutzer bestätigte nach der Freischaltung der
+Tonkorrektur, dass der Testton hörbar war. Der Ton bei einem neuen Bestelleingang ist separat durch
+den isolierten WebKit-Lauf belegt. Damit ist der Restaurantteil von Paket 4 abgenommen.
 
 ## Geprüfter Einrichtungsstand für Marktgarten
 
