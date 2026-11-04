@@ -372,6 +372,20 @@ Belegabfrage und Preisprüfung haben weiterhin ihre bisherigen Wiederholungsrege
 Behandlung von HTTP 410 bleibt erhalten. 105 Shop-Tests, Typprüfung, Lint der geänderten Dateien und
 Shop-Build sind bestanden.
 
-Die Korrektur liegt im Branch für die abgestimmte Vorschau. Danach den Gaststatus nach einem
-Kontextwechsel in einem offenen Tab erneut prüfen. Der vorliegende Abholnachweis bleibt für die
-Bestellung gültig. Live-Zahlung und technische Freigabe liegen bei Bestellsystem 15.
+### Wiederholungsprüfung und Abschluss der praktischen Pilotabnahme
+
+Die Korrektur aus `9a00ce6` wurde am 04.11.2026 in der gemeinsamen Shop-Vorschau bereitgestellt.
+Shop-Version `fe8d0617-bb5d-4988-a5ae-f966617b4577`. Der ausgelieferte Client stimmte anhand der
+SHA-256-Prüfsumme mit dem geprüften Build überein. Die Vorschau-Versionen von API und Dashboard
+wurden parallel abgeglichen.
+
+Der Checkout-Client wurde mit zwei getrennten Sitzungen am tatsächlichen Vorschau-Gateway geprüft.
+Nach der erwarteten HTTP-403-Antwort holte er einmal den passenden Sitzungskontext und wiederholte
+die Statusabfrage. Der absichtlich ungültige Gastnachweis wurde dann erwartungsgemäß mit HTTP 404
+abgewiesen. Der gültige Nachweis für **BS-00000022** wurde separat im Browser auf der
+veröffentlichten Shop-Version aktualisiert. Der Shop zeigte weiterhin **„Bestellung
+abgeschlossen“**, die Bestellnummer und **15,30 €**. Für die Wiederholungsprüfung wurde die
+vorhandene Testbestellung weiterverwendet.
+
+Die praktische Pilotabnahme für Bestellsystem 16 ist damit abgeschlossen. Die technische
+Produktivfreigabe und der Live-Zahlungsnachweis liegen bei Bestellsystem 15.
