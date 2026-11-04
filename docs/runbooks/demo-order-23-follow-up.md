@@ -1,0 +1,43 @@
+# Vorschau · Testbestellung BS-00000023 vom 04.11.2026
+
+Die mobile Asian Kitchen Demo führte zur Stripe-Sandbox. Für zwei Positionen wurden 14,80 €
+reserviert. Der Orderstatus war zunächst `submitted`, die Zahlung `authorized`, das Verfahren
+`manual`. Bis zum Annahmeschluss um 21:46:38 Uhr Ortszeit war kein Erfassungsauftrag angefordert.
+Die Vorschau zeigte danach `cancelled` und `expired`.
+
+## Dashboard
+
+Die während des Tests ausgelieferte Dashboard-Version `81d45a6b-f06a-4dfd-947d-d5583cc0b70f` war der
+Audio-Build auf älteren Checkout-Verträgen. Dieser Stand kennt die Zahlungszustände `authorized` und
+`capture_pending` nicht. Im Video steht im Suchfeld außerdem `BS-00000421`; der Auftrag des
+Durchlaufs lautet `BS-00000023`.
+
+## Datenbankbefund für Bestellsystem 15
+
+In der Vorschau gab es für BS-00000023 keinen Eintrag im priorisierten Bestelleingang.
+`private.order_acceptance_eligible(uuid)` akzeptiert Onlinebestellungen erst bei
+`p.status='captured'`. Bei manueller Erfassung muss das Restaurant bereits nach der Reservierung
+annehmen können. Die Erfassung beginnt erst nach der Annahmeanforderung.
+
+Die identische Funktion steht in der Migration
+`supabase/migrations/20261001100545_private_order_realtime_alerts.sql` des geprüften
+Produktionskandidaten `b35ec50`. Bestellsystem 15 übernimmt die Datenbankkorrektur und den Abgleich
+mit dem Release-Kandidaten. Reproduktion für den Integrationstest:
+
+1. Eine neue Sandbox-Abholbestellung mit manueller Erfassung reservieren.
+2. Nach der Reservierung muss sie bis zur bestehenden Annahmefrist einmal im filterunabhängigen
+   Eingang erscheinen und den Bestellalarm auslösen.
+3. Bei einer Annahme genau eine Erfassungsanforderung auslösen und erst nach bestätigter Erfassung
+   auf angenommen wechseln. Bei Fristablauf ohne Annahme Reservierung freigeben und den Eintrag im
+   offenen Eingang auflösen.
+4. Ausschluss von Zahlungen ohne Reservierung und von bereits geschlossenen Vorgängen sowie
+   bestehendes Verhalten von Zahlung bei Abholung und automatischer Erfassung prüfen.
+
+## Wiederherstellung der Dashboard-Vorschau
+
+Die Dashboard-Vorschau wurde auf Version `bf854071-a46d-450d-98ba-8417b1ba3eae` aktualisiert. Der
+ausgelieferte Code enthält Audio-Korrektur und beide manuellen Zahlungszustände. Typprüfung, 68
+Dashboard-Tests, Build und die Prüfsummen der ausgelieferten Dashboard- und Vertragsmodule sind
+bestätigt. Im angemeldeten Dashboard war BS-00000023 anschließend als „Storniert · Zahlung beendet“
+mit 14,80 € sichtbar. Der nächste Bestellalarm-Test folgt auf die Korrektur der Eingangslogik. Die
+bestehende Bestellung bleibt ein Nachweis für die abgelaufene Reservierung.
