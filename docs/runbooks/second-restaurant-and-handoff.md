@@ -110,6 +110,34 @@ veröffentlichten Testkarte.
 Die Demo-Daten decken den Standort- und Speisekartenbedarf für diese Übung ab. Die Betreiberliste
 unten gilt für die spätere Einrichtung eines echten Betriebs.
 
+### Geräte- und Alarmprüfung vom 04.11.2026
+
+| Prüfung                                    | Ergebnis                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bestehender Bestellnachweis                | BS-00000022 im Vorschau-Dashboard der Testküche sichtbar. Standort, Abholzeit, zwei Positionen und 15,30 € abgeglichen.                                                                                                                                                                                                                                     |
+| Wirksame Abholregeln der Testküche         | Version 1 im Dashboard. Täglich 00:00–23:59 Uhr als Vorschau-Testfenster, 15 Minuten Vorlauf und Slotlänge, 14 Tage Bestellhorizont. Fünf Minuten Annahmefrist, kein Liefergebiet. Die oben aufgeführten Demo-Website-Zeiten sind separat.                                                                                                                  |
+| Alarm bei neuem Eingang                    | In isoliertem Chromium 151 bei 1440 × 1000 und 390 × 844 Pixeln. Der echte Dashboard-Code zeigte einen synthetischen Neueingang trotz gesetztem Suchfilter. Nach bewusster Aktivierung endeten der Testton und genau ein weiterer Ton für den Neueingang nativ im Browser. Erneutes Laden derselben Eingangsdaten blieb stumm.                              |
+| Alarm und Ausfallverhalten                 | Überfälliger Eingang, Stummschaltung, Nachladen ohne Realtime, Neuladen ohne Tonfreigabe und Rechteentzug im selben Browserlauf geprüft. 68 Dashboard-Tests in 21 Dateien bestanden, darunter sieben Alarmtests.                                                                                                                                            |
+| Gemeinsame Vorschau                        | Im angemeldeten Dashboard der Testküche fehlt „Ton aktivieren und testen“. Die gelieferte Seite meldet `alertsEnabled=false` und `liveEnabled=false`. Das Dashboard-Gateway antwortet mit HTTP 503. Die API beantwortet `GET /v1/dashboard/restaurants/{restaurantId}/locations/{locationId}/order-alerts` mit HTTP 503 und `Order alerts are not enabled.` |
+| Hörbarkeit am vorgesehenen Restaurantgerät | Ausstehend. Der Browserlauf verwendet einen virtuellen Audioausgang und simuliert die Mobilansicht. Die separate Smartphone-Bestellprüfung betrifft den Shop.                                                                                                                                                                                               |
+
+### Gemeinsame Vorschau · Befund für Bestellsystem 15
+
+1. Im Vorschau-Dashboard die **PROVIDE Testküche** mit **Teststandort Mitte** öffnen. Der Abschnitt
+   „Bestelleingang und Alarm“ zeigt nur die Nachladeinformation. Der priorisierte Eingang und der
+   Testton fehlen. Die beiden HTTP-503-Antworten oben grenzen den Befund ein.
+2. Für die gemeinsame Abnahme `DASHBOARD_ORDER_ALERTS_ENABLED=true` im Dashboard und in der API der
+   Vorschau abgestimmt setzen. Die API-Einstellung schaltet auch die geplante Prüfung überfälliger
+   Annahmen frei. Vor der Aktivierung offene Testfälle berücksichtigen. `DASHBOARD_REALTIME_ENABLED`
+   ist ein getrennter Schalter. Für die Alarmprüfung genügt die 15-Sekunden-Nachladung, solange die
+   Realtime-Freigabe separat geprüft wird.
+3. Nach der Freigabe mit der vorhandenen Standortrolle einen aktuellen Eingang im Dashboard und
+   einen erfolgreichen Alarmabruf prüfen. Auf dem vorgesehenen Restaurantgerät und im vorgesehenen
+   Browser „Ton aktivieren und testen“ wählen. Gerät, Browser und Hörbarkeit festhalten. Ist ein
+   neuer gemeinsamer Testeingang vorgesehen, denselben Lauf für den sichtbaren Eingang und den
+   Bestellton verwenden. BS-00000022 bleibt der Beleg für den Website- und Dashboard-Pfad. Die
+   technische Freigabe und der Hörnachweis sind die verbleibenden Abnahmeschritte.
+
 ## Geprüfter Einrichtungsstand für Marktgarten
 
 Am 04.11.2026 in der gemeinsamen Vorschau lesend abgeglichen. TEST Marktgarten und TEST Marktgarten
@@ -160,8 +188,9 @@ Website-Anbindung von Marktgarten liegen die getrennten Browser- und Preisprüfu
 ## Kurzanleitung für Restaurantteam und Geräte
 
 1. Dashboard am vorgesehenen Gerät mit eigener Rolle öffnen, Standort kontrollieren und Ton nach
-   bewusster Bedienaktion aktivieren. Sichtbaren Neueingang und Ton bei gesperrtem Bildschirm,
-   Hintergrund-Tab oder pausierter Audiofreigabe gezielt prüfen. Bei Tonproblemen zuerst
+   bewusster Bedienaktion aktivieren. Das Dashboard im sichtbaren Tab und das Gerät während der
+   Bestellannahme wach halten. Verborgene Tabs und veraltete Eingangsdaten unterdrücken den Ton.
+   Nach Rückkehr zum Tab die Anzeige und nach Neuladen die Tonfreigabe prüfen. Bei Tonproblemen
    Sichtanzeige, Ausgabegerät und Browser-Berechtigungen prüfen.
 2. Neue Bestellung anhand Bestellnummer, Standort, Abholzeit, Artikeln, Varianten, Extras und
    Stückzahl kontrollieren. Bei freigegebenem Testlauf einmal annehmen oder mit Grund ablehnen. Den
