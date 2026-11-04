@@ -1,6 +1,6 @@
 html { scrollbar-width:none; }
 :root { color-scheme: dark; color: #f5f0e5; background: #100f0f; }
-.shop-shell { --copper:#c48659; --muted:#d0ccc7; --line:#4b4640; container-type:inline-size; max-width:814px; padding:0 0 222px; background:#131212; min-height:100dvh; font-family:Arial,Helvetica,sans-serif; }
+.shop-shell { --copper:#c48659; --muted:#d0ccc7; --line:#4b4640; container-type:inline-size; max-width:814px; padding:0 0 249px; background:#131212; min-height:100dvh; font-family:Arial,Helvetica,sans-serif; }
 .shop-shell [hidden] { display:none!important; }
 .shop-shell h1,.shop-shell h2,.shop-shell h3,.shop-shell h4 { font-family:Georgia,'Times New Roman',serif; letter-spacing:0; }
 .shop-shell button,.shop-shell select { font:inherit; color:inherit; }
@@ -35,7 +35,7 @@ html { scrollbar-width:none; }
 .shop-categories button[aria-pressed=true] { background:linear-gradient(120deg,#c78859,#ad6c43); }
 .shop-menu { padding:2.45cqw 3cqw 0; }
 .shop-menu ul { display:grid; gap:1.7cqw; }
-.shop-dish { display:grid; grid-template-columns:43% minmax(0,1fr); border:1px solid #302b27; border-radius:17px; overflow:hidden; background:linear-gradient(110deg,#262322,#211f1e); min-height:21.4cqw; height:21.4cqw; }
+.shop-dish { display:grid; grid-template-columns:43% minmax(0,1fr); border:1px solid #302b27; border-radius:17px; overflow:hidden; background:linear-gradient(110deg,#262322,#211f1e); min-height:21.4cqw; height:auto; }
 .shop-shell .dish-photo-button { border:0; background:none; padding:0; border-radius:0; display:block; align-self:stretch; width:100%; overflow:hidden; }
 .food-photo { display:block; position:relative; overflow:hidden; width:100%; height:100%; min-height:100%; background:#211e19; }
 .food-photo img { position:absolute; width:311.25%; max-width:none; height:auto; left:-39.2%; }

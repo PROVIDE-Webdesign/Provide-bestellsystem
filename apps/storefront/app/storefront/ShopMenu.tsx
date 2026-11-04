@@ -27,14 +27,14 @@ const asianPhotos: Record<string,string> = {"Frühlingsrollen":"dish-1","Gyoza":
 // Editorial selection for the existing Asian Kitchen demo, not sales statistics.
 const asianPopular = ["Gyoza", "Crispy Duck", "Beef Teriyaki", "Miso Lachs"];
 export function FoodPhoto({ name, small = false, asian = false }: { name: string; small?: boolean; asian?: boolean }) {
-  const photo = asian ? asianPhotos[name] : undefined;
+  const photo = asian ? asianPhotos[name.replace(/^TEST\s+/i, "")] : undefined;
   if (photo) return <span className={`food-photo ${small ? "food-small" : ""}`} aria-hidden="true"><img className="catalog-photo" src={`/shop-design/${photo}.webp`} alt="" loading="lazy" /></span>;
   const match = /chicken teriyaki/i.test(name) ? "chicken" : /veggie bowl/i.test(name) ? "veggie" : /salmon bowl/i.test(name) ? "salmon" : undefined;
   return <span className={`food-photo ${small ? "food-small" : ""} ${match ?? "food-empty"}`} aria-hidden="true">{match ? <img src="/shop-design/reference-b.png" alt="" /> : <ShopIcon name="menu" />}</span>;
 }
 
 export function ShopHeader({ catalog, fulfillment, onFulfillment, onTimes, disabled = false }: { catalog: PublicCatalog; fulfillment: FulfillmentType; onFulfillment: (type: FulfillmentType) => void; onTimes: () => void; disabled?: boolean }) {
-  const asian = /asian kitchen/i.test(catalog.restaurant.name);
+  const asian = catalog.restaurant.slug === "storefront-restaurant-a" || /asian kitchen/i.test(catalog.restaurant.name);
   return <>
     <header className={`shop-hero ${asian ? "asian-hero" : ""}`}>
       {asian && <img className="hero-art" src="/shop-design/reference-b.png" alt="" />}
@@ -62,7 +62,7 @@ export function ShopMenu({ catalog, onAdd, disabled = false }: { catalog: Public
   const entries: Entry[] = catalog.menus.flatMap(menu => menu.sections.flatMap(section => section.items.map(item => ({menu, item, category: section.name}))));
   const categories = ["Beliebt", ...new Set(catalog.menus.flatMap(menu => menu.sections.map(section => section.name)).filter(name => name !== "Beliebt"))];
   const configuredPopular = entries.filter(e => /^(beliebt|beliebte gerichte)$/i.test(e.category));
-  const popular = configuredPopular.length ? configuredPopular : asian ? entries.filter(e => asianPopular.includes(e.item.name)) : [];
+  const popular = configuredPopular.length ? configuredPopular : asian ? entries.filter(e => asianPopular.includes(e.item.name.replace(/^TEST\s+/i, ""))) : [];
   const visible = category === "Beliebt" ? popular : entries.filter(e => e.category === category);
   const saved = entries.filter((e, index) => favorites.includes(e.item.id) && entries.findIndex(other => other.item.id === e.item.id) === index);
   const money = (entry: Entry) => new Intl.NumberFormat("de-DE", {style: "currency", currency: entry.menu.currency}).format(entry.item.priceAmountMinor / 100);
