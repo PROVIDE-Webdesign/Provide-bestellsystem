@@ -31,7 +31,8 @@ export type MatchedRoute =
         | "accountRecovery";
     }
   | {
-      readonly name: "dashboardMenu" | "dashboardLocationOperations" | "dashboardHistory";
+      readonly name:
+        "dashboardMenu" | "dashboardLocationOperations" | "dashboardHistory" | "dashboardOrderPush";
       readonly restaurantId: string;
       readonly locationId: string;
     }
@@ -63,6 +64,9 @@ function matchPath(request: Request): MatchedRoute | undefined {
   const menu = /^\/v1\/dashboard\/restaurants\/([^/]+)\/locations\/([^/]+)\/menu$/.exec(path);
   if (menu?.[1] && menu[2])
     return { name: "dashboardMenu", restaurantId: menu[1], locationId: menu[2] };
+  const push = /^\/v1\/dashboard\/restaurants\/([^/]+)\/locations\/([^/]+)\/order-push$/.exec(path);
+  if (push?.[1] && push[2])
+    return { name: "dashboardOrderPush", restaurantId: push[1], locationId: push[2] };
   const alerts = /^\/v1\/dashboard\/restaurants\/([^/]+)\/locations\/([^/]+)\/order-alerts$/.exec(
     path,
   );
@@ -126,6 +130,7 @@ export function routeRequest(request: Request): MatchedRoute | undefined {
   if (!match) return undefined;
   if (
     match.name === "dashboardHistory" ||
+    match.name === "dashboardOrderPush" ||
     match.name === "provideAdmin" ||
     match.name === "support" ||
     match.name === "personnel" ||

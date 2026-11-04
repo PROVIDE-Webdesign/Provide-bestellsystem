@@ -108,7 +108,7 @@ function errorResponse(
   return undefined;
 }
 
-async function authenticate(
+export async function authenticateDashboardOrders(
   request: Request,
   environment: DashboardOrdersEnvironment,
   verifier: DashboardTokenVerifier,
@@ -188,7 +188,7 @@ export async function handleDashboardOrders(
       503,
       cors,
     );
-  const identity = await authenticate(request, environment, verifier);
+  const identity = await authenticateDashboardOrders(request, environment, verifier);
   if (identity === "unauthorized")
     return jsonError("unauthorized", "Authentication is required.", context.requestId, 401, cors);
   if (identity === "unavailable") {

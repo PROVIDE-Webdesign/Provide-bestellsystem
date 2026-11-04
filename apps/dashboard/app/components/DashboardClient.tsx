@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createDashboardBrowserClient } from "../../lib/supabase-browser.js";
 import { MfaPanel } from "./MfaPanel.js";
 import { OrderBoard } from "./OrderBoard.js";
+import { unsubscribeOrderPushDevice } from "./OrderPush.js";
 
 type ViewState =
   | { readonly name: "loading" }
@@ -31,6 +32,7 @@ export function DashboardClient({
   operationsEnabled = false,
   liveEnabled = false,
   alertsEnabled = false,
+  pushEnabled = false,
   historyEnabled = false,
   personnelEnabled = false,
 }: {
@@ -39,6 +41,7 @@ export function DashboardClient({
   readonly operationsEnabled?: boolean;
   readonly liveEnabled?: boolean;
   readonly alertsEnabled?: boolean;
+  readonly pushEnabled?: boolean;
   readonly historyEnabled?: boolean;
   readonly personnelEnabled?: boolean;
 }) {
@@ -70,6 +73,7 @@ export function DashboardClient({
   }, [load]);
 
   async function signOut() {
+    if (pushEnabled) void unsubscribeOrderPushDevice().catch(() => {});
     const supabase = createDashboardBrowserClient();
     if (supabase) await supabase.auth.signOut();
     window.location.assign("/login");
@@ -139,6 +143,7 @@ export function DashboardClient({
           <OrderBoard
             liveEnabled={liveEnabled}
             alertsEnabled={alertsEnabled}
+            pushEnabled={pushEnabled}
             restaurantId={membership.restaurantId}
             role={membership.role}
             locations={membership.locations}

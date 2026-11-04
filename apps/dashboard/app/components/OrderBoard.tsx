@@ -38,6 +38,7 @@ interface OrderBoardProps {
   readonly locations: readonly DashboardLocationAccess[];
   readonly liveEnabled?: boolean;
   readonly alertsEnabled?: boolean;
+  readonly pushEnabled?: boolean;
   readonly subscribeLive?: OrderLiveSubscriber;
 }
 
@@ -60,6 +61,7 @@ export function OrderBoard({
   locations,
   liveEnabled = false,
   alertsEnabled = false,
+  pushEnabled = false,
   subscribeLive,
 }: OrderBoardProps) {
   const [locationId, setLocationId] = useState(locations[0]?.id ?? "");
@@ -347,6 +349,7 @@ export function OrderBoard({
           locationId={locationId}
           liveEnabled={liveEnabled}
           alertsEnabled={alertsEnabled}
+          pushEnabled={pushEnabled}
           readOnly={role === "viewer"}
           {...(subscribeLive ? { subscribeLive } : {})}
           onDenied={clearDenied}

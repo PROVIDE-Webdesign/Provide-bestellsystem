@@ -2,6 +2,7 @@
 
 import { parseDashboardAcceptance, type DashboardAcceptance } from "@provide/contracts";
 import { useEffect, useRef, useState } from "react";
+import { OrderPush } from "./OrderPush.js";
 import {
   subscribeDashboardOrderLive,
   type OrderLiveState,
@@ -14,6 +15,7 @@ interface Props {
   readonly locationId: string;
   readonly liveEnabled: boolean;
   readonly alertsEnabled: boolean;
+  readonly pushEnabled?: boolean;
   readonly readOnly?: boolean;
   readonly onInvalidate: () => Promise<void>;
   readonly onDenied: () => void;
@@ -25,6 +27,7 @@ export function OrderInbox({
   locationId,
   liveEnabled,
   alertsEnabled,
+  pushEnabled = false,
   readOnly = false,
   onInvalidate,
   onDenied,
@@ -210,8 +213,8 @@ export function OrderInbox({
         <>
           <h2>Offener Bestelleingang{snapshot ? ` (${snapshot.totalPending})` : ""}</h2>
           <p>
-            Unabhängig von Listenfiltern. Annahmefrist: 5 Minuten ab Bearbeitbarkeit, getrennt von
-            der Zahlungsfrist.
+            Unabhängig von Listenfiltern. Bei reservierter Kartenzahlung gilt die verbleibende
+            Zahlungsfrist. Für andere Bestellungen gilt die Annahmefrist des Standorts.
           </p>
           <button
             type="button"
@@ -225,6 +228,9 @@ export function OrderInbox({
           <p>
             {sound ? "Ton aktiviert" : "Ton stumm"}. {soundError}
           </p>
+          {pushEnabled && !readOnly && (
+            <OrderPush restaurantId={restaurantId} locationId={locationId} />
+          )}
           {stale ? (
             <p role="alert" className="warning">
               Eingang nicht aktuell. Bitte Verbindung prüfen; Alarm ist bis zur sicheren Nachladung

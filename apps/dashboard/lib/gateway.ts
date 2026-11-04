@@ -429,6 +429,38 @@ export function fetchDashboardAcceptance(
   );
 }
 
+export function fetchDashboardOrderPush(
+  accessToken: string,
+  apiBaseUrl: string | undefined,
+  scope: { restaurantId: string; locationId: string },
+  body: unknown,
+  fetcher: typeof fetch = fetch,
+) {
+  if (!uuidPattern.test(scope.restaurantId) || !uuidPattern.test(scope.locationId))
+    return Promise.resolve(operationalFailure(400));
+  return operationalRequest(
+    accessToken,
+    apiBaseUrl,
+    `/v1/dashboard/restaurants/${scope.restaurantId}/locations/${scope.locationId}/order-push`,
+    "POST",
+    body,
+    (value) => {
+      if (
+        !value ||
+        typeof value !== "object" ||
+        !("active" in value) ||
+        !("publicKey" in value) ||
+        typeof value.active !== "boolean" ||
+        typeof value.publicKey !== "string" ||
+        !/^B[A-Za-z0-9_-]{86}$/.test(value.publicKey)
+      )
+        return undefined;
+      return { active: value.active, publicKey: value.publicKey };
+    },
+    fetcher,
+  );
+}
+
 export function fetchDashboardOrderDetail(
   accessToken: string,
   apiBaseUrl: string | undefined,

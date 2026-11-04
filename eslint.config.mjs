@@ -28,6 +28,11 @@ export default tseslint.config(
       "@typescript-eslint/no-misused-promises": "error",
     },
   },
+  {
+    files: ["apps/dashboard/public/dashboard-push-sw.js"],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: { globals: { self: "readonly", clients: "readonly", URL: "readonly" } },
+  },
   // Dependency-free browser adapters are plain JavaScript outside the TS project.
   // Keep syntax and recommended lint rules; typed application code remains strict.
   {
