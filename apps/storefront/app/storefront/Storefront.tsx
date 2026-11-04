@@ -81,41 +81,47 @@ export default function Storefront(scope: StorefrontProps) {
   const [importBusy, setImportBusy] = useState(false);
   useEffect(() => {
     const key = "provide:cart-import:" + scope.restaurantSlug + ":" + scope.locationSlug;
-    try {
-      const match = /^#cart-import=([a-z0-9][a-z0-9-]{2,79})\.([a-f0-9]{64})$/.exec(
-        window.location.hash,
-      );
-      if (match) {
-        const saved = { id: match[1]!, token: match[2]!, expiresAt: Date.now() + 600000 };
+    const match = /^#cart-import=([a-z0-9][a-z0-9-]{2,79})\.([a-f0-9]{64})$/.exec(
+      window.location.hash,
+    );
+    if (match) {
+      const saved = { id: match[1]!, token: match[2]!, expiresAt: Date.now() + 600000 };
+      history.replaceState(null, "", window.location.pathname + window.location.search);
+      setPendingImport(saved);
+      try {
         sessionStorage.setItem(key, JSON.stringify(saved));
-        history.replaceState(null, "", window.location.pathname + window.location.search);
-        setPendingImport(saved);
-      } else {
-        const saved = record(JSON.parse(sessionStorage.getItem(key) ?? "null"));
-        if (
-          saved &&
-          typeof saved.id === "string" &&
-          handoffIdPattern.test(saved.id) &&
-          typeof saved.token === "string" &&
-          handoffTokenPattern.test(saved.token) &&
-          typeof saved.expiresAt === "number" &&
-          saved.expiresAt > Date.now() &&
-          saved.expiresAt <= Date.now() + 600000
-        )
-          setPendingImport({ id: saved.id, token: saved.token });
-        else sessionStorage.removeItem(key);
+      } catch {
+        // Import remains available in the current tab without reload recovery.
       }
+      return;
+    }
+    try {
+      const saved = record(JSON.parse(sessionStorage.getItem(key) ?? "null"));
+      if (
+        saved &&
+        typeof saved.id === "string" &&
+        handoffIdPattern.test(saved.id) &&
+        typeof saved.token === "string" &&
+        handoffTokenPattern.test(saved.token) &&
+        typeof saved.expiresAt === "number" &&
+        saved.expiresAt > Date.now() &&
+        saved.expiresAt <= Date.now() + 600000
+      )
+        setPendingImport({ id: saved.id, token: saved.token });
+      else sessionStorage.removeItem(key);
     } catch {
-      setImportMessage(
-        "Die Warenkorbübergabe konnte nicht wiederhergestellt werden. Bitte erneut auf der Restaurant-Website starten.",
-      );
+      // A regular shop visit does not depend on import persistence.
     }
   }, [scope.restaurantSlug, scope.locationSlug]);
   function clearImport() {
-    sessionStorage.removeItem(
-      "provide:cart-import:" + scope.restaurantSlug + ":" + scope.locationSlug,
-    );
     setPendingImport(null);
+    try {
+      sessionStorage.removeItem(
+        "provide:cart-import:" + scope.restaurantSlug + ":" + scope.locationSlug,
+      );
+    } catch {
+      // Clearing the in-memory import is sufficient when storage is unavailable.
+    }
   }
   async function importCart() {
     if (!pendingImport || !catalog || importBusy) return;
