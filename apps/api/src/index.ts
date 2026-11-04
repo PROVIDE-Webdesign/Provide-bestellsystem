@@ -36,7 +36,8 @@ import {
   type OnlineEnvironment,
 } from "./online-payments.js";
 import { postgresOnlineRepository, type OnlineRepository } from "./online-payments-database.js";
-import { stripeSandboxProvider, type SandboxProvider } from "./stripe-sandbox.js";
+import { stripePaymentProvider } from "./stripe-sandbox.js";
+import type { PaymentProvider } from "./online-payments.js";
 import { postgresDeliveryRepository } from "./delivery-database.js";
 import { isAppEnvironment } from "@provide/contracts";
 
@@ -127,7 +128,7 @@ export function createApiWorker(
   notificationAdapter: NotificationAdapter = unconfiguredNotificationAdapter,
   deliveryRepository: DeliveryRepository = postgresDeliveryRepository,
   onlineRepository: OnlineRepository = postgresOnlineRepository,
-  onlineProvider: SandboxProvider = stripeSandboxProvider,
+  onlineProvider: PaymentProvider = stripePaymentProvider,
   emailRepository: EmailRepository = postgresEmailRepository,
   emailAdapter: EmailAdapter = unconfiguredEmailAdapter,
   cartQuoteReader: CartQuoteReader = postgresCartQuoteReader,

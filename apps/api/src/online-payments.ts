@@ -1,5 +1,7 @@
 import {
   isStorefrontScope,
+  isCheckoutTestHostname,
+  type OnlinePaymentMode,
   object,
   parseOnlineOrderRequest,
   parseOnlineOrderConfirmation,
@@ -22,6 +24,8 @@ import {
   verifyStripeWebhook,
   type SandboxProvider,
   type SandboxConfig,
+  type StripeConfig,
+  type LiveStripeConfig,
 } from "./stripe-sandbox.js";
 import type { OnlineRepository, OnlineJob } from "./online-payments-database.js";
 export interface OnlineEnvironment extends CheckoutEnvironment {
@@ -32,6 +36,13 @@ export interface OnlineEnvironment extends CheckoutEnvironment {
   STRIPE_TEST_SECRET_KEY?: string;
   STRIPE_TEST_ACCOUNT_ID?: string;
   STRIPE_TEST_WEBHOOK_SECRET?: string;
+  ONLINE_LIVE_PAYMENT_ENABLED?: string;
+  ONLINE_LIVE_PAYMENT_PROCESSING_ENABLED?: string;
+  STRIPE_LIVE_SECRET_KEY?: string;
+  STRIPE_LIVE_ACCOUNT_ID?: string;
+  STRIPE_LIVE_WEBHOOK_SECRET?: string;
+  CHECKOUT_STOREFRONT_ORIGIN?: string;
+  CHECKOUT_PROTECTION_ENABLED?: string;
   PAYMENT_ACCESS_SECRET?: string;
   PAYMENT_RETURN_ORIGIN?: string;
 }
@@ -73,9 +84,68 @@ export function sandboxConfig(env: OnlineEnvironment): SandboxConfig | undefined
     return;
   }
 }
-function paymentTokenScope(scope: StorefrontScope, deadline: string): StorefrontScope {
+type ProcessingConfig = SandboxConfig | Omit<LiveStripeConfig, "merchantAccount">;
+export type PaymentProvider = SandboxProvider<StripeConfig>;
+
+function paymentConfig(env: Partial<OnlineEnvironment>): ProcessingConfig | undefined {
+  if (env.APP_ENV !== "production")
+    return env.APP_ENV ? sandboxConfig({ ...env, APP_ENV: env.APP_ENV }) : undefined;
+  const key = env.STRIPE_LIVE_SECRET_KEY;
+  const account = env.STRIPE_LIVE_ACCOUNT_ID;
+  const webhookSecret = env.STRIPE_LIVE_WEBHOOK_SECRET;
+  const returnOrigin = env.PAYMENT_RETURN_ORIGIN;
+  if (
+    env.ONLINE_LIVE_PAYMENT_PROCESSING_ENABLED !== "true" ||
+    !key ||
+    !/^rk_live_[A-Za-z0-9_]+$/.test(key) ||
+    !account ||
+    !/^acct_[A-Za-z0-9]+$/.test(account) ||
+    !webhookSecret ||
+    !/^whsec_[A-Za-z0-9_]+$/.test(webhookSecret) ||
+    webhookSecret === env.STRIPE_TEST_WEBHOOK_SECRET ||
+    !hasValidStatusSecret(env.PAYMENT_ACCESS_SECRET) ||
+    !env.HYPERDRIVE ||
+    env.HYPERDRIVE_CACHE_DISABLED !== "true" ||
+    !returnOrigin
+  )
+    return;
+  try {
+    const u = new URL(returnOrigin);
+    if (u.protocol !== "https:" || u.origin !== returnOrigin || isCheckoutTestHostname(u.hostname))
+      return;
+    return { mode: "live", key, account, webhookSecret, returnOrigin };
+  } catch {
+    return;
+  }
+}
+
+export function liveCheckoutPlatform(
+  env: Partial<OnlineEnvironment>,
+  config = paymentConfig(env),
+): string | undefined {
+  if (
+    config?.mode === "live" &&
+    env.ONLINE_LIVE_PAYMENT_ENABLED === "true" &&
+    env.CHECKOUT_PROTECTION_ENABLED === "true" &&
+    env.CHECKOUT_WRITE_ENABLED === "true" &&
+    env.ORDER_STATUS_READ_ENABLED === "true" &&
+    hasValidStatusSecret(env.ORDER_STATUS_TOKEN_SECRET) &&
+    /^[1-9][0-9]{0,2}$/.test(env.CHECKOUT_RETENTION_DAYS ?? "") &&
+    Number(env.CHECKOUT_RETENTION_DAYS) <= 730 &&
+    env.CHECKOUT_STOREFRONT_ORIGIN === config.returnOrigin &&
+    /^live-[A-Za-z0-9_-]+$/.test(env.CHECKOUT_PRIVACY_NOTICE_VERSION ?? "")
+  )
+    return config.account;
+}
+
+function paymentTokenScope(
+  scope: StorefrontScope,
+  deadline: string,
+  mode: OnlinePaymentMode,
+): StorefrontScope {
   return {
-    restaurantSlug: "payment-action-v1:" + scope.restaurantSlug,
+    restaurantSlug:
+      (mode === "live" ? "payment-action-live-v1:" : "payment-action-v1:") + scope.restaurantSlug,
     locationSlug: scope.locationSlug + ":" + deadline,
   };
 }
@@ -84,8 +154,9 @@ export async function createPaymentToken(
   scope: StorefrontScope,
   order: string,
   deadline: string,
+  mode: OnlinePaymentMode = "test",
 ) {
-  return createStatusAccessToken(secret, paymentTokenScope(scope, deadline), order);
+  return createStatusAccessToken(secret, paymentTokenScope(scope, deadline, mode), order);
 }
 export async function verifyPaymentToken(
   secret: string,
@@ -93,11 +164,12 @@ export async function verifyPaymentToken(
   order: string,
   deadline: string,
   token: string,
+  mode: OnlinePaymentMode = "test",
 ) {
   return (
     Date.parse(deadline) > Date.now() &&
     Date.parse(deadline) <= Date.now() + 10 * 60 * 1000 &&
-    verifyStatusAccessToken(token, [secret], paymentTokenScope(scope, deadline), order)
+    verifyStatusAccessToken(token, [secret], paymentTokenScope(scope, deadline, mode), order)
   );
 }
 export function onlineState(j: OnlineJob): PaymentState {
@@ -112,35 +184,51 @@ export function onlineState(j: OnlineJob): PaymentState {
   if (["failed", "cancelled", "expired"].includes(j.payment_status)) return "expired";
   return j.last_error || Date.parse(j.deadline) <= Date.now() ? "checking" : "open";
 }
-function paymentAccountConfig(config: SandboxConfig, account: string): SandboxConfig {
-  if (!/^acct_[A-Za-z0-9]+$/.test(account)) throw new Error("Missing merchant account");
-  return account === config.account ? config : { ...config, merchantAccount: account };
+function paymentAccountConfig(config: ProcessingConfig, job: OnlineJob): StripeConfig {
+  if (
+    (job.stripe_mode ?? "test") !== (config.mode ?? "test") ||
+    !/^acct_[A-Za-z0-9]+$/.test(job.account_id)
+  )
+    throw new Error("Invalid merchant payment job");
+  if (config.mode === "live") {
+    if (job.account_id === config.account || job.capture_method !== "manual")
+      throw new Error("Invalid live merchant payment job");
+    return { ...config, merchantAccount: job.account_id };
+  }
+  return job.account_id === config.account
+    ? config
+    : { ...config, merchantAccount: job.account_id };
+}
+function providerJobFor(job: OnlineJob) {
+  return job.capture_method === "manual" ? { ...job, captureMethod: "manual" as const } : job;
 }
 export async function processOnlinePayment(
   connection: string,
-  config: SandboxConfig,
+  config: ProcessingConfig,
   repo: OnlineRepository,
-  provider: SandboxProvider,
+  provider: PaymentProvider,
   order: string | null = null,
 ) {
   const lease = crypto.randomUUID();
-  const j = await repo.claim(connection, config.account, order, lease);
+  const mode = config.mode ?? "test";
+  const j = await repo.claim(connection, config.account, order, lease, mode);
   if (!j) return;
   try {
-    const merchantConfig = paymentAccountConfig(config, j.account_id);
+    const merchantConfig = paymentAccountConfig(config, j);
     if (!j.session_id && Date.now() - Date.parse(j.created_at) > 20 * 60 * 60 * 1000) {
       await repo.fail(connection, j.id, lease, true);
       return;
     }
     const manual = j.capture_method === "manual";
-    const providerJob = manual ? { ...j, captureMethod: "manual" as const } : j;
+    const providerJob = providerJobFor(j);
     let session = await provider.session(merchantConfig, providerJob);
     if (!j.session_id) {
       await repo.bind(connection, j.id, lease, session.id);
       providerJob.session_id = session.id;
     }
-    const latest = await repo.read(connection, config.account, j.order_id);
+    const latest = await repo.read(connection, config.account, j.order_id, mode);
     if (!latest) throw new Error("Missing online job");
+    paymentAccountConfig(config, latest);
     if (
       session.status === "open" &&
       (latest.close_requested || Date.parse(j.deadline) <= Date.now())
@@ -239,9 +327,9 @@ export async function processOnlinePayment(
 export async function dispatchOnlinePayments(
   env: OnlineEnvironment,
   repo: OnlineRepository,
-  provider: SandboxProvider,
+  provider: PaymentProvider,
 ) {
-  const config = sandboxConfig(env);
+  const config = paymentConfig(env);
   if (!config) return;
   // A bounded batch; leases and next_at avoid concurrent duplicate work.
   for (let i = 0; i < 10; i++)
@@ -253,7 +341,7 @@ export async function handleOnlinePayment(
   submit: boolean,
   env: OnlineEnvironment,
   repo: OnlineRepository,
-  provider: SandboxProvider,
+  provider: PaymentProvider,
   ctx: RequestContext,
   cors: Headers,
 ) {
@@ -273,13 +361,16 @@ export async function handleOnlinePayment(
     );
   if (!isStorefrontScope(scope) || new URL(request.url).search || request.url.length > 2048)
     return fail(400);
-  const config = sandboxConfig(env);
+  const config = paymentConfig(env);
   if (!config) return fail(503);
+  const mode = config.mode ?? "test";
   try {
     const body = await readJsonBody(request);
     if (submit) {
       if (
-        env.ONLINE_PAYMENT_ENABLED !== "true" ||
+        (mode === "live"
+          ? !liveCheckoutPlatform(env, config)
+          : env.ONLINE_PAYMENT_ENABLED !== "true") ||
         env.CHECKOUT_WRITE_ENABLED !== "true" ||
         env.ORDER_STATUS_READ_ENABLED !== "true" ||
         !hasValidStatusSecret(env.ORDER_STATUS_TOKEN_SECRET) ||
@@ -299,6 +390,7 @@ export async function handleOnlinePayment(
           c,
           Number(env.CHECKOUT_RETENTION_DAYS),
           config.account,
+          mode,
         ),
       );
       if (!raw || typeof raw.orderId !== "string" || typeof raw.paymentDeadline !== "string")
@@ -316,6 +408,7 @@ export async function handleOnlinePayment(
           scope,
           raw.orderId,
           raw.paymentDeadline,
+          mode,
         ),
       });
       return result ? jsonSuccess(result, ctx.requestId, 201, cors) : fail(503);
@@ -329,10 +422,11 @@ export async function handleOnlinePayment(
         action.orderId,
         action.paymentDeadline,
         action.paymentAccessToken,
+        mode,
       ))
     )
       return fail(404);
-    let j = await repo.read(env.HYPERDRIVE!.connectionString, config.account, action.orderId);
+    let j = await repo.read(env.HYPERDRIVE!.connectionString, config.account, action.orderId, mode);
     if (
       !j ||
       j.restaurant_slug !== scope.restaurantSlug ||
@@ -340,7 +434,9 @@ export async function handleOnlinePayment(
       Date.parse(j.deadline) !== Date.parse(action.paymentDeadline)
     )
       return fail(404);
-    if (!(await repo.resume(env.HYPERDRIVE!.connectionString, config.account, action.orderId)))
+    if (
+      !(await repo.resume(env.HYPERDRIVE!.connectionString, config.account, action.orderId, mode))
+    )
       return jsonSuccess(
         { checkoutUrl: null, paymentState: onlineState(j) },
         ctx.requestId,
@@ -354,16 +450,16 @@ export async function handleOnlinePayment(
       provider,
       action.orderId,
     );
-    j = await repo.read(env.HYPERDRIVE!.connectionString, config.account, action.orderId);
+    j = await repo.read(env.HYPERDRIVE!.connectionString, config.account, action.orderId, mode);
     if (!j) return fail(404);
     let url: string | null = null;
     let paymentState = onlineState(j);
     if (j.session_id && paymentState === "open") {
-      const session = await provider.session(paymentAccountConfig(config, j.account_id), j);
+      const session = await provider.session(paymentAccountConfig(config, j), providerJobFor(j));
       if (session.status === "open" && !session.paid) url = session.url;
       else paymentState = "checking";
     }
-    const result = parsePaymentSession({ checkoutUrl: url, paymentState });
+    const result = parsePaymentSession({ checkoutUrl: url, paymentState }, mode);
     return result ? jsonSuccess(result, ctx.requestId, 200, cors) : fail(503);
   } catch (e) {
     if (e instanceof RequestBodyError) return fail(e.status);
@@ -375,10 +471,11 @@ export async function handleStripeWebhook(
   env: OnlineEnvironment,
   repo: OnlineRepository,
   ctx: RequestContext,
-  provider: SandboxProvider,
+  provider: PaymentProvider,
 ) {
-  const config = sandboxConfig(env);
+  const config = paymentConfig(env);
   if (!config) return jsonError("service_unavailable", "Webhook unavailable.", ctx.requestId, 503);
+  const mode = config.mode ?? "test";
   try {
     if (
       new URL(request.url).search ||
@@ -426,11 +523,17 @@ export async function handleStripeWebhook(
       value = object(data?.object);
     if (
       !event ||
-      event.livemode !== false ||
+      typeof event.livemode !== "boolean" ||
       (event.account !== undefined &&
         (typeof event.account !== "string" || !/^acct_[A-Za-z0-9]+$/.test(event.account))) ||
       typeof event.id !== "string" ||
       !/^evt_[A-Za-z0-9]+$/.test(event.id)
+    )
+      return new Response(null, { status: 400 });
+    if (mode === "live" && !event.livemode) return new Response(null, { status: 204 });
+    if (
+      (mode === "test" && event.livemode) ||
+      (mode === "live" && (event.account === undefined || event.account === config.account))
     )
       return new Response(null, { status: 400 });
     if (
@@ -447,6 +550,7 @@ export async function handleStripeWebhook(
         "checkout.session.async_payment_succeeded",
         "checkout.session.async_payment_failed",
         "checkout.session.expired",
+        "payment_intent.amount_capturable_updated",
         "payment_intent.succeeded",
         "payment_intent.payment_failed",
         "refund.created",
@@ -458,7 +562,12 @@ export async function handleStripeWebhook(
     if (
       !value ||
       typeof value.id !== "string" ||
-      !/^(cs_test_|pi_|re_)[A-Za-z0-9]+$/.test(value.id)
+      (value.livemode !== undefined && value.livemode !== (mode === "live")) ||
+      !(event.type.startsWith("checkout.session.")
+        ? (mode === "live" ? /^cs_live_[A-Za-z0-9]+$/ : /^cs_test_[A-Za-z0-9]+$/).test(value.id)
+        : event.type.startsWith("payment_intent.")
+          ? /^pi_[A-Za-z0-9]+$/.test(value.id)
+          : /^re_[A-Za-z0-9]+$/.test(value.id))
     )
       return new Response(null, { status: 400 });
     // Acknowledge only after durable storage. Raw provider payloads never enter the database.
@@ -474,6 +583,7 @@ export async function handleStripeWebhook(
       event.type === "payment_intent.succeeded" ||
         event.type === "checkout.session.async_payment_succeeded" ||
         (event.type === "checkout.session.completed" && value.payment_status === "paid"),
+      mode,
     );
     if (order) {
       // Storage is durable even if provider reconciliation fails; the cron retries it.

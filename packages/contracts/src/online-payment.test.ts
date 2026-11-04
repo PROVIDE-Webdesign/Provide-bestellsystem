@@ -27,6 +27,20 @@ describe("online checkout contracts", () => {
     ])
       expect(parsePaymentSession({ checkoutUrl: url, paymentState: "open" })).toBeUndefined();
   });
+  it("only accepts hosted live sessions when live mode is configured", () => {
+    const live = {
+      checkoutUrl: "https://checkout.stripe.com/c/pay/cs_live_abc#secret",
+      paymentState: "open",
+    };
+    expect(parsePaymentSession(live, "live")).toEqual(live);
+    expect(parsePaymentSession(live, "test")).toBeUndefined();
+    expect(
+      parsePaymentSession(
+        { ...live, checkoutUrl: live.checkoutUrl.replace("cs_live_", "cs_test_") },
+        "live",
+      ),
+    ).toBeUndefined();
+  });
   it("reuses the existing checkout validation without allowing browser-supplied totals", () => {
     const request = {
       fulfillmentType: "pickup",

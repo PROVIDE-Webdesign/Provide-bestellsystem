@@ -1,10 +1,11 @@
 import { selectionLinesForDatabase } from "@provide/contracts";
 import { Client } from "pg";
-import type { OnlineOrderRequest, StorefrontScope } from "@provide/contracts";
+import type { OnlineOrderRequest, StorefrontScope, OnlinePaymentMode } from "@provide/contracts";
 export interface OnlineJob {
   id: string;
   order_id: string;
   account_id: string;
+  stripe_mode?: OnlinePaymentMode;
   session_id: string | null;
   intent_id: string | null;
   capture_method?: "automatic" | "manual";
@@ -32,14 +33,26 @@ export interface OnlineRepository {
     command: OnlineOrderRequest,
     retention: number,
     account: string,
+    mode?: OnlinePaymentMode,
   ): Promise<unknown>;
-  read(connection: string, account: string, order: string): Promise<OnlineJob | null>;
-  resume(connection: string, account: string, order: string): Promise<boolean>;
+  read(
+    connection: string,
+    account: string,
+    order: string,
+    mode?: OnlinePaymentMode,
+  ): Promise<OnlineJob | null>;
+  resume(
+    connection: string,
+    account: string,
+    order: string,
+    mode?: OnlinePaymentMode,
+  ): Promise<boolean>;
   claim(
     connection: string,
     account: string,
     order: string | null,
     lease: string,
+    mode?: OnlinePaymentMode,
   ): Promise<OnlineJob | null>;
   bind(connection: string, job: string, lease: string, session: string): Promise<void>;
   sync(
@@ -62,6 +75,7 @@ export interface OnlineRepository {
     occurredAt: string,
     merchantAccount?: string,
     paymentSucceeded?: boolean,
+    mode?: OnlinePaymentMode,
   ): Promise<string | null>;
 }
 async function query<T>(
@@ -93,11 +107,11 @@ async function query<T>(
   }
 }
 export const postgresOnlineRepository: OnlineRepository = {
-  submit(c, s, v, retention, account) {
+  submit(c, s, v, retention, account, mode = "test") {
     const d = v.fulfillmentType === "delivery" ? v.delivery : null;
     return query(
       c,
-      "select private.attach_order_number(private.submit_public_guest_online_order($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)) as data",
+      "select private.attach_order_number(private.submit_public_guest_online_order($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)) as data",
       [
         s.restaurantSlug,
         s.locationSlug,
@@ -125,26 +139,43 @@ export const postgresOnlineRepository: OnlineRepository = {
         v.privacyNoticeVersion,
         retention,
         account,
+        mode,
       ],
       true,
     );
   },
-  read: (c, a, o) =>
-    query(c, "select private.read_platform_online_payment_job($1,$2) as data", [a, o]),
-  resume: (c, a, o) =>
-    query(c, "select private.allow_platform_online_payment_resume($1,$2) as data", [a, o]),
-  claim: (c, a, o, l) =>
-    query(c, "select private.claim_platform_online_payment_job($1,$2,$3) as data", [a, o, l]),
+  read: (c, a, o, mode = "test") =>
+    query(c, "select private.read_platform_online_payment_job($1,$2,$3) as data", [a, o, mode]),
+  resume: (c, a, o, mode = "test") =>
+    query(c, "select private.allow_platform_online_payment_resume($1,$2,$3) as data", [a, o, mode]),
+  claim: (c, a, o, l, mode = "test") =>
+    query(c, "select private.claim_platform_online_payment_job($1,$2,$3,$4) as data", [
+      a,
+      o,
+      l,
+      mode,
+    ]),
   bind: (c, j, l, s) =>
     query(c, "select private.bind_online_payment_session($1,$2,$3) as data", [j, l, s]),
   sync: (c, j, l, s, i, r, d) =>
     query(c, "select private.sync_online_payment($1,$2,$3,$4,$5,$6) as data", [j, l, s, i, r, d]),
   fail: (c, j, l, m) =>
     query(c, "select private.fail_online_payment_job($1,$2,$3) as data", [j, l, m]),
-  event: (c, a, e, t, o, d, occurredAt, merchantAccount = a, paymentSucceeded = false) =>
+  event: (
+    c,
+    a,
+    e,
+    t,
+    o,
+    d,
+    occurredAt,
+    merchantAccount = a,
+    paymentSucceeded = false,
+    mode = "test",
+  ) =>
     query(
       c,
-      "select private.receive_platform_online_payment_event($1,$2,$3,$4,$5,$6,$7,$8) as data",
-      [a, merchantAccount, e, t, o, d, occurredAt, paymentSucceeded],
+      "select private.receive_platform_online_payment_event($1,$2,$3,$4,$5,$6,$7,$8,$9) as data",
+      [a, merchantAccount, e, t, o, d, occurredAt, paymentSucceeded, mode],
     ),
 };

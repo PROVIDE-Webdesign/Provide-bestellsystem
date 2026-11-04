@@ -12,7 +12,7 @@ export type LiveStripeConfig = Omit<SandboxConfig, "mode" | "merchantAccount"> &
   merchantAccount: string;
 };
 
-type StripeConfig = SandboxConfig | LiveStripeConfig;
+export type StripeConfig = SandboxConfig | LiveStripeConfig;
 type RequestConfig = Omit<SandboxConfig, "mode">;
 
 export interface ProviderSession {
@@ -359,6 +359,22 @@ function createStripeProvider<Config extends StripeConfig>(
 
 export const stripeSandboxProvider = createStripeProvider<SandboxConfig>("test");
 export const stripeLiveProvider = createStripeProvider<LiveStripeConfig>("live");
+
+// The production entry point selects the transport from the server-validated config.
+export const stripePaymentProvider: Required<SandboxProvider<StripeConfig>> = {
+  settleAuthorization: (c, j, a) =>
+    c.mode === "live"
+      ? stripeLiveProvider.settleAuthorization(c, j, a)
+      : stripeSandboxProvider.settleAuthorization(c, j, a),
+  session: (c, j) =>
+    c.mode === "live" ? stripeLiveProvider.session(c, j) : stripeSandboxProvider.session(c, j),
+  expire: (c, id) =>
+    c.mode === "live" ? stripeLiveProvider.expire(c, id) : stripeSandboxProvider.expire(c, id),
+  refund: (c, i, j, r, a, s) =>
+    c.mode === "live"
+      ? stripeLiveProvider.refund(c, i, j, r, a, s)
+      : stripeSandboxProvider.refund(c, i, j, r, a, s),
+};
 
 export async function digest(text: string): Promise<string> {
   return Array.from(

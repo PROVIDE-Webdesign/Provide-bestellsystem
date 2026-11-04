@@ -279,8 +279,9 @@ describe.skipIf(!databaseUrl)("storefront HTTP to real PostgreSQL", () => {
       );
       expect(claims.rows[0]?.count).toBe("1");
       await verifyDeliveryIntegration(admin, worker, env);
-      await verifyOnlineIntegration(admin, env);
+      const verifyLiveOnlineIntegration = await verifyOnlineIntegration(admin, env);
       await verifyEmailIntegration(admin, env);
+      await verifyLiveOnlineIntegration();
       await verifyMenuSelectionIntegration(admin, env);
       await verifyMenuCartIntegration(admin, env);
       await verifyOrderNumberIntegration(admin, env);

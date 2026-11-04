@@ -3,8 +3,9 @@ import { expect, vi } from "vitest";
 import { object, parseOnlineOrderConfirmation, parseDeliveryQuote } from "@provide/contracts";
 import { createProtectedIntegrationWorker as createApiWorker } from "./checkout-integration-fixture.js";
 import { postgresOnlineRepository } from "./online-payments-database.js";
-import { processOnlinePayment } from "./online-payments.js";
-import type { SandboxProvider, ProviderSession } from "./stripe-sandbox.js";
+import { dispatchOnlinePayments, processOnlinePayment } from "./online-payments.js";
+import type { ProviderSession } from "./stripe-sandbox.js";
+import type { PaymentProvider } from "./online-payments.js";
 
 export async function verifyOnlineIntegration(
   admin: Client,
@@ -23,7 +24,7 @@ export async function verifyOnlineIntegration(
   let captures = 0,
     releases = 0;
   let loseCaptureReply = true;
-  const provider: SandboxProvider = {
+  const provider: PaymentProvider = {
     settleAuthorization(merchant, job, action) {
       expect(merchant.merchantAccount).toBe("acct_restaurantA");
       const session = sessions.get(job.id);
@@ -45,16 +46,18 @@ export async function verifyOnlineIntegration(
     },
     session(_config, j) {
       expect(_config.merchantAccount).toBe("acct_restaurantA");
+      const mode = _config.mode ?? "test";
+      if (mode === "live") expect(j.captureMethod).toBe("manual");
       let session = sessions.get(j.id);
       if (!session) {
         creates++;
         const suffix = j.id.replaceAll("-", "");
         session = {
-          id: "cs_test_" + suffix,
+          id: `cs_${mode}_` + suffix,
           status: "open",
           paid: false,
           intent: null,
-          url: "https://checkout.stripe.com/c/pay/cs_test_" + suffix,
+          url: `https://checkout.stripe.com/c/pay/cs_${mode}_` + suffix,
         };
         sessions.set(j.id, session);
         if (failFirstCreate) {
@@ -120,14 +123,14 @@ export async function verifyOnlineIntegration(
     provider,
   );
   const base = "https://api.test/v1/storefront/storefront-restaurant-a/storefront-a-mitte";
-  const post = (resource: string, data: unknown) =>
+  const post = (resource: string, data: unknown, runtime: typeof baseEnv = env) =>
     worker.fetch(
       new Request(base + "/" + resource, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(data),
       }),
-      env,
+      runtime,
     );
   const dashboard =
     "https://api.test/v1/dashboard/restaurants/f2000000-0000-0000-0000-000000000001/locations/f3000000-0000-0000-0000-000000000001/orders";
@@ -587,4 +590,203 @@ export async function verifyOnlineIntegration(
   console.log(
     "P2 matrix: authorized, no early acceptance, lost capture response, duplicate action, captured refund, rejected authorization, expired authorization",
   );
+
+  return async function verifyLiveOnlineIntegration() {
+    // The exact checkout dispatcher, SQL receipt and webhook path in production mode,
+    // backed only by the local database and the provider double above.
+    const liveOrigin = "https://checkout.provide-fixture.de";
+    const liveEnv = {
+      ...env,
+      APP_ENV: "production",
+      ONLINE_LIVE_PAYMENT_ENABLED: "true",
+      ONLINE_LIVE_PAYMENT_PROCESSING_ENABLED: "true",
+      STRIPE_LIVE_SECRET_KEY: "rk_live_fixture",
+      STRIPE_LIVE_ACCOUNT_ID: config.account,
+      STRIPE_LIVE_WEBHOOK_SECRET: "whsec_live_fixture",
+      CHECKOUT_STOREFRONT_ORIGIN: liveOrigin,
+      CHECKOUT_PRIVACY_NOTICE_VERSION: "live-fixture-v1",
+      PAYMENT_RETURN_ORIGIN: liveOrigin,
+    };
+    const liveOrder = {
+      ...command,
+      submissionKey: "live-order-fixture",
+      privacyNoticeVersion: liveEnv.CHECKOUT_PRIVACY_NOTICE_VERSION,
+      requestedFor: when(13),
+    };
+    await admin.query(
+      "insert into private.restaurant_live_payment_accounts(restaurant_id,platform_account_id,merchant_account_id) values('f2000000-0000-0000-0000-000000000001',$1,$2)",
+      [config.account, "acct_restaurantA"],
+    );
+    const liveCatalog = async () => {
+      const response = await worker.fetch(new Request(base + "/catalog"), liveEnv);
+      expect(response.status).toBe(200);
+      return object(object(await response.json())?.data)?.liveOnlinePaymentAvailable;
+    };
+    expect(await liveCatalog()).toBe(false);
+    expect((await post("online-orders", liveOrder, liveEnv)).status).toBe(409);
+    await admin.query("update private.restaurant_live_payment_accounts set enabled=true");
+    expect(await liveCatalog()).toBe(true);
+    await admin.query(
+      "insert into private.synthetic_test_environment(project_ref,expires_at) values('stripefixtureproject',clock_timestamp()+interval '1 hour')",
+    );
+    expect(await liveCatalog()).toBe(false);
+    await admin.query(
+      "delete from private.synthetic_test_environment where project_ref='stripefixtureproject'",
+    );
+    expect(
+      (await post("online-orders", liveOrder, { ...liveEnv, ONLINE_LIVE_PAYMENT_ENABLED: "false" }))
+        .status,
+    ).toBe(503);
+    const liveResponse = await post("online-orders", liveOrder, liveEnv);
+    expect(liveResponse.status).toBe(201);
+    const live = parseOnlineOrderConfirmation(object(await liveResponse.json())?.data);
+    if (!live) throw new Error("Live checkout confirmation missing");
+    const liveAction = {
+      orderId: live.orderId,
+      paymentDeadline: live.paymentDeadline,
+      paymentAccessToken: live.paymentAccessToken,
+    };
+    const repeated = parseOnlineOrderConfirmation(
+      object(await (await post("online-orders", liveOrder, liveEnv)).json())?.data,
+    );
+    expect(repeated).toEqual(live);
+    expect((await post("payment-session", liveAction, env)).status).toBe(404);
+    const noNewLiveOrders = { ...liveEnv, ONLINE_LIVE_PAYMENT_ENABLED: "false" };
+    const checkout = await post("payment-session", liveAction, noNewLiveOrders);
+    expect(checkout.status).toBe(200);
+    expect(object(object(await checkout.json())?.data)?.checkoutUrl).toMatch(
+      /^https:\/\/checkout\.stripe\.com\/c\/pay\/cs_live_/,
+    );
+    const readLive = () =>
+      postgresOnlineRepository.read(
+        env.HYPERDRIVE!.connectionString,
+        config.account,
+        live.orderId,
+        "live",
+      );
+    const liveJob = await readLive();
+    if (!liveJob?.session_id) throw new Error("Live payment job missing");
+    expect(liveJob).toMatchObject({ stripe_mode: "live", capture_method: "manual" });
+    expect(await read(live.orderId)).toBeNull();
+    expect(
+      await postgresOnlineRepository.claim(
+        env.HYPERDRIVE!.connectionString,
+        config.account,
+        live.orderId,
+        crypto.randomUUID(),
+        "test",
+      ),
+    ).toBeNull();
+    const liveSession = sessions.get(liveJob.id)!;
+    liveSession.status = "complete";
+    liveSession.authorized = true;
+    liveSession.intent = "pi_" + liveJob.id.replaceAll("-", "");
+    const webhook = async (
+      event: string,
+      merchant: string | null,
+      livemode: boolean,
+      objectId: string,
+      signingSecret = liveEnv.STRIPE_LIVE_WEBHOOK_SECRET,
+    ) => {
+      const time = Math.floor(Date.now() / 1000);
+      const body = JSON.stringify({
+        id: event,
+        ...(merchant ? { account: merchant } : {}),
+        livemode,
+        created: time,
+        type: "checkout.session.completed",
+        data: { object: { id: objectId, payment_status: "unpaid", livemode } },
+      });
+      const key = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(signingSecret),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign"],
+      );
+      const bytes = await crypto.subtle.sign(
+        "HMAC",
+        key,
+        new TextEncoder().encode(time + "." + body),
+      );
+      const sig = Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, "0")).join(
+        "",
+      );
+      return worker.fetch(
+        new Request("https://api.test/v1/payments/stripe/webhook", {
+          method: "POST",
+          body,
+          headers: { "stripe-signature": `t=${time},v1=${sig}` },
+        }),
+        noNewLiveOrders,
+      );
+    };
+    expect(
+      (
+        await webhook(
+          "evt_badsecret",
+          "acct_restaurantA",
+          true,
+          liveJob.session_id,
+          config.webhookSecret,
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (await webhook("evt_mixedmode", "acct_restaurantA", true, "cs_test_fixture")).status,
+    ).toBe(400);
+    expect(
+      (await webhook("evt_testmode", "acct_restaurantA", false, "cs_test_fixture")).status,
+    ).toBe(204);
+    expect((await webhook("evt_noaccount", null, true, liveJob.session_id)).status).toBe(400);
+    expect(
+      (await webhook("evt_foreignmerchant", "acct_foreign", true, liveJob.session_id)).status,
+    ).toBe(204);
+    expect((await readLive())?.payment_status).toBe("pending_customer");
+    expect(
+      (await admin.query("select 1 from public.online_payment_inbox where stripe_mode='live'"))
+        .rowCount,
+    ).toBe(0);
+    expect(
+      (await webhook("evt_liveconnected", "acct_restaurantA", true, liveJob.session_id)).status,
+    ).toBe(204);
+    expect(await readLive()).toMatchObject({
+      order_status: "submitted",
+      payment_status: "authorized",
+    });
+    expect((await dashboardPost(live.orderId, "status", accept)).status).toBe(200);
+    expect((await readLive())?.order_status).toBe("submitted");
+    await dispatchOnlinePayments(noNewLiveOrders, postgresOnlineRepository, provider);
+    expect(await readLive()).toMatchObject({
+      order_status: "accepted",
+      payment_status: "captured",
+    });
+    await dispatchOnlinePayments(noNewLiveOrders, postgresOnlineRepository, provider);
+    expect(captures).toBe(2);
+    expect(
+      (
+        await dashboardPost(live.orderId, "status", {
+          expectedStatus: "accepted",
+          targetStatus: "cancelled",
+        })
+      ).status,
+    ).toBe(200);
+    await admin.query("update private.restaurant_live_payment_accounts set enabled=false");
+    await dispatchOnlinePayments(noNewLiveOrders, postgresOnlineRepository, provider);
+    expect(await readLive()).toMatchObject({
+      order_status: "cancelled",
+      refund_state: "succeeded",
+    });
+    expect(
+      (
+        await admin.query(
+          "select 1 from public.payment_attempts where provider_key='stripe_live' and provider_payment_reference=$1",
+          [liveJob.session_id],
+        )
+      ).rowCount,
+    ).toBe(1);
+    console.log(
+      "Live matrix: opt-in, atomic receipt replay, test isolation, signed Connect webhook, capture on acceptance, refund after disable",
+    );
+  };
 }

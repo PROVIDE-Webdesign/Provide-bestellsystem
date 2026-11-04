@@ -5,6 +5,8 @@ import {
   type GuestDeliveryOrderRequest,
 } from "./delivery.js";
 import { isExplicitInstant } from "./storefront.js";
+export type OnlinePaymentMode = "test" | "live";
+
 export const paymentStates = [
   "open",
   "checking",
@@ -98,15 +100,16 @@ export function parseOnlineOrderConfirmation(v: unknown) {
 }
 export function parsePaymentSession(
   v: unknown,
+  mode: OnlinePaymentMode = "test",
 ): { checkoutUrl: string | null; paymentState: PaymentState } | undefined {
   const s = object(v);
   if (!s || Object.keys(s).length !== 2 || !isPaymentState(s.paymentState)) return;
   if (s.checkoutUrl !== null) {
     if (typeof s.checkoutUrl !== "string" || s.checkoutUrl.length > 4096) return;
+    const prefix = `https://checkout.stripe.com/c/pay/cs_${mode}_`;
     if (
-      !/^https:\/\/checkout\.stripe\.com\/c\/pay\/cs_test_[A-Za-z0-9]+(?:[?#][^\s\\]*)?$/.test(
-        s.checkoutUrl,
-      )
+      !s.checkoutUrl.startsWith(prefix) ||
+      !/^[A-Za-z0-9]+(?:[?#][^\s\\]*)?$/.test(s.checkoutUrl.slice(prefix.length))
     )
       return;
   }

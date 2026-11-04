@@ -1,5 +1,5 @@
 import { Client } from "pg";
-import type { StorefrontScope, CheckoutIssueRequest } from "@provide/contracts";
+import type { StorefrontScope, CheckoutIssueRequest, OnlinePaymentMode } from "@provide/contracts";
 export interface CheckoutBudget {
   key: string;
   capacity: number;
@@ -51,6 +51,7 @@ export interface CheckoutProtectionRepository {
     command: unknown,
     retention: number,
     account: string | null,
+    paymentMode?: OnlinePaymentMode,
   ): Promise<unknown>;
   cleanup(connection: string): Promise<unknown>;
 }
@@ -128,11 +129,11 @@ export const postgresCheckoutProtection: CheckoutProtectionRepository = {
       s.locationSlug,
       k,
     ]),
-  submit: (c, h, id, s, m, f, cmd, r, a) =>
+  submit: (c, h, id, s, m, f, cmd, r, a, paymentMode = "test") =>
     query(
       c,
-      "select private.checkout_submit($1,$2::uuid,$3,$4,$5,$6,$7::jsonb,$8,$9) as data",
-      [h, id, s.restaurantSlug, s.locationSlug, m, f, JSON.stringify(cmd), r, a],
+      "select private.checkout_submit($1,$2::uuid,$3,$4,$5,$6,$7::jsonb,$8,$9,$10) as data",
+      [h, id, s.restaurantSlug, s.locationSlug, m, f, JSON.stringify(cmd), r, a, paymentMode],
       m === "online-orders",
     ),
   cleanup: (c) => query(c, "select private.checkout_cleanup(1000) as data", []),

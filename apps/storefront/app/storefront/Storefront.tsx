@@ -55,6 +55,8 @@ import {
 
 interface StorefrontProps extends StorefrontScope {
   readonly onlinePaymentEnabled?: boolean;
+  readonly production?: boolean;
+  readonly livePrivacyUrl?: string;
   readonly checkoutProtectionEnabled?: boolean;
   readonly checkoutTurnstileSiteKey?: string;
   readonly privacyNoticeVersion: string;
@@ -215,7 +217,11 @@ export default function Storefront(scope: StorefrontProps) {
     | ReturnType<typeof parseOnlineOrderConfirmation>
     | null
   >(null);
-  const [onlinePayment, setOnlinePayment] = useState(false);
+  const [onlinePaymentSelected, setOnlinePayment] = useState(false);
+  const onlinePaymentAvailable =
+    scope.onlinePaymentEnabled &&
+    (!scope.production || catalog?.liveOnlinePaymentAvailable === true);
+  const onlinePayment = onlinePaymentSelected && onlinePaymentAvailable;
   const [paymentAction, setPaymentAction] = useState<PaymentAction | null>(null);
   const [openingPayment, setOpeningPayment] = useState(false);
   const [postalCode, setPostalCode] = useState("");
@@ -261,7 +267,9 @@ export default function Storefront(scope: StorefrontProps) {
     return protection.active && protection.request === controller && !controller.signal.aborted;
   }
   const protectionConfigured =
-    scope.checkoutProtectionEnabled === true && !!scope.checkoutTurnstileSiteKey;
+    scope.checkoutProtectionEnabled === true &&
+    !!scope.checkoutTurnstileSiteKey &&
+    (!scope.production || !!scope.livePrivacyUrl);
   const intent = client.currentIntent;
   const needsReceipt = client.needsReceipt;
   const readyToSubmit =
@@ -418,7 +426,7 @@ export default function Storefront(scope: StorefrontProps) {
         cache: "no-store",
       });
       const body = (await r.json()) as { data?: unknown };
-      const session = parsePaymentSession(body.data);
+      const session = parsePaymentSession(body.data, scope.production ? "live" : "test");
       if (!r.ok || !session) throw new Error("Payment unavailable");
       if (session.checkoutUrl) {
         window.location.assign(session.checkoutUrl);
@@ -1006,9 +1014,13 @@ export default function Storefront(scope: StorefrontProps) {
           PROVIDE<span> BESTELLEN</span>
         </a>
         <span className="preview-label">
-          {protectionConfigured
-            ? "Testansicht · Test-Checkout aktiviert"
-            : "Testansicht · Checkout nicht freigeschaltet"}
+          {scope.production
+            ? protectionConfigured
+              ? "Online bestellen"
+              : "Checkout nicht freigeschaltet"
+            : protectionConfigured
+              ? "Testansicht · Test-Checkout aktiviert"
+              : "Testansicht · Checkout nicht freigeschaltet"}
         </span>
       </header>
       {(pendingImport || importMessage) && (
@@ -1087,7 +1099,9 @@ export default function Storefront(scope: StorefrontProps) {
               )}{" "}
               ·{" "}
               {(orderStatus ?? confirmation)?.paymentCollectionMode === "online"
-                ? "Onlinezahlung im Testbetrieb"
+                ? scope.production
+                  ? "Onlinezahlung"
+                  : "Onlinezahlung im Testbetrieb"
                 : "Zahlung bei "}
               {(orderStatus ?? confirmation)?.paymentCollectionMode === "online"
                 ? ""
@@ -1110,7 +1124,9 @@ export default function Storefront(scope: StorefrontProps) {
           {confirmation && !orderStatus && (
             <p>
               {confirmation.paymentCollectionMode === "online"
-                ? "Bitte schließe die Testzahlung ab. Erst danach kann das Restaurant die Bestellung annehmen."
+                ? scope.production
+                  ? "Bitte reserviere den Betrag. Er wird abgebucht, sobald das Restaurant die Bestellung annimmt."
+                  : "Bitte schließe die Testzahlung ab. Erst danach kann das Restaurant die Bestellung annehmen."
                 : "Das Restaurant muss die Bestellung im nächsten Prozessschritt noch annehmen."}
             </p>
           )}
@@ -1122,7 +1138,11 @@ export default function Storefront(scope: StorefrontProps) {
               orderStatus.paymentState === "open" ||
               orderStatus.paymentState === "checking") && (
               <button type="button" disabled={openingPayment} onClick={() => void openPayment()}>
-                {openingPayment ? "Zahlung wird geöffnet …" : "Testzahlung öffnen oder fortsetzen"}
+                {openingPayment
+                  ? "Zahlung wird geöffnet …"
+                  : scope.production
+                    ? "Zahlung öffnen oder fortsetzen"
+                    : "Testzahlung öffnen oder fortsetzen"}
               </button>
             )}
           {statusMessage && (
@@ -1451,7 +1471,7 @@ export default function Storefront(scope: StorefrontProps) {
                       void submitCheckout();
                     }}
                   >
-                    {scope.onlinePaymentEnabled && (
+                    {onlinePaymentAvailable && (
                       <label>
                         Zahlungsart
                         <select
@@ -1462,7 +1482,9 @@ export default function Storefront(scope: StorefrontProps) {
                           }}
                         >
                           <option value="on_fulfillment">Zahlung bei Übergabe</option>
-                          <option value="online">Online bezahlen – Testzahlung</option>
+                          <option value="online">
+                            {scope.production ? "Online bezahlen" : "Online bezahlen – Testzahlung"}
+                          </option>
                         </select>
                       </label>
                     )}
@@ -1539,7 +1561,19 @@ export default function Storefront(scope: StorefrontProps) {
                         setEmail(event.target.value);
                       }}
                     />
-                    <CheckoutPrivacyNotice noticeVersion={scope.privacyNoticeVersion} />
+                    {scope.production ? (
+                      <p id="checkout-privacy-context">
+                        {scope.livePrivacyUrl ? (
+                          <a href={scope.livePrivacyUrl} target="_blank" rel="noopener noreferrer">
+                            Datenschutzhinweis zur Bestellung
+                          </a>
+                        ) : (
+                          "Der Datenschutzhinweis ist gerade nicht verfügbar."
+                        )}
+                      </p>
+                    ) : (
+                      <CheckoutPrivacyNotice noticeVersion={scope.privacyNoticeVersion} />
+                    )}
                     <label className="privacy-confirmation">
                       <input
                         type="checkbox"
@@ -1550,7 +1584,9 @@ export default function Storefront(scope: StorefrontProps) {
                           setPrivacyAccepted(event.target.checked);
                         }}
                       />
-                      Ich habe den Datenschutzhinweis für den Test-Checkout gesehen.
+                      {scope.production
+                        ? "Ich habe den Datenschutzhinweis zur Bestellung gesehen."
+                        : "Ich habe den Datenschutzhinweis für den Test-Checkout gesehen."}
                     </label>
                     <section aria-label="Bestellversuch">
                       {!protectionConfigured && (
@@ -1608,7 +1644,9 @@ export default function Storefront(scope: StorefrontProps) {
                       {checkoutState === "submitting"
                         ? "Wird übermittelt …"
                         : onlinePayment
-                          ? "Bestellung für Testzahlung reservieren"
+                          ? scope.production
+                            ? "Bestellung zur Zahlung reservieren"
+                            : "Bestellung für Testzahlung reservieren"
                           : fulfillmentType === "delivery"
                             ? "Lieferbestellung absenden"
                             : "Abholbestellung absenden"}

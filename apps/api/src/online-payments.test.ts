@@ -441,6 +441,7 @@ describe("connected restaurant reconciliation", () => {
         new Date(timestamp * 1000).toISOString(),
         "acct_restaurantA",
         succeeded,
+        "test",
       );
     },
   );
