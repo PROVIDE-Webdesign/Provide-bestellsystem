@@ -106,7 +106,8 @@ export function onlineState(j: OnlineJob): PaymentState {
   if (j.refund_state === "failed") return "refund_failed";
   if (["requested", "pending"].includes(j.refund_state)) return "refund_pending";
   if (j.close_requested && !j.provider_terminal) return "cancelling";
-  if (j.payment_status === "authorized") return j.capture_requested_at ? "capture_pending" : "authorized";
+  if (j.payment_status === "authorized")
+    return j.capture_requested_at ? "capture_pending" : "authorized";
   if (j.payment_status === "captured") return "paid";
   if (["failed", "cancelled", "expired"].includes(j.payment_status)) return "expired";
   return j.last_error || Date.parse(j.deadline) <= Date.now() ? "checking" : "open";
@@ -153,17 +154,26 @@ export async function processOnlinePayment(
         throw new Error("Manual settlement unavailable");
       const acceptanceDeadline = Date.parse(latest.acceptance_deadline ?? "");
       const requestedAt = Date.parse(latest.capture_requested_at ?? "");
-      const closing = !!latest.close_requested || ["cancelled", "rejected"].includes(latest.order_status);
-      const requestedInTime = latest.order_status === "submitted" &&
-        Number.isFinite(requestedAt) && requestedAt <= Date.now() && requestedAt < acceptanceDeadline;
-      const action = requestedInTime && !closing
-        ? "capture"
-        : closing || Date.now() >= (Number.isFinite(acceptanceDeadline) ? acceptanceDeadline : Date.parse(j.deadline))
-          ? "cancel"
-          : null;
+      const closing =
+        !!latest.close_requested || ["cancelled", "rejected"].includes(latest.order_status);
+      const requestedInTime =
+        latest.order_status === "submitted" &&
+        Number.isFinite(requestedAt) &&
+        requestedAt <= Date.now() &&
+        requestedAt < acceptanceDeadline;
+      const action =
+        requestedInTime && !closing
+          ? "capture"
+          : closing ||
+              Date.now() >=
+                (Number.isFinite(acceptanceDeadline) ? acceptanceDeadline : Date.parse(j.deadline))
+            ? "cancel"
+            : null;
       if (action) {
         await provider.settleAuthorization(
-          merchantConfig, { id: j.id, intentId: session.intent, amount: j.amount }, action,
+          merchantConfig,
+          { id: j.id, intentId: session.intent, amount: j.amount },
+          action,
         );
         session = await provider.session(merchantConfig, providerJob);
         if (action === "capture" ? !session.paid : !session.authorizationReleased)
@@ -176,11 +186,12 @@ export async function processOnlinePayment(
         ? "paid"
         : session.authorized
           ? "authorized"
-          : session.authorizationReleased || session.status === "expired" ||
-            (session.status === "complete" &&
-              (latest.close_requested || Date.parse(j.deadline) <= Date.now()))
-          ? "expired"
-          : "open",
+          : session.authorizationReleased ||
+              session.status === "expired" ||
+              (session.status === "complete" &&
+                (latest.close_requested || Date.parse(j.deadline) <= Date.now()))
+            ? "expired"
+            : "open",
       refundId = j.refund_id;
     if (
       session.paid &&

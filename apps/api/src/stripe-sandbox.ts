@@ -20,7 +20,11 @@ export interface ProviderRefund {
   status: "pending" | "succeeded" | "failed";
 }
 export interface SandboxProvider {
-  settleAuthorization?(config: SandboxConfig, job: AuthorizationJob, action: "capture" | "cancel"): Promise<void>;
+  settleAuthorization?(
+    config: SandboxConfig,
+    job: AuthorizationJob,
+    action: "capture" | "cancel",
+  ): Promise<void>;
   session(
     config: SandboxConfig,
     job: {
@@ -104,9 +108,17 @@ function assertAuthorizationIntent(intent: Record<string, unknown>, job: Authori
 }
 
 export const stripeSandboxProvider: SandboxProvider & {
-  settleAuthorization(config: SandboxConfig, job: AuthorizationJob, action: "capture" | "cancel"): Promise<void>;
+  settleAuthorization(
+    config: SandboxConfig,
+    job: AuthorizationJob,
+    action: "capture" | "cancel",
+  ): Promise<void>;
 } = {
-  async settleAuthorization(config: SandboxConfig, job: AuthorizationJob, action: "capture" | "cancel") {
+  async settleAuthorization(
+    config: SandboxConfig,
+    job: AuthorizationJob,
+    action: "capture" | "cancel",
+  ) {
     await verifyAccount(config);
     if (!/^pi_[A-Za-z0-9]+$/.test(job.intentId)) throw new Error("Invalid intent ID");
     const path = "/payment_intents/" + encodeURIComponent(job.intentId);
@@ -120,11 +132,17 @@ export const stripeSandboxProvider: SandboxProvider & {
       const body = new URLSearchParams();
       if (action === "capture") body.set("amount_to_capture", String(job.amount));
       result = await request(
-        config, path + "/" + action, body, "provide-online-" + action + ":" + job.id,
+        config,
+        path + "/" + action,
+        body,
+        "provide-online-" + action + ":" + job.id,
       );
     }
     assertAuthorizationIntent(result, job);
-    if (result.status !== expected || result.amount_received !== (action === "capture" ? job.amount : 0))
+    if (
+      result.status !== expected ||
+      result.amount_received !== (action === "capture" ? job.amount : 0)
+    )
       throw new Error("Unexpected authorization outcome");
   },
   async session(c, j) {
@@ -196,15 +214,18 @@ export const stripeSandboxProvider: SandboxProvider & {
         assertAuthorizationIntent(p, { id: j.id, intentId: s.payment_intent, amount: j.amount });
         authorizationReleased = p.status === "canceled" && p.amount_received === 0;
         authorized =
-          p.status === "requires_capture" && p.amount_capturable === j.amount && p.amount_received === 0;
+          p.status === "requires_capture" &&
+          p.amount_capturable === j.amount &&
+          p.amount_received === 0;
       }
       if (
-        !authorized && !authorizationReleased && (
-        p.livemode !== false ||
-        p.status !== "succeeded" ||
-        p.amount_received !== j.amount ||
-        p.currency !== "eur" ||
-        object(p.metadata)?.provide_job !== j.id)
+        !authorized &&
+        !authorizationReleased &&
+        (p.livemode !== false ||
+          p.status !== "succeeded" ||
+          p.amount_received !== j.amount ||
+          p.currency !== "eur" ||
+          object(p.metadata)?.provide_job !== j.id)
       )
         throw new Error("Invalid capture");
       intent = s.payment_intent;

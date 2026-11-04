@@ -140,45 +140,48 @@ describe("Stripe sandbox HTTP adapter", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(new Headers(fetcher.mock.calls[0]?.[1]?.headers).get("stripe-account")).toBeNull();
   });
-  it.each([undefined, "manual"] as const)("uses the exact stored total and identical creation parameters after a lost response (%s)", async (captureMethod) => {
-    const retryJob = { ...job, ...(captureMethod ? { captureMethod } : {}) };
-    const calls: RequestInit[] = [];
-    let lose = true;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn((url: string, init: RequestInit) => {
-        if (url.endsWith("/account")) return Promise.resolve(response({ id: config.account }));
-        if (url.includes("/v2/core/accounts/")) return Promise.resolve(response(ready()));
-        calls.push(init);
-        if (lose) {
-          lose = false;
-          return Promise.reject(new Error("response lost"));
-        }
-        return Promise.resolve(response(session));
-      }),
-    );
-    await expect(stripeSandboxProvider.session(config, retryJob)).rejects.toThrow();
-    await expect(stripeSandboxProvider.session(config, retryJob)).resolves.toMatchObject({
-      paid: false,
-    });
-    expect(calls[0]?.body).toBe(calls[1]?.body);
-    const body = calls[1]?.body;
-    if (typeof body !== "string") throw new Error("Missing encoded request body");
-    const payload = new URLSearchParams(body);
-    expect(payload.get("line_items[0][price_data][unit_amount]")).toBe("2950");
-    expect(payload.has("payment_method_types[0]")).toBe(false);
-    expect(payload.get("payment_intent_data[capture_method]")).toBe(captureMethod ?? null);
-    expect(payload.get("integration_identifier")).toMatch(/^provide_ab39_[a-p]{8}$/);
-    expect(payload.get("payment_intent_data[metadata][provide_job]")).toBe(job.id);
-    expect(payload.has("customer_email")).toBe(false);
-    expect(payload.get("success_url")).toBe(config.returnOrigin + "/r/restaurant-a/location-a");
-    expect(new Headers(calls[0]?.headers).get("idempotency-key")).toBe(
-      "provide-online-create:" + job.id,
-    );
-    expect(new Headers(calls[1]?.headers).get("idempotency-key")).toBe(
-      "provide-online-create:" + job.id,
-    );
-  });
+  it.each([undefined, "manual"] as const)(
+    "uses the exact stored total and identical creation parameters after a lost response (%s)",
+    async (captureMethod) => {
+      const retryJob = { ...job, ...(captureMethod ? { captureMethod } : {}) };
+      const calls: RequestInit[] = [];
+      let lose = true;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((url: string, init: RequestInit) => {
+          if (url.endsWith("/account")) return Promise.resolve(response({ id: config.account }));
+          if (url.includes("/v2/core/accounts/")) return Promise.resolve(response(ready()));
+          calls.push(init);
+          if (lose) {
+            lose = false;
+            return Promise.reject(new Error("response lost"));
+          }
+          return Promise.resolve(response(session));
+        }),
+      );
+      await expect(stripeSandboxProvider.session(config, retryJob)).rejects.toThrow();
+      await expect(stripeSandboxProvider.session(config, retryJob)).resolves.toMatchObject({
+        paid: false,
+      });
+      expect(calls[0]?.body).toBe(calls[1]?.body);
+      const body = calls[1]?.body;
+      if (typeof body !== "string") throw new Error("Missing encoded request body");
+      const payload = new URLSearchParams(body);
+      expect(payload.get("line_items[0][price_data][unit_amount]")).toBe("2950");
+      expect(payload.has("payment_method_types[0]")).toBe(false);
+      expect(payload.get("payment_intent_data[capture_method]")).toBe(captureMethod ?? null);
+      expect(payload.get("integration_identifier")).toMatch(/^provide_ab39_[a-p]{8}$/);
+      expect(payload.get("payment_intent_data[metadata][provide_job]")).toBe(job.id);
+      expect(payload.has("customer_email")).toBe(false);
+      expect(payload.get("success_url")).toBe(config.returnOrigin + "/r/restaurant-a/location-a");
+      expect(new Headers(calls[0]?.headers).get("idempotency-key")).toBe(
+        "provide-online-create:" + job.id,
+      );
+      expect(new Headers(calls[1]?.headers).get("idempotency-key")).toBe(
+        "provide-online-create:" + job.id,
+      );
+    },
+  );
   it("rejects live, foreign-account, wrong-amount and foreign-job responses", async () => {
     for (const change of [
       { livemode: true },

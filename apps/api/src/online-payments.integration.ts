@@ -24,23 +24,24 @@ export async function verifyOnlineIntegration(
     releases = 0;
   let loseCaptureReply = true;
   const provider: SandboxProvider = {
-    async settleAuthorization(merchant, job, action) {
+    settleAuthorization(merchant, job, action) {
       expect(merchant.merchantAccount).toBe("acct_restaurantA");
       const session = sessions.get(job.id);
       if (!session || !session.authorized || session.intent !== job.intentId)
-        throw new Error("Unexpected settlement");
+        return Promise.reject(new Error("Unexpected settlement"));
       session.authorized = false;
       if (action === "capture") {
         captures++;
         session.paid = true;
         if (loseCaptureReply) {
           loseCaptureReply = false;
-          throw new Error("Synthetic loss after Stripe accepted capture");
+          return Promise.reject(new Error("Synthetic loss after Stripe accepted capture"));
         }
       } else {
         releases++;
         session.authorizationReleased = true;
       }
+      return Promise.resolve();
     },
     session(_config, j) {
       expect(_config.merchantAccount).toBe("acct_restaurantA");
