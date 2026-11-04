@@ -1,5 +1,6 @@
 import {
   isExplicitInstant,
+  isOrderNumber,
   isStorefrontScope,
   parsePublicOrderStatusRequest,
   type PublicOrderStatusRequest,
@@ -53,4 +54,42 @@ export function parseEmailStatusFragment(
   )
     return undefined;
   return parseStoredOrderStatusAccess(JSON.stringify(Object.fromEntries(p)), now);
+}
+
+export interface SavedOrder extends StoredOrderStatusAccess {
+  readonly orderNumber?: string;
+}
+
+export function readOrderHistory(storage: Storage, key: string, now = Date.now()): SavedOrder[] {
+  const historyKey = key + ":history";
+  const raw = storage.getItem(historyKey);
+  if (!raw) return [];
+  let entries: unknown;
+  try {
+    entries = JSON.parse(raw);
+  } catch {
+    entries = [];
+  }
+  const valid: SavedOrder[] = [];
+  for (const entry of Array.isArray(entries) ? (entries as unknown[]).slice(0, 20) : []) {
+    if (!entry || typeof entry !== "object") continue;
+    const { orderNumber, ...access } = entry as Record<string, unknown>;
+    const parsed = parseStoredOrderStatusAccess(JSON.stringify(access), now);
+    if (parsed && !valid.some((order) => order.orderId === parsed.orderId))
+      valid.push({ ...parsed, ...(isOrderNumber(orderNumber) ? { orderNumber } : {}) });
+  }
+  if (!valid.length) storage.removeItem(historyKey);
+  else if (JSON.stringify(valid) !== raw) storage.setItem(historyKey, JSON.stringify(valid));
+  return valid;
+}
+
+export function saveOrderHistory(storage: Storage, key: string, access: SavedOrder): SavedOrder[] {
+  const history = readOrderHistory(storage, key);
+  const previous = history.find((order) => order.orderId === access.orderId);
+  const orders = [
+    { ...previous, ...access },
+    ...history.filter((order) => order.orderId !== access.orderId),
+  ].slice(0, 20);
+  storage.setItem(key + ":history", JSON.stringify(orders));
+  return orders;
 }

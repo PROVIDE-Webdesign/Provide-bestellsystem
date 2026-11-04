@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   orderStatusStorageKey,
+  readOrderHistory,
+  saveOrderHistory,
   parseStoredOrderStatusAccess,
   parseEmailStatusFragment,
 } from "./status-storage";
@@ -43,4 +45,34 @@ describe("temporary order status storage", () => {
       ),
     ).toBeUndefined();
   });
+});
+
+it("restores multiple orders in a new tab and removes expired access per location", () => {
+  const entries = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => entries.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      entries.set(key, value);
+    },
+    removeItem: (key: string) => {
+      entries.delete(key);
+    },
+  } as Storage;
+  const key = orderStatusStorageKey({
+    restaurantSlug: "restaurant-a",
+    locationSlug: "location-a",
+  })!;
+  const future = new Date(Date.now() + 60_000).toISOString();
+  const first = { ...access, orderNumber: "BS-00000001", statusAvailableUntil: future };
+  const second = {
+    ...first,
+    orderId: "fa000000-0000-0000-0000-000000000002",
+    orderNumber: "BS-00000002",
+  };
+  saveOrderHistory(storage, key, first);
+  saveOrderHistory(storage, key, second);
+  expect(readOrderHistory(storage, key)).toEqual([second, first]);
+  expect(readOrderHistory(storage, key + "-other")).toEqual([]);
+  expect(readOrderHistory(storage, key, Date.parse(future))).toEqual([]);
+  expect(entries.size).toBe(0);
 });

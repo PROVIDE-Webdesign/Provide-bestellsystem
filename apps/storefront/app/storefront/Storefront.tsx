@@ -50,7 +50,9 @@ import {
   orderStatusStorageKey,
   parseStoredOrderStatusAccess,
   parseEmailStatusFragment,
-  type StoredOrderStatusAccess,
+  readOrderHistory,
+  saveOrderHistory,
+  type SavedOrder,
 } from "./status-storage";
 
 interface StorefrontProps extends StorefrontScope {
@@ -224,7 +226,8 @@ export default function Storefront(scope: StorefrontProps) {
   const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
   const [quoteAccepted, setQuoteAccepted] = useState(false);
   const [orderStatus, setOrderStatus] = useState<PublicOrderStatus | null>(null);
-  const [statusAccess, setStatusAccess] = useState<StoredOrderStatusAccess | null>(null);
+  const [savedOrders, setSavedOrders] = useState<SavedOrder[]>([]);
+  const [statusAccess, setStatusAccess] = useState<SavedOrder | null>(null);
   const [statusState, setStatusState] = useState<"idle" | "loading" | "error">("idle");
   const [statusMessage, setStatusMessage] = useState("");
   const [protectionTick, setProtectionTick] = useState(0);
@@ -461,18 +464,46 @@ export default function Storefront(scope: StorefrontProps) {
     setChecking(false);
   }
 
-  const clearStoredStatus = useCallback(() => {
-    const key = orderStatusStorageKey(scope);
-    if (key)
+  const statusKey = orderStatusStorageKey(scope);
+
+  const rememberOrder = useCallback(
+    (access: SavedOrder) => {
+      if (!statusKey) return;
       try {
-        sessionStorage.removeItem(key);
+        setSavedOrders(saveOrderHistory(localStorage, statusKey, access));
       } catch {
-        // Storage is optional; the in-memory capability remains the primary source.
+        // The active order still works without local storage.
       }
-  }, [scope.locationSlug, scope.restaurantSlug]);
+    },
+    [statusKey],
+  );
+
+  const clearStoredStatus = useCallback(
+    (orderId?: string) => {
+      if (!statusKey) return;
+      try {
+        sessionStorage.removeItem(statusKey);
+      } catch {
+        // Session storage is optional.
+      }
+      try {
+        const orders = orderId
+          ? readOrderHistory(localStorage, statusKey).filter((order) => order.orderId !== orderId)
+          : [];
+        if (orders.length) localStorage.setItem(statusKey + ":history", JSON.stringify(orders));
+        else localStorage.removeItem(statusKey + ":history");
+        setSavedOrders(orders);
+      } catch {
+        setSavedOrders((orders) =>
+          orderId ? orders.filter((order) => order.orderId !== orderId) : [],
+        );
+      }
+    },
+    [statusKey],
+  );
 
   const refreshOrderStatus = useCallback(
-    async (access: StoredOrderStatusAccess) => {
+    async (access: SavedOrder) => {
       const controller = new AbortController();
       statusRequest.current?.abort();
       statusRequest.current = controller;
@@ -491,7 +522,7 @@ export default function Storefront(scope: StorefrontProps) {
         });
         if (controller.signal.aborted) return;
         if (response.status === 404) {
-          clearStoredStatus();
+          clearStoredStatus(access.orderId);
           setStatusAccess(null);
           setOrderStatus(null);
           setConfirmation(null);
@@ -504,6 +535,8 @@ export default function Storefront(scope: StorefrontProps) {
         const result = parsePublicOrderStatus(body.data);
         if (!result || result.orderId !== access.orderId) throw new Error("Invalid status");
         setOrderStatus(result);
+        if (result.orderNumber && !access.orderNumber)
+          rememberOrder({ ...access, orderNumber: result.orderNumber });
         setStatusState("idle");
       } catch {
         if (!controller.signal.aborted) {
@@ -514,11 +547,11 @@ export default function Storefront(scope: StorefrontProps) {
         if (statusRequest.current === controller) statusRequest.current = null;
       }
     },
-    [client, clearStoredStatus],
+    [client, clearStoredStatus, rememberOrder],
   );
 
   useEffect(() => {
-    const key = orderStatusStorageKey(scope);
+    const key = statusKey;
     if (!key) return;
     // Repeated effect setup must preserve a consumed email link when storage is blocked.
     if (restoredStatusScope.current === key) return;
@@ -528,11 +561,19 @@ export default function Storefront(scope: StorefrontProps) {
     setOrderStatus(null);
     setConfirmation(null);
     setStatusMessage("");
+    let history: SavedOrder[] = [];
+    try {
+      history = readOrderHistory(localStorage, key);
+    } catch {
+      // Local storage is optional.
+    }
+    setSavedOrders(history);
     const fromEmail = parseEmailStatusFragment(window.location.hash);
     if (window.location.hash)
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
     if (fromEmail) {
       setStatusAccess(fromEmail);
+      rememberOrder(fromEmail);
       try {
         sessionStorage.setItem(key, JSON.stringify(fromEmail));
       } catch {
@@ -542,12 +583,14 @@ export default function Storefront(scope: StorefrontProps) {
     }
     try {
       const stored = parseStoredOrderStatusAccess(sessionStorage.getItem(key));
-      if (stored) setStatusAccess(stored);
-      else sessionStorage.removeItem(key);
+      if (stored) {
+        setStatusAccess(stored);
+        if (!history.some((order) => order.orderId === stored.orderId)) rememberOrder(stored);
+      } else sessionStorage.removeItem(key);
     } catch {
       // Status remains available in memory when browser storage is unavailable.
     }
-  }, [scope.locationSlug, scope.restaurantSlug]);
+  }, [statusKey, rememberOrder]);
 
   useEffect(() => {
     if (!statusAccess) return;
@@ -712,7 +755,8 @@ export default function Storefront(scope: StorefrontProps) {
       statusAvailableUntil: result.statusAvailableUntil,
     };
     setStatusAccess(access);
-    const storageKey = orderStatusStorageKey(scope);
+    rememberOrder(result.orderNumber ? { ...access, orderNumber: result.orderNumber } : access);
+    const storageKey = statusKey;
     if (storageKey)
       try {
         sessionStorage.setItem(storageKey, JSON.stringify(access));
@@ -1045,6 +1089,44 @@ export default function Storefront(scope: StorefrontProps) {
             </>
           )}
           {importMessage && <p role="status">{importMessage}</p>}
+        </section>
+      )}
+      {savedOrders.length > 0 && (
+        <section className="order-status" aria-labelledby="saved-orders-title">
+          <h2 id="saved-orders-title">Meine Bestellungen</h2>
+          <p>Auf diesem Gerät gespeicherte Bestellungen mit gültigem Statuszugang.</p>
+          <ul>
+            {savedOrders.map((order, index) => (
+              <li key={order.orderId}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    statusRequest.current?.abort();
+                    setConfirmation(null);
+                    setOrderStatus(null);
+                    setStatusMessage("");
+                    setStatusAccess(order);
+                    void refreshOrderStatus(order);
+                  }}
+                >
+                  {order.orderNumber ?? `Bestellung ${index + 1}`} · Status öffnen
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() => {
+              statusRequest.current?.abort();
+              clearStoredStatus();
+              setStatusAccess(null);
+              setConfirmation(null);
+              setOrderStatus(null);
+              setStatusMessage("");
+            }}
+          >
+            Gespeicherte Bestellungen entfernen
+          </button>
         </section>
       )}
       {(confirmation || orderStatus || statusMessage) && (
