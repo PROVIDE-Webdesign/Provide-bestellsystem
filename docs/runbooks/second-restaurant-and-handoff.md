@@ -189,6 +189,22 @@ tatsächlichen Hörbarkeit. Bei erneut stummer Ausgabe den Status oder die angez
 und den verwendeten Browser erfassen.
 [WebKit-Befund zum Stummmodus](https://bugs.webkit.org/show_bug.cgi?id=237322)
 
+### Tonkorrektur in der gemeinsamen Vorschau
+
+Das Dashboard nutzt während eines ausdrücklich aktivierten Tons die Wiedergabe-Audiositzung, wenn
+der Browser diese Schnittstelle unterstützt und die bisherige Sitzung automatisch oder Ambient ist.
+Es stellt den vorherigen Typ nach dem Ton oder Zeitabbruch wieder her. Die Tondauer beträgt jetzt
+0,48 Sekunden. Die Lautstärke des Signals wurde angehoben.
+
+Änderung `5dce976`, Dashboard-Version `81d45a6b-f06a-4dfd-947d-d5583cc0b70f`. Typprüfung, 68
+Dashboard-Tests und der Produktionsbuild bestanden. Die WebKit-Prüfung mit emuliertem iPhone 13
+bestätigte Testton und Ton für einen neuen synthetischen Eingang am virtuellen Audioausgang. Der
+ausgelieferte Dashboard-Code stimmte mit dem Build überein. Im angemeldeten Vorschau-Dashboard
+wechselte die Anzeige nach dem Testton zu „Ton aktiviert“.
+
+Die Hörprobe am echten iPhone bleibt ausstehend. Safari direkt öffnen, das Dashboard neu laden und
+den Testton im offenen Bestelleingang auslösen.
+
 ## Geprüfter Einrichtungsstand für Marktgarten
 
 Am 04.11.2026 in der gemeinsamen Vorschau lesend abgeglichen. TEST Marktgarten und TEST Marktgarten
