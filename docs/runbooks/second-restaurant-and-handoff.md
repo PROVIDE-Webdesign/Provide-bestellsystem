@@ -44,28 +44,52 @@ HTTPS-Ursprung und ihre eigene Integrations-ID. Shop und Checkout bleiben gemein
    Vorschau, Datenbank, Stripe und zentralem Projektprotokoll koordiniert Bestellsystem 15. Eine
    Händler- oder Produktivfreigabe ist ein eigener Vorgang.
 
-## Datenblatt für den zweiten Betrieb
+## Geprüfter Einrichtungsstand für Marktgarten
 
-| Wer liefert                    | Noch zu bestätigen                                                                                                                                          |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Betreiber                      | Öffentlicher Name, Standortname und Adresse, Öffnungs- und Sonderzeiten, Abholvorlauf, Slotlänge, Kapazität, Pausenregel, Ansprechpartner und Ausfallweg    |
-| Küche und Leitung              | Veröffentlichte Speisekarte, Artikelnummern, Kategorien, Preise, Steuersatz je Vorgang, Varianten, Extras, Allergen-/Zusatzstoffangaben, Ausverkauft-Regeln |
-| Website-Verantwortliche        | Exakte HTTPS-Ursprünge, Integrations-ID, Zielrestaurant und Standort, Verantwortliche bei Importstörungen                                                   |
-| Bestellsystem 15 und Betreiber | Wirksame Vorschau- und Händlerfreigaben, Rollen und Standortrechte, Betriebs- und Produktivabnahme                                                          |
+Am 04.11.2026 in der gemeinsamen Vorschau lesend abgeglichen. TEST Marktgarten und TEST Marktgarten
+Mitte sind aktiv. Die produktiven Freigaben für Restaurant und Standort stehen auf `blocked`. Das
+Restaurant-Onboarding steht auf `not_started`, das Standort-Onboarding auf `in_progress`.
 
-Das vorhandene Marktgarten-Testmenü enthält unter anderem Ofengemüse und Apfelschorle. E145 und E165
-liefern diese Vorschau-Referenz für die Datenerfassung.
+| Bereich      | Bestätigter Vorschau-Stand                                                                                          |
+| ------------ | ------------------------------------------------------------------------------------------------------------------- |
+| Standort     | TEST Marktgarten Mitte · TEST Beispielweg 2 · 00000 TEST Teststadt · DE · Europe/Berlin                             |
+| Karte        | Version 1 veröffentlicht. Drei aktive Testartikel in der Kategorie `testgerichte`.                                  |
+| Ofengemüse   | 12,90 € Normal, 15,90 € Groß                                                                                        |
+| Apfelschorle | 3,90 €                                                                                                              |
+| Linsensuppe  | 6,90 €                                                                                                              |
+| Abholzeit    | Montag bis Samstag 17:00–21:30 Uhr, Sonntag ohne Abholfenster                                                       |
+| Planung      | 30 Minuten Vorlauf, 7 Tage Bestellhorizont, 15-Minuten-Slots, 2 Bestellungen und 10 Artikel je Slot                 |
+| Betrieb      | Höchstens 5 offene Bestellungen, Bestellschluss 10 Minuten vor Fensterende, Annahmefrist 5 Minuten, 0 Liefergebiete |
+| Website      | `pilot-website-b` ist auf `test-marktgarten/test-marktgarten-mitte` registriert und aktiv.                          |
+| Zugriff      | Eine aktive Inhaberrolle im Vorschau-Restaurant.                                                                    |
+| Befristung   | Standortfreigabe und Website-Integration bis 08.11.2026, 02:09 Uhr Ortszeit.                                        |
 
-| Kategorie     | Artikel           | Auswahl  | Belegter Vorschaupreis |
-| ------------- | ----------------- | -------- | ---------------------- |
-| Hauptgerichte | TEST Ofengemüse   | Normal   | 12,90 €                |
-| Hauptgerichte | TEST Ofengemüse   | Groß     | 15,90 €                |
-| Getränke      | TEST Apfelschorle | Standard | 3,90 €                 |
+Die Speisekarte verwendet synthetische Steuer- und Allergenangaben. Die echte Karte wird anhand der
+bestätigten Angaben des Betreibers gepflegt. Die Testadresse und Testkonfiguration sind als
+Vorschau-Referenz dokumentiert.
 
-Marktgarten Mitte ist der Teststandort in der Zeitzone Europe/Berlin. Adresse, Zeiten, Vorlauf und
-Kapazität für den späteren echten Betrieb bleiben Eingaben des Betreibers. Kategorie, Produktdaten,
-Steuern und Preise für das tatsächliche Menü vor einem Einsatz bestätigen. Die veröffentlichte
-Testkarte und ihren Preis vor jedem Vorschau-Abnahmelauf frisch prüfen.
+### Betreiberangaben für die echte Einrichtung
+
+| Bereich                                     | Vom Betreiber noch benötigt                                                                                                                                                                                          |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Betrieb und Ansprechpartner                 | Tatsächlicher Restaurantname und Betreiber, Standortname, vollständige Abholadresse, öffentliche Website, betrieblicher Kontakt und Ausfallkontakt                                                                   |
+| Standortregeln                              | Reguläre Öffnungs- und Abholzeiten, Feiertage und Schließtage, gewünschte Bestellkanäle, Vorlauf, Slotlänge, Kapazitäten, Bestellschluss und Pausenregel. Liefergebiete, Gebühren und Mindestwert nur bei Lieferung. |
+| Speisekarte                                 | Aktuelle Karte mit Kategorien, Artikelbezeichnungen, Preisen, Varianten und Extras mit Aufpreis. Je Artikel bestätigte Steuer-, Allergen- und Zusatzstoffangaben sowie gewünschte Verfügbarkeit.                     |
+| Geräte und Rollen                           | Verantwortliche Person, Rollen für Leitung und Küche, tatsächlich eingesetzte Restaurantgeräte und Termin für Gerätekontrolle sowie Einweisung                                                                       |
+| Freigaben für den späteren Produktivbetrieb | Bestätigte Website-Zuordnung, Betreiber- und Standortdaten, angebotene Zahlarten und dazugehörige technische Freigaben im Zuständigkeitsbereich von Bestellsystem 15                                                 |
+
+### Wiederverwendete Bestellnachweise
+
+| Bestellung  | Bestätigter Umfang                                                                                                                                                                               |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| BS-00000010 | Marktgarten Mitte. Zwei Artikel, 19,80 €, Abholung, abgeschlossen.                                                                                                                               |
+| BS-00000021 | Marktgarten Mitte. Ein Artikel, 6,90 € im Stripe-Testmodus erfasst und vollständig erstattet. Bestellung storniert.                                                                              |
+| BS-00000022 | Restaurant A, Standort Mitte. Website-Warenkorb bis Gastbestätigung und Dashboard, zwei Artikel und 15,30 €, Zahlung bei Abholung. Separater Smartphone-Test vom Nutzer als bestanden bestätigt. |
+
+Die Einrichtung des zweiten **Testrestaurants** ist mit diesen Vorschau-Belegen abgeschlossen. Der
+Produktivbetrieb benötigt bestätigte Betreiberangaben, die Betriebs- und Geräteabnahme und eine
+gesonderte Freigabe. Die Bestellung von Restaurant A belegt den Website-Durchlauf für A. Für die
+Website-Anbindung von Marktgarten liegen die getrennten Browser- und Preisprüfungen vor.
 
 ## Kurzanleitung für Restaurantteam und Geräte
 
@@ -82,7 +106,7 @@ Testkarte und ihren Preis vor jedem Vorschau-Abnahmelauf frisch prüfen.
 4. Physische Prüfung auf dem vorgesehenen Restaurantgerät und auf einem Smartphone separat
    protokollieren. Die isolierte Chromium-Mobilansicht deckt Darstellung und Bedienweg ab.
 
-## Übergabe an Bestellsystem 15 · gemeinsamer einmaliger Testfall BS16-WEB-E2E-01
+## Abgeschlossener Testfall BS16-WEB-E2E-01
 
 1. Vor dem Lauf den abgestimmten Vorschau-Stand für Shop, API und Dashboard samt aktueller Karte,
    Integrationszuordnung und Testfreigaben festhalten. Vorbereitete oder unklare alte Bestellungen
@@ -93,17 +117,18 @@ Testkarte und ihren Preis vor jedem Vorschau-Abnahmelauf frisch prüfen.
    die erwarteten Artikel, Optionen und Beträge anhand der veröffentlichten Karte vorab
    aktualisieren. Den Link erzeugen, die Übernahme bewusst bestätigen und Preise im Shop
    serverseitig prüfen und bestätigen.
-3. Mit synthetischem Gastkontakt und normaler Schutzprüfung einmal absenden. Bestellsystem 15 führt
-   die Bestellung aus und übernimmt den vorgesehenen Abnahmemodus für die Zahlung. BS-00000020
-   bleibt der bestehende Nachweis für einmalige Sandbox-Erfassung bei Annahme.
+3. Bestellsystem 16 hat die Bestellung mit synthetischem Gastkontakt und normaler Schutzprüfung
+   einmal im Modus Zahlung bei Abholung abgesendet. BS-00000020 bleibt der bestehende Nachweis für
+   einmalige Sandbox-Erfassung bei Annahme.
 4. Erwartung: genau eine Bestellnummer für `storefront-restaurant-a/storefront-a-mitte`, korrekter
    Termin, beide Positionen samt Variante/Extra und identische Gesamtsumme in Gastansicht und
    Dashboard. Kein Eintrag unter dem Marktgarten-Standort. Beim Onlinepfad gelten zusätzlich der
    dokumentierte Reservierungs- und Annahmestatus. Bei unklarer Antwort anhand derselben Bestellung
    prüfen, bevor eine weitere Aktion ausgelöst wird.
-5. Belege zu tatsächlicher Version, Gerät, Gaststatus, Dashboard und Bestellnummer im zentralen
-   Protokoll zuordnen. Für den physischen Mobilnachweis reicht ein separater Warenkorb- und
-   Preisbestätigungsdurchlauf ohne weitere Bestellung.
+5. Gastansicht und Dashboard bestätigten BS-00000022 für Restaurant A, Standort Mitte, mit 15,30 €
+   und Abholung am 05.11.2026 um 18:45 Uhr Ortszeit. Der Vorschau-Shop lief mit Version
+   `f60362b7-4e80-4702-b40c-e7c0178eea64`. Den separaten Smartphone-Test hat der Nutzer als
+   bestanden bestätigt.
 
 ## Isolierte Prüfung für den Shop-Branch
 
@@ -143,5 +168,6 @@ isolierte Umgebung nach der Prüfung separat stoppen.
 
 Der Browserlauf verwendete die echte Import- und Preislogik in einer getrennten Umgebung mit
 synthetischen Daten. Die Beispielsummen waren 30,00 € bei zwei Gerichten in A und 36,90 € bei drei
-Gerichten in B. Es gab null Bestell- oder Zahlungsaufrufe, Bestellungen und Zahlungsaufträge. Eine
-echte Smartphone-Prüfung und BS16-WEB-E2E-01 folgen auf dem gemeinsam abgestimmten Vorschau-Stand.
+Gerichten in B. Es gab null Bestell- oder Zahlungsaufrufe, Bestellungen und Zahlungsaufträge. Die
+späteren Vorschau- und Smartphone-Nachweise stehen im Abschnitt zum abgeschlossenen Testfall
+BS16-WEB-E2E-01.
