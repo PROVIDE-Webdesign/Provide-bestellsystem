@@ -138,6 +138,25 @@ unten gilt für die spätere Einrichtung eines echten Betriebs.
    Bestellton verwenden. BS-00000022 bleibt der Beleg für den Website- und Dashboard-Pfad. Die
    technische Freigabe und der Hörnachweis sind die verbleibenden Abnahmeschritte.
 
+### Abgleich vor Freischaltung am 04.11.2026, 16:51 Uhr
+
+Cloudflare lieferte je eine aktive Version für die API (`cd80dd4e-ddf9-447a-b257-87402fc68ccc`) und
+das Dashboard (`be65754f-90e2-476f-97e5-7cc5673d150f`). Anmeldung und Bestellbearbeitung waren bei
+beiden aktiv. Die API hatte eine Hyperdrive-Bindung, deaktivierten Datenbankcache und einen
+Minutentakt. Der Alarmschalter stand in beiden Diensten auf `false`. Der Abgleich war lesend.
+
+Für die abgestimmte Änderung die aktuellen Worker-Versionen direkt vorher abgleichen. In der API und
+danach im Dashboard jeweils nur `DASHBOARD_ORDER_ALERTS_ENABLED` auf `true` setzen. Andere Bindungen
+und Zeitpläne im Vorher-Nachher-Vergleich berücksichtigen. Der API-Minutenlauf kann danach bereits
+überfällige Testannahmen protokollieren. Deren offenen Bestand vorab prüfen. Die oben genannten
+Versionen sind die Rücksetzpunkte für diesen Ausgangsstand. Bei einer inzwischen neu
+veröffentlichten Version die Rücksetzpunkte frisch erfassen und den anderen Arbeitsstrang abstimmen.
+
+Nach dem Einschalten zuerst den API-Endpunkt ohne Anmeldung prüfen. HTTP 401 ist in diesem Fall das
+erwartete Ergebnis für die aktive, geschützte Route. Danach mit der vorhandenen Standortrolle die
+erfolgreiche Dashboard-Abfrage und den sichtbaren Testton prüfen. Die Abnahme der Hörbarkeit erfolgt
+auf dem vorgesehenen Restaurantgerät.
+
 ## Geprüfter Einrichtungsstand für Marktgarten
 
 Am 04.11.2026 in der gemeinsamen Vorschau lesend abgeglichen. TEST Marktgarten und TEST Marktgarten
