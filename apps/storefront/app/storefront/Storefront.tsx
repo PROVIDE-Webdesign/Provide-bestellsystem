@@ -7,7 +7,7 @@ import { cartStorageKey, serializeCart, restoreCart } from "./cart-storage";
 
 import CheckoutChallenge from "./CheckoutChallenge";
 import { CheckoutClient, CheckoutClientError } from "./checkout-client";
-import { record, handoffIdPattern, handoffTokenPattern } from "@provide/contracts";
+import { record, handoffIdPattern, handoffTokenPattern, parseCartHandoffSelection } from "@provide/contracts";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -80,6 +80,32 @@ const statusLabels: Record<PublicOrderStatus["status"], string> = {
 export default function Storefront(scope: StorefrontProps) {
   const [shopTab, setShopTab] = useState<ShopTab>("menu");
   function navigateShop(tab: ShopTab) { setShopTab(tab); window.scrollTo({ top: 0, behavior: "instant" }); }
+  const [websiteImport, setWebsiteImport] = useState<unknown>(null);
+  useEffect(() => {
+    const pointer = `provide:website-cart-pending:${scope.restaurantSlug}:${scope.locationSlug}`;
+    const match = /^#website-cart=([a-f0-9-]{36})$/.exec(window.location.hash);
+    if (match) window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    try {
+      const token = match?.[1] ?? sessionStorage.getItem(pointer);
+      if (!token || !/^[a-f0-9-]{36}$/.test(token)) return;
+      const raw = sessionStorage.getItem(`provide:website-cart:${token}`);
+      const value = raw && raw.length < 64000 ? JSON.parse(raw) : null;
+      if (value && typeof value.expiresAt === "number" && parseCartHandoffSelection(value.selection) && value.restaurantSlug === scope.restaurantSlug && value.locationSlug === scope.locationSlug && value.expiresAt > Date.now() && value.expiresAt <= Date.now() + 600000) {
+        sessionStorage.setItem(pointer, token);
+        setWebsiteImport(value.selection);
+        setShopTab("cart");
+      }
+    } catch { /* The website cart remains available through the browser back button. */ }
+  }, [scope.restaurantSlug, scope.locationSlug]);
+  function dismissWebsiteCart() {
+    setWebsiteImport(null);
+    try {
+      const pointer = `provide:website-cart-pending:${scope.restaurantSlug}:${scope.locationSlug}`;
+      const token = sessionStorage.getItem(pointer);
+      if (token) sessionStorage.removeItem(`provide:website-cart:${token}`);
+      sessionStorage.removeItem(pointer);
+    } catch { /* Storage is optional after the selection was accepted. */ }
+  }
   const [pendingImport, setPendingImport] = useState<{ id: string; token: string } | null>(null);
   const [importMessage, setImportMessage] = useState("");
   const [importBusy, setImportBusy] = useState(false);
@@ -341,6 +367,25 @@ export default function Storefront(scope: StorefrontProps) {
       /* Persistence is optional. */
     }
   }, [cart, storageKey, cartRestored]);
+  function acceptWebsiteCart() {
+    if (!catalog || checkoutState === "submitting" || confirmation || client.currentIntent) return;
+    const imported = buildImportedCart(websiteImport, catalog);
+    if (!imported) {
+      setCartMessage("Die Auswahl von der Website passt nicht mehr zur Speisekarte. Bitte die Auswahl erneut prüfen.");
+      return;
+    }
+    setCart(imported);
+    setReview(null);
+    setDeliveryQuote(null);
+    setQuoteAccepted(false);
+    setFulfillmentType("pickup");
+    setLocalTime("");
+    invalidateSubmission();
+    cartCreatedAt.current = Date.now();
+    dismissWebsiteCart();
+    setShopTab("cart");
+    setCartMessage("Warenkorb von der Website übernommen. Bitte Abholzeit und aktuelle Preise prüfen.");
+  }
   const reviewSignature = JSON.stringify([cart, fulfillmentType, localTime, postalCode]);
   const reviewIsAccepted = !!review?.accepted && review.signature === reviewSignature;
   async function reviewCart() {
@@ -1053,6 +1098,12 @@ export default function Storefront(scope: StorefrontProps) {
       </a>
       {catalog && <ShopHeader disabled={checkoutState === "submitting"} catalog={catalog} fulfillment={fulfillmentType} onTimes={() => navigateShop("cart")} onFulfillment={(type) => { clearAnswer(); invalidateSubmission(); setFulfillmentType(type); }} />}
       {shopTab === "orders" && savedOrders.length === 0 && !confirmation && !orderStatus && <section className="shop-empty"><h2>Meine Bestellungen</h2><p>Hier findest du deine auf diesem Gerät gespeicherten Bestellungen.</p><button onClick={() => navigateShop("menu")}>Zur Speisekarte</button></section>}
+      {websiteImport !== null && <section className="order-status" aria-label="Warenkorb von der Website">
+        <h2>Deine Auswahl von Asian Kitchen</h2>
+        <p>Übernimm deine Auswahl von der Restaurantwebsite. Ein bereits gespeicherter Shop-Warenkorb wird dabei ersetzt.</p>
+        <button disabled={!catalog || checkoutState === "submitting" || !!confirmation || !!client.currentIntent} onClick={acceptWebsiteCart}>Warenkorb übernehmen</button>
+        <button onClick={dismissWebsiteCart}>Bisherigen Warenkorb behalten</button>
+      </section>}
       {(pendingImport || importMessage) && (
         <section className="order-status" aria-label="Warenkorb übernehmen" aria-live="polite">
           <h2>Warenkorb von der Restaurant-Website</h2>
