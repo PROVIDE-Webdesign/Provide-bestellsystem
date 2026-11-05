@@ -440,7 +440,7 @@ main.operator-root {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  font-size: 22px;
+  font-size: 24px;
   line-height: 27px;
 }
 .operator-card-meta > strong {
@@ -462,7 +462,7 @@ main.operator-root {
   min-width: 0;
 }
 .operator-card-items {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 400;
   min-width: 0;
   overflow: hidden;
@@ -552,7 +552,7 @@ main.operator-root {
 .operator-pickup {
   background: #f2f2e8;
   border-radius: 24px;
-  padding: 22px 24px;
+  padding: 12px 24px;
   min-width: 364px;
   min-height: 166px;
   display: flex;
@@ -1071,4 +1071,23 @@ main.operator-root {
 .operator-orders > li,
 .operator-order-card {
   min-width: 0;
+}
+
+.operator-tabs button {
+  font-size: 20px;
+}
+.operator-card-bottom > .operator-payment {
+  font-size: 17px;
+}
+.operator-detail-heading h2,
+.operator-pickup > strong {
+  -webkit-text-stroke: 0.7px currentColor;
+}
+@media (max-width: 1350px) {
+  .operator-tabs button {
+    font-size: 15px;
+  }
+  .operator-card-bottom > .operator-payment {
+    font-size: 13px;
+  }
 }
