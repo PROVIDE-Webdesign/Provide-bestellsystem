@@ -9,6 +9,7 @@ import {
   type OperationScope,
   type OperationValues,
 } from "@provide/contracts";
+import { OperatorIcon } from "./OperatorVisuals.js";
 const channelNames = { all: "Gesamter Standort", pickup: "Abholung", delivery: "Lieferung" };
 const weekdays = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 const defaults: LocationConfiguration = {
@@ -34,11 +35,22 @@ const emptyValues: OperationValues = {
 export function LocationOperations({
   restaurantId,
   locations,
+  compact = false,
 }: {
   restaurantId: string;
+  compact?: boolean;
   locations: readonly { id: string; displayName: string }[];
 }) {
   const [location, setLocation] = useState(locations[0]?.id ?? "");
+  if (compact)
+    return location ? (
+      <LocationOperationsEditor
+        key={restaurantId + location}
+        restaurantId={restaurantId}
+        locationId={location}
+        compact
+      />
+    ) : null;
   return (
     <section className="panel">
       <h3>Betriebssteuerung und Standortregeln</h3>
@@ -69,10 +81,17 @@ export function LocationOperations({
 function LocationOperationsEditor({
   restaurantId,
   locationId,
+  compact = false,
 }: {
   restaurantId: string;
   locationId: string;
+  compact?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const modal = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (expanded) modal.current?.showModal();
+  }, [expanded]);
   const [state, setState] = useState<LocationOperationsState | null>(null),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
@@ -142,6 +161,10 @@ function LocationOperationsEditor({
         if (!data) throw Error("Ungültige Antwort. Bitte erneut laden.");
         if (!live.current || request !== requests.current) return;
         setState(data);
+        if (command && compact) {
+          modal.current?.close();
+          setExpanded(false);
+        }
         if (command?.action === "create_draft") applyVersion(data, data.versions[0]?.id ?? "");
         else if (command?.action === "save_draft" || command?.action === "publish")
           applyVersion(data, command.versionId);
@@ -169,7 +192,7 @@ function LocationOperationsEditor({
         }
       }
     },
-    [endpoint, applyVersion],
+    [endpoint, applyVersion, compact],
   );
   useEffect(() => {
     live.current = true;
@@ -239,6 +262,113 @@ function LocationOperationsEditor({
         />
         {optional && <small>Leer = keine eigene Grenze</small>}
       </label>
+    );
+  }
+  if (compact) {
+    const pauses =
+      state?.overrides.filter(
+        (item) => item.values.paused && Date.parse(item.endsAt) > actualServerClock,
+      ) ?? [];
+    const paused = pauses.some((item) => item.scope === "all");
+    return (
+      <div className="operator-operations">
+        <span className={`operator-shop-state ${paused ? "is-paused" : ""}`}>
+          <i />
+          {!state
+            ? "Status wird geprüft"
+            : paused
+              ? "Bestellannahme pausiert"
+              : pauses.length
+                ? "Teilweise pausiert"
+                : state.currentVersionId
+                  ? "Bestellannahme aktiv"
+                  : "Regeln ausstehend"}
+        </span>
+        <button
+          type="button"
+          disabled={!state || busy}
+          onClick={() => {
+            setOperationReason("");
+            setExpanded(true);
+          }}
+        >
+          <OperatorIcon name="pause" />
+          {paused ? "Fortsetzen" : "Pausieren"}
+        </button>
+        {expanded && (
+          <dialog className="operator-dialog" ref={modal} onCancel={() => setExpanded(false)}>
+            <button
+              className="operator-dialog-close"
+              type="button"
+              aria-label="Schließen"
+              onClick={() => {
+                modal.current?.close();
+                setExpanded(false);
+              }}
+            >
+              ×
+            </button>
+            <h2>{paused ? "Bestellannahme fortsetzen" : "Bestellannahme pausieren"}</h2>
+            <label>
+              Grund
+              <input
+                value={operationReason}
+                maxLength={300}
+                onChange={(event) => setOperationReason(event.target.value)}
+              />
+            </label>
+            {!paused && (
+              <label>
+                Dauer in Minuten
+                <input
+                  type="number"
+                  min={1}
+                  max={1440}
+                  value={duration}
+                  onChange={(event) => setDuration(Number(event.target.value))}
+                />
+              </label>
+            )}
+            <button
+              disabled={
+                busy ||
+                !state ||
+                !operationReason.trim() ||
+                (!paused && (!Number.isInteger(duration) || duration < 1 || duration > 1440))
+              }
+              onClick={() =>
+                state &&
+                void execute(
+                  paused
+                    ? {
+                        action: "clear_override",
+                        scope: "all",
+                        expectedSequence: state.operationSequence,
+                        reason: operationReason,
+                      }
+                    : {
+                        action: "override",
+                        scope: "all",
+                        expectedSequence: state.operationSequence,
+                        endsAt: new Date(actualServerClock + duration * 60000).toISOString(),
+                        values: { ...emptyValues, paused: true },
+                        reason: operationReason,
+                      },
+                )
+              }
+            >
+              {busy ? "Wird gespeichert …" : "Bestätigen"}
+            </button>
+            <p role="status">{message}</p>
+            {paused && pauses.some((item) => item.scope !== "all") && (
+              <p>
+                Für einzelne Bestellarten bestehen zusätzliche Pausen. Diese lassen sich in den
+                Einstellungen bearbeiten.
+              </p>
+            )}
+          </dialog>
+        )}
+      </div>
     );
   }
   return (

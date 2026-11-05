@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import "./styles.css";
+import "./operator-design.css";
 
 export const metadata = {
   description: "Sicherer Restaurantzugang für das PROVIDE Bestellsystem",

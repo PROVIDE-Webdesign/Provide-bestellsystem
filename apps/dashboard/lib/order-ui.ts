@@ -1,4 +1,9 @@
-import type { DashboardOrderStatus } from "@provide/contracts";
+import {
+  orderReference,
+  paymentStateLabels,
+  type DashboardOrderStatus,
+  type DashboardOrderSummary,
+} from "@provide/contracts";
 
 export const orderStatusLabels: Record<DashboardOrderStatus, string> = {
   submitted: "Eingegangen",
@@ -46,4 +51,36 @@ export function fulfillmentTransitionLabel(
   if (fulfillmentType === "delivery" && status === "ready") return "Zur Auslieferung bereit";
   if (fulfillmentType === "delivery" && status === "completed") return "Als zugestellt bestätigen";
   return transitionLabels[status];
+}
+
+export function shortOrderNumber(order: Pick<DashboardOrderSummary, "orderId" | "orderNumber">) {
+  return order.orderNumber ? BigInt(order.orderNumber.slice(3)).toString() : orderReference(order);
+}
+
+export function operatorStage(order: Pick<DashboardOrderSummary, "status" | "fulfillmentType">) {
+  if (order.status === "submitted") return "Neu";
+  if (order.status === "accepted" || order.status === "preparing") return "In Zubereitung";
+  if (order.status === "ready")
+    return order.fulfillmentType === "delivery" ? "Bereit zur Lieferung" : "Abholbereit";
+  return { completed: "Abgeschlossen", cancelled: "Storniert", rejected: "Abgelehnt" }[
+    order.status
+  ];
+}
+
+export function operatorPayment(order: DashboardOrderSummary) {
+  if (order.paymentCollectionMode === "on_fulfillment")
+    return order.fulfillmentType === "delivery" ? "Bei Lieferung zahlen" : "Bei Abholung zahlen";
+  return order.paymentState === "paid"
+    ? "Online bezahlt"
+    : order.paymentState
+      ? paymentStateLabels[order.paymentState]
+      : "Onlinezahlung wird geprüft";
+}
+
+export function shortOrderTime(value: string, timezone = "Europe/Berlin") {
+  return new Intl.DateTimeFormat("de-DE", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: timezone,
+  }).format(new Date(value));
 }

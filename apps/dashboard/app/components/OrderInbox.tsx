@@ -1,6 +1,8 @@
 "use client";
 
 import { parseDashboardAcceptance, type DashboardAcceptance } from "@provide/contracts";
+import { createPortal } from "react-dom";
+import { OperatorIcon } from "./OperatorVisuals.js";
 import { useEffect, useRef, useState } from "react";
 import {
   subscribeDashboardOrderLive,
@@ -10,6 +12,7 @@ import {
 import { acceptanceRemaining, createAlarmTracker, createOrderTone } from "../../lib/order-alarm.js";
 
 interface Props {
+  readonly compact?: boolean;
   readonly restaurantId: string;
   readonly locationId: string;
   readonly liveEnabled: boolean;
@@ -23,6 +26,7 @@ interface Props {
 export function OrderInbox({
   restaurantId,
   locationId,
+  compact = false,
   liveEnabled,
   alertsEnabled,
   readOnly = false,
@@ -31,6 +35,10 @@ export function OrderInbox({
   onOpen,
   subscribeLive = subscribeDashboardOrderLive,
 }: Props) {
+  const [header, setHeader] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setHeader(document.getElementById(`operator-inbox-${restaurantId}`));
+  }, [restaurantId]);
   const [live, setLive] = useState<OrderLiveState>("fallback");
   const [snapshot, setSnapshot] = useState<DashboardAcceptance>();
   const [stale, setStale] = useState(true);
@@ -197,7 +205,7 @@ export function OrderInbox({
       if (operation === soundOperation.current) setSoundBusy(false);
     }
   }
-  return (
+  const content = (
     <section className="order-inbox" aria-label="Bestelleingang und Alarm">
       <p role="status">
         {live === "live"
@@ -265,5 +273,40 @@ export function OrderInbox({
         </>
       )}
     </section>
+  );
+  if (!compact) return content;
+  return (
+    <>
+      {header &&
+        createPortal(
+          <div className="operator-inbox-header">
+            <button
+              type="button"
+              disabled={soundBusy || !alertsEnabled}
+              aria-pressed={sound}
+              onClick={() => void toggleSound()}
+              title={soundError || (sound ? "Ton stummschalten" : "Ton aktivieren und testen")}
+            >
+              <OperatorIcon name="sound" />
+              {sound ? "Ton an" : "Ton aus"}
+            </button>
+            <details className="operator-inbox-info">
+              <summary aria-label="Verbindung und Bestelleingang">ⓘ</summary>
+              {content}
+            </details>
+          </div>,
+          header,
+        )}
+      {alertsEnabled && stale && (
+        <p role="alert" className="operator-stale">
+          Bestelleingang wird geprüft. Bis zur sicheren Nachladung ist der Alarm ausgesetzt.
+        </p>
+      )}
+      {soundError && (
+        <p role="alert" className="operator-stale">
+          {soundError}
+        </p>
+      )}
+    </>
   );
 }

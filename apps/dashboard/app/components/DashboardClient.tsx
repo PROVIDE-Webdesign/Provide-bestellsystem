@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { createDashboardBrowserClient } from "../../lib/supabase-browser.js";
 import { MfaPanel } from "./MfaPanel.js";
+import { OperatorIcon } from "./OperatorVisuals.js";
 import { OrderBoard } from "./OrderBoard.js";
 
 type ViewState =
@@ -42,6 +43,14 @@ export function DashboardClient({
   readonly historyEnabled?: boolean;
   readonly personnelEnabled?: boolean;
 }) {
+  const [section, setSection] = useState("Bestellungen");
+  const [restaurant, setRestaurant] = useState("");
+  const [location, setLocation] = useState("");
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 15000);
+    return () => clearInterval(timer);
+  }, []);
   const [state, setState] = useState<ViewState>({ name: "loading" });
 
   const load = useCallback(async () => {
@@ -90,61 +99,135 @@ export function DashboardClient({
   const needsMfa = memberships.some((membership) => membership.access === "mfa_required");
   const suspended = memberships.some((membership) => membership.access === "suspended");
 
+  const membership = allowed.find((item) => item.restaurantId === restaurant) ?? allowed[0];
+  const selectedLocation =
+    membership?.locations.find((item) => item.id === location) ?? membership?.locations[0];
+  const canManage = membership && ["owner", "manager"].includes(membership.role);
+  const navigation = [
+    { name: "Bestellungen", icon: "bag", enabled: true },
+    { name: "Speisekarte", icon: "menu", enabled: menuEnabled && canManage },
+    { name: "Verlauf", icon: "history", enabled: historyEnabled && canManage },
+    { name: "Einstellungen", icon: "settings", enabled: true },
+  ];
   return (
-    <>
-      <div className="toolbar">
-        {personnelEnabled && <a href="/invitations">Meine Einladungen</a>}
-        <span>Sicherheitsniveau: {state.context.aal.toUpperCase()}</span>
-        <button type="button" className="secondary" onClick={() => void signOut()}>
-          Abmelden
-        </button>
-      </div>
-      {memberships.length === 0 && (
-        <p>Für dieses Konto ist keine Restaurantmitgliedschaft hinterlegt.</p>
-      )}
-      {suspended && (
-        <p className="warning">
-          Eine Restaurantmitgliedschaft ist suspendiert und gewährt keinen Zugriff.
-        </p>
-      )}
-      {needsMfa && <MfaPanel onVerified={() => window.location.reload()} />}
-      {allowed.map((membership) => (
-        <section className="panel" key={membership.restaurantId}>
-          <p className="eyebrow">{roleLabels[membership.role]}</p>
-          <h2>{membership.restaurant?.displayName}</h2>
-          {personnelEnabled && (membership.role === "owner" || membership.role === "manager") && (
-            <Personnel restaurantId={membership.restaurantId} />
-          )}
-          {membership.locations.length === 0 ? (
-            <p>Dieser Rolle ist derzeit kein Standort zugewiesen.</p>
-          ) : (
-            <ul className="location-list">
-              {membership.locations.map((location) => (
-                <li key={location.id}>{location.displayName}</li>
-              ))}
-            </ul>
-          )}
-          {menuEnabled && (membership.role === "owner" || membership.role === "manager") && (
-            <MenuEditor restaurantId={membership.restaurantId} locations={membership.locations} />
-          )}
-          {operationsEnabled && (membership.role === "owner" || membership.role === "manager") && (
+    <div className="operator-shell">
+      <header className="operator-header">
+        <strong className="operator-brand">PROVIDE</strong>
+        <select
+          aria-label="Restaurant wählen"
+          value={membership?.restaurantId ?? ""}
+          onChange={(event) => {
+            setRestaurant(event.target.value);
+            setLocation("");
+          }}
+        >
+          {allowed.map((item) => (
+            <option key={item.restaurantId} value={item.restaurantId}>
+              {item.restaurant?.displayName}
+            </option>
+          ))}
+        </select>
+        <span className="operator-view-label">Bestellübersicht</span>
+        <div className="operator-header-actions">
+          {operationsEnabled && canManage && membership && selectedLocation && (
             <LocationOperations
+              key={membership.restaurantId + selectedLocation.id}
+              compact
               restaurantId={membership.restaurantId}
-              locations={membership.locations}
+              locations={[selectedLocation]}
             />
           )}
-          {historyEnabled && (membership.role === "owner" || membership.role === "manager") && (
-            <OrderHistory restaurantId={membership.restaurantId} locations={membership.locations} />
-          )}
-          <OrderBoard
-            liveEnabled={liveEnabled}
-            alertsEnabled={alertsEnabled}
-            restaurantId={membership.restaurantId}
-            role={membership.role}
-            locations={membership.locations}
-          />
-        </section>
-      ))}
-    </>
+          {membership && <div id={`operator-inbox-${membership.restaurantId}`} />}
+          <time>
+            {new Intl.DateTimeFormat("de-DE", {
+              hour: "2-digit",
+              minute: "2-digit",
+              timeZone: "Europe/Berlin",
+            }).format(clock)}
+          </time>
+        </div>
+      </header>
+      <nav className="operator-sidebar" aria-label="Restaurantverwaltung">
+        {navigation
+          .filter((item) => item.enabled)
+          .map((item) => (
+            <button
+              type="button"
+              key={item.name}
+              aria-current={section === item.name ? "page" : undefined}
+              onClick={() => setSection(item.name)}
+            >
+              <OperatorIcon name={item.icon} />
+              <span>{item.name}</span>
+            </button>
+          ))}
+      </nav>
+      <div className="operator-content">
+        <h1>{section}</h1>
+        {memberships.length === 0 && (
+          <p>Für dieses Konto ist keine Restaurantmitgliedschaft hinterlegt.</p>
+        )}
+        {suspended && (
+          <p className="warning">
+            Eine Restaurantmitgliedschaft ist suspendiert und gewährt keinen Zugriff.
+          </p>
+        )}
+        {needsMfa && <MfaPanel onVerified={() => window.location.reload()} />}
+        {membership && (
+          <>
+            <div hidden={section !== "Bestellungen"}>
+              <OrderBoard
+                key={membership.restaurantId + selectedLocation?.id}
+                liveEnabled={liveEnabled}
+                alertsEnabled={alertsEnabled}
+                restaurantId={membership.restaurantId}
+                role={membership.role}
+                locations={membership.locations}
+                {...(selectedLocation ? { initialLocationId: selectedLocation.id } : {})}
+                onLocationChange={setLocation}
+              />
+            </div>
+            {section === "Speisekarte" && menuEnabled && canManage && (
+              <MenuEditor
+                key={membership.restaurantId}
+                restaurantId={membership.restaurantId}
+                locations={membership.locations}
+              />
+            )}
+            {section === "Verlauf" && historyEnabled && canManage && (
+              <OrderHistory
+                key={membership.restaurantId}
+                restaurantId={membership.restaurantId}
+                locations={membership.locations}
+              />
+            )}
+            {section === "Einstellungen" && (
+              <>
+                <div className="toolbar">
+                  <span>
+                    {roleLabels[membership.role]} · Sicherheitsniveau{" "}
+                    {state.context.aal.toUpperCase()}
+                  </span>
+                  <button type="button" className="secondary" onClick={() => void signOut()}>
+                    Abmelden
+                  </button>
+                  {personnelEnabled && <a href="/invitations">Meine Einladungen</a>}
+                </div>
+                {personnelEnabled && canManage && (
+                  <Personnel key={membership.restaurantId} restaurantId={membership.restaurantId} />
+                )}
+                {operationsEnabled && canManage && (
+                  <LocationOperations
+                    key={membership.restaurantId}
+                    restaurantId={membership.restaurantId}
+                    locations={membership.locations}
+                  />
+                )}
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
   );
 }
