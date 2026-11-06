@@ -1039,8 +1039,12 @@ main.operator-root {
     right: 12px;
   }
   .operator-inbox-info .order-inbox {
-    width: 330px;
-    max-width: 90vw;
+    position: fixed;
+    top: 124px;
+    right: 12px;
+    width: min(420px, calc(100vw - 24px));
+    max-width: none;
+    max-height: calc(100dvh - 148px);
   }
 }
 .operator-board {
