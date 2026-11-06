@@ -20,6 +20,11 @@ background-push changes from `8a7556db3f54fdc4a96f57d8b4a500407ce3febd`. The lat
 - Preserve typed linting for deployed code. Standalone design fixtures keep recommended syntax rules
   without pretending to belong to the application's TypeScript project.
 
+Restored pending checkout attempts now open the cart before receipt recovery, so feedback and its
+focus target remain visible. A committed receipt still opens the order status. The refund poller
+checks settled terminal state before issuing another read, and binds that check to the current order
+identity.
+
 ## Reproducible checks
 
 Use the pinned Node 24 / pnpm 11 and frozen lockfile. Build contracts before standalone native

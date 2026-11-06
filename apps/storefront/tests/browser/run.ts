@@ -516,6 +516,7 @@ try {
     await page.getByLabel("Bestellnummer suchen").fill("BS-00000421");
     await page.getByRole("button", { name: "Suchen", exact: true }).click();
     await page.getByRole("button", { name: "Suche zurücksetzen", exact: true }).waitFor();
+    await page.getByText("Filter und Suche", { exact: true }).click();
     try {
       await page
         .locator("button.operator-order-card")

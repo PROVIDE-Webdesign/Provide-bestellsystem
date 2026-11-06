@@ -684,13 +684,14 @@ export default function Storefront(scope: StorefrontProps) {
     const refreshVisible = () => {
       if (document.visibilityState === "visible") void refreshOrderStatus(statusAccess);
     };
-    refreshVisible();
     if (
       orderStatus &&
+      orderStatus.orderId === statusAccess.orderId &&
       terminalStatuses.includes(orderStatus.status) &&
       !["refund_pending", "checking", "cancelling"].includes(orderStatus.paymentState ?? "")
     )
       return;
+    refreshVisible();
     const interval = window.setInterval(refreshVisible, 20_000);
     document.addEventListener("visibilitychange", refreshVisible);
     return () => {
@@ -698,7 +699,13 @@ export default function Storefront(scope: StorefrontProps) {
       document.removeEventListener("visibilitychange", refreshVisible);
       statusRequest.current?.abort();
     };
-  }, [orderStatus?.status, orderStatus?.paymentState, refreshOrderStatus, statusAccess]);
+  }, [
+    orderStatus?.orderId,
+    orderStatus?.status,
+    orderStatus?.paymentState,
+    refreshOrderStatus,
+    statusAccess,
+  ]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -866,6 +873,9 @@ export default function Storefront(scope: StorefrontProps) {
   }
   async function checkExistingIntent(controller = beginProtection()): Promise<boolean> {
     if (!currentProtection(controller)) return false;
+    // Restored attempts belong to checkout; keep recovery feedback and its focus target visible.
+    // A committed receipt subsequently opens the order status through acceptConfirmation.
+    setShopTab("cart");
     setPreparingIntent(true);
     try {
       const receipt = record(await client.receipt(controller.signal));

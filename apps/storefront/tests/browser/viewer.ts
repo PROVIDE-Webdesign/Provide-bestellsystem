@@ -149,6 +149,7 @@ export async function verifyViewerBrowser(page: Page, output: string, width: num
       .count(),
     0,
   );
+  await page.getByLabel("Verbindung und Bestelleingang").click();
   const card = page.locator('button.operator-order-card[title="BS-00000421"]');
   await card.waitFor();
   await card.focus();
