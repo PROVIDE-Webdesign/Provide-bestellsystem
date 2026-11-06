@@ -1,6 +1,6 @@
 "use client";
 import { OrderHistory } from "./OrderHistory.js";
-import { Personnel } from "./Personnel.js";
+import { OperatorSettings } from "./OperatorSettings.js";
 import { LocationOperations } from "./LocationOperations.js";
 import { MenuEditor } from "./MenuEditor.js";
 
@@ -43,6 +43,8 @@ export function DashboardClient({
   readonly historyEnabled?: boolean;
   readonly personnelEnabled?: boolean;
 }) {
+  const [unsaved, setUnsaved] = useState(false);
+  const canLeave = () => !unsaved || window.confirm("Ungespeicherte Änderungen verwerfen?");
   const [section, setSection] = useState("Bestellungen");
   const [restaurant, setRestaurant] = useState("");
   const [location, setLocation] = useState("");
@@ -110,13 +112,17 @@ export function DashboardClient({
     { name: "Einstellungen", icon: "settings", enabled: true },
   ];
   return (
-    <div className="operator-shell">
+    <div
+      className={`operator-shell ${["Speisekarte", "Einstellungen"].includes(section) ? `operator-management ${section === "Einstellungen" ? "operator-settings-view" : ""}` : ""}`}
+    >
       <header className="operator-header">
         <strong className="operator-brand">PROVIDE</strong>
         <select
           aria-label="Restaurant wählen"
           value={membership?.restaurantId ?? ""}
           onChange={(event) => {
+            if (!canLeave()) return;
+            setUnsaved(false);
             setRestaurant(event.target.value);
             setLocation("");
           }}
@@ -155,7 +161,12 @@ export function DashboardClient({
               type="button"
               key={item.name}
               aria-current={section === item.name ? "page" : undefined}
-              onClick={() => setSection(item.name)}
+              onClick={() => {
+                if (item.name !== section && canLeave()) {
+                  setUnsaved(false);
+                  setSection(item.name);
+                }
+              }}
             >
               <OperatorIcon name={item.icon} />
               <span>{item.name}</span>
@@ -192,6 +203,7 @@ export function DashboardClient({
                 key={membership.restaurantId}
                 restaurantId={membership.restaurantId}
                 locations={membership.locations}
+                onDirtyChange={setUnsaved}
               />
             )}
             {section === "Verlauf" && historyEnabled && canManage && (
@@ -202,28 +214,18 @@ export function DashboardClient({
               />
             )}
             {section === "Einstellungen" && (
-              <>
-                <div className="toolbar">
-                  <span>
-                    {roleLabels[membership.role]} · Sicherheitsniveau{" "}
-                    {state.context.aal.toUpperCase()}
-                  </span>
-                  <button type="button" className="secondary" onClick={() => void signOut()}>
-                    Abmelden
-                  </button>
-                  {personnelEnabled && <a href="/invitations">Meine Einladungen</a>}
-                </div>
-                {personnelEnabled && canManage && (
-                  <Personnel key={membership.restaurantId} restaurantId={membership.restaurantId} />
-                )}
-                {operationsEnabled && canManage && (
-                  <LocationOperations
-                    key={membership.restaurantId}
-                    restaurantId={membership.restaurantId}
-                    locations={membership.locations}
-                  />
-                )}
-              </>
+              <OperatorSettings
+                key={membership.restaurantId}
+                restaurantId={membership.restaurantId}
+                locations={membership.locations}
+                roleLabel={roleLabels[membership.role]}
+                aal={state.context.aal}
+                operationsEnabled={operationsEnabled}
+                personnelEnabled={personnelEnabled}
+                canManage={!!canManage}
+                onSignOut={() => void signOut()}
+                onDirtyChange={setUnsaved}
+              />
             )}
           </>
         )}

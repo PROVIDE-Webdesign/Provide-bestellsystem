@@ -10,6 +10,7 @@ import {
   type OperationValues,
 } from "@provide/contracts";
 import { OperatorIcon } from "./OperatorVisuals.js";
+import type { SettingsTopic } from "../../lib/management-ui.js";
 const channelNames = { all: "Gesamter Standort", pickup: "Abholung", delivery: "Lieferung" };
 const weekdays = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 const defaults: LocationConfiguration = {
@@ -36,9 +37,15 @@ export function LocationOperations({
   restaurantId,
   locations,
   compact = false,
+  topic,
+  onClose,
+  onDirtyChange,
 }: {
   restaurantId: string;
   compact?: boolean;
+  topic?: SettingsTopic;
+  onClose?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
   locations: readonly { id: string; displayName: string }[];
 }) {
   const [location, setLocation] = useState(locations[0]?.id ?? "");
@@ -52,9 +59,9 @@ export function LocationOperations({
       />
     ) : null;
   return (
-    <section className="panel">
-      <h3>Betriebssteuerung und Standortregeln</h3>
-      <label>
+    <section className={topic ? "management-editor" : "panel"}>
+      <h3 hidden={!!topic}>Betriebssteuerung und Standortregeln</h3>
+      <label hidden={!!topic}>
         Standort für Betriebsregeln
         <select
           aria-label="Standort für Betriebsregeln"
@@ -73,6 +80,9 @@ export function LocationOperations({
           key={restaurantId + location}
           restaurantId={restaurantId}
           locationId={location}
+          {...(topic ? { topic } : {})}
+          {...(onClose ? { onClose } : {})}
+          {...(onDirtyChange ? { onDirtyChange } : {})}
         />
       )}
     </section>
@@ -82,11 +92,19 @@ function LocationOperationsEditor({
   restaurantId,
   locationId,
   compact = false,
+  topic,
+  onClose,
+  onDirtyChange,
 }: {
   restaurantId: string;
   locationId: string;
   compact?: boolean;
+  topic?: SettingsTopic;
+  onClose?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const [reviewing, setReviewing] = useState(false);
+  const activeTopic = reviewing ? "publication" : topic;
   const [expanded, setExpanded] = useState(false);
   const modal = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -169,7 +187,14 @@ function LocationOperationsEditor({
         else if (command?.action === "save_draft" || command?.action === "publish")
           applyVersion(data, command.versionId);
         else if (!selectedRef.current && data.versions.length)
-          applyVersion(data, data.currentVersionId ?? data.versions[0]!.id);
+          applyVersion(
+            data,
+            (topic === "publication"
+              ? data.versions.find((version) => version.status === "draft")?.id
+              : undefined) ??
+              data.currentVersionId ??
+              data.versions[0]!.id,
+          );
         if (command)
           setMessage(
             command.action === "save_draft"
@@ -192,7 +217,7 @@ function LocationOperationsEditor({
         }
       }
     },
-    [endpoint, applyVersion, compact],
+    [endpoint, applyVersion, compact, topic],
   );
   useEffect(() => {
     live.current = true;
@@ -209,6 +234,16 @@ function LocationOperationsEditor({
   const version = state?.versions.find((v) => v.id === selected),
     editable = version?.status === "draft";
   const dirty = version && JSON.stringify(version.configuration) !== JSON.stringify(configuration);
+  useEffect(() => {
+    onDirtyChange?.(!!dirty);
+  }, [dirty, onDirtyChange]);
+  useEffect(() => {
+    const guard = (event: BeforeUnloadEvent) => {
+      if (dirty) event.preventDefault();
+    };
+    window.addEventListener("beforeunload", guard);
+    return () => window.removeEventListener("beforeunload", guard);
+  }, [dirty]);
   const serverClock = state
     ? Date.parse(state.serverNow) + (clock - Date.parse(state.serverNow))
     : clock;
@@ -243,6 +278,24 @@ function LocationOperationsEditor({
     >,
     optional = false,
   ) {
+    const accepted = [
+      "minimumLeadMinutes",
+      "maximumAdvanceDays",
+      "orderCutoffMinutes",
+      "acceptanceMinutes",
+    ];
+    const capacities = [
+      "slotIntervalMinutes",
+      "defaultOrderCapacity",
+      "defaultItemCapacity",
+      "maxOpenOrders",
+    ];
+    if (
+      activeTopic &&
+      !(activeTopic === "acceptance" && accepted.includes(key)) &&
+      !(activeTopic === "capacity" && capacities.includes(key))
+    )
+      return null;
     return (
       <label key={key}>
         {label}
@@ -373,6 +426,36 @@ function LocationOperationsEditor({
   }
   return (
     <div className="location-operations">
+      {topic && (
+        <div className="management-subheading">
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              if (!dirty || window.confirm("Ungespeicherte Änderungen verwerfen?")) onClose?.();
+            }}
+          >
+            ‹ Zur Übersicht
+          </button>
+          <h2>
+            {
+              {
+                acceptance: "Bestellannahme",
+                hours: "Öffnungszeiten",
+                capacity: "Kapazitäten",
+                delivery: "Lieferung",
+                exceptions: "Sondertage",
+                publication: "Änderungen prüfen",
+              }[activeTopic!]
+            }
+          </h2>
+          {reviewing && (
+            <button type="button" className="secondary" onClick={() => setReviewing(false)}>
+              Zur Bearbeitung
+            </button>
+          )}
+        </div>
+      )}
       <p role="status" aria-live="polite">
         {message}
       </p>
@@ -383,141 +466,153 @@ function LocationOperationsEditor({
         <p>Standortregeln werden geladen oder sind gesperrt.</p>
       ) : (
         <>
-          <p>
+          <p className="management-context">
             Zeitzone: {state.timezone} · Offene Bestellungen: <strong>{state.openOrders}</strong>
           </p>
-          <fieldset disabled={busy}>
-            <legend>Temporärer Betriebsmodus</legend>
-            <p>
-              Eine vollständige Pause gilt für beide Kanäle. Bestehende Bestellungen werden
-              weiterbearbeitet. Temporäre Werte enden automatisch, spätestens nach 24 Stunden.
-            </p>
-            <label>
-              Geltungsbereich
-              <select
-                aria-label="Geltungsbereich"
-                value={scope}
-                onChange={(e) => setScope(e.target.value as OperationScope)}
-              >
-                {Object.entries(channelNames).map(([id, label]) => (
-                  <option key={id} value={id}>
+          <div
+            hidden={!!activeTopic && !["acceptance", "capacity"].includes(activeTopic)}
+            className="management-group"
+          >
+            <details>
+              <summary>Vorübergehend anpassen</summary>
+              <fieldset disabled={busy}>
+                <legend>Temporärer Betriebsmodus</legend>
+                <p>
+                  Eine vollständige Pause gilt für beide Kanäle. Bestehende Bestellungen werden
+                  weiterbearbeitet. Temporäre Werte enden automatisch, spätestens nach 24 Stunden.
+                </p>
+                <label>
+                  Geltungsbereich
+                  <select
+                    aria-label="Geltungsbereich"
+                    value={scope}
+                    onChange={(e) => setScope(e.target.value as OperationScope)}
+                  >
+                    {Object.entries(channelNames).map(([id, label]) => (
+                      <option key={id} value={id}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={values.paused}
+                    onChange={(e) => setValues({ ...values, paused: e.target.checked })}
+                  />{" "}
+                  Neue Bestellungen pausieren
+                </label>
+                {(
+                  [
+                    ["leadMinutes", "Vorlauf in Minuten"],
+                    ["orderCapacity", "Bestellungen pro Slot"],
+                    ["itemCapacity", "Artikel pro Slot"],
+                    ["maxOpenOrders", "Maximal offene Bestellungen"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key}>
                     {label}
-                  </option>
+                    <input
+                      type="number"
+                      min={key === "leadMinutes" ? 0 : 1}
+                      step="1"
+                      value={values[key] ?? ""}
+                      onChange={(e) =>
+                        setValues({
+                          ...values,
+                          [key]: e.target.value === "" ? null : Number(e.target.value),
+                        })
+                      }
+                    />
+                    <small>Leer = reguläre Regel übernehmen</small>
+                  </label>
                 ))}
-              </select>
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={values.paused}
-                onChange={(e) => setValues({ ...values, paused: e.target.checked })}
-              />{" "}
-              Neue Bestellungen pausieren
-            </label>
-            {(
-              [
-                ["leadMinutes", "Vorlauf in Minuten"],
-                ["orderCapacity", "Bestellungen pro Slot"],
-                ["itemCapacity", "Artikel pro Slot"],
-                ["maxOpenOrders", "Maximal offene Bestellungen"],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key}>
-                {label}
-                <input
-                  type="number"
-                  min={key === "leadMinutes" ? 0 : 1}
-                  step="1"
-                  value={values[key] ?? ""}
-                  onChange={(e) =>
-                    setValues({
-                      ...values,
-                      [key]: e.target.value === "" ? null : Number(e.target.value),
+                <label>
+                  Dauer in Minuten
+                  <input
+                    type="number"
+                    min="1"
+                    max="1440"
+                    step="1"
+                    value={duration}
+                    onChange={(e) => setDuration(Number(e.target.value))}
+                  />
+                </label>
+                <label>
+                  Grund der Betriebsänderung
+                  <input
+                    maxLength={300}
+                    value={operationReason}
+                    onChange={(e) => setOperationReason(e.target.value)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={
+                    !Number.isInteger(duration) ||
+                    duration < 1 ||
+                    duration > 1440 ||
+                    !operationReason.trim()
+                  }
+                  onClick={() =>
+                    void execute({
+                      action: "override",
+                      scope,
+                      expectedSequence: state.operationSequence,
+                      endsAt: new Date(actualServerClock + duration * 60000).toISOString(),
+                      values,
+                      reason: operationReason,
                     })
                   }
-                />
-                <small>Leer = reguläre Regel übernehmen</small>
-              </label>
-            ))}
-            <label>
-              Dauer in Minuten
-              <input
-                type="number"
-                min="1"
-                max="1440"
-                step="1"
-                value={duration}
-                onChange={(e) => setDuration(Number(e.target.value))}
-              />
-            </label>
-            <label>
-              Grund der Betriebsänderung
-              <input
-                maxLength={300}
-                value={operationReason}
-                onChange={(e) => setOperationReason(e.target.value)}
-              />
-            </label>
-            <button
-              type="button"
-              disabled={
-                !Number.isInteger(duration) ||
-                duration < 1 ||
-                duration > 1440 ||
-                !operationReason.trim()
-              }
-              onClick={() =>
-                void execute({
-                  action: "override",
-                  scope,
-                  expectedSequence: state.operationSequence,
-                  endsAt: new Date(actualServerClock + duration * 60000).toISOString(),
-                  values,
-                  reason: operationReason,
-                })
-              }
-            >
-              Betriebsmodus anwenden
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              disabled={!operationReason.trim()}
-              onClick={() =>
-                void execute({
-                  action: "clear_override",
-                  scope,
-                  expectedSequence: state.operationSequence,
-                  reason: operationReason,
-                })
-              }
-            >
-              Temporäre Regel dieses Bereichs beenden
-            </button>
-          </fieldset>
-          <ul>
-            {state.overrides.map((o) => (
-              <li key={o.scope}>
-                <strong>{channelNames[o.scope]}</strong>:{" "}
-                {o.values.paused ? "pausiert" : "temporäre Werte"} · {o.reason} ·{" "}
-                {Math.max(0, Math.ceil((Date.parse(o.endsAt) - actualServerClock) / 60000))} Minuten
-                verbleibend
-                {o.values.leadMinutes !== null && ` · Vorlauf ${o.values.leadMinutes} Min.`}
-                {o.values.orderCapacity !== null &&
-                  ` · ${o.values.orderCapacity} Bestellungen/Slot`}
-                {o.values.itemCapacity !== null && ` · ${o.values.itemCapacity} Artikel/Slot`}
-                {o.values.maxOpenOrders !== null && ` · höchstens ${o.values.maxOpenOrders} offen`}
-              </li>
-            ))}
-          </ul>
+                >
+                  Betriebsmodus anwenden
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={!operationReason.trim()}
+                  onClick={() =>
+                    void execute({
+                      action: "clear_override",
+                      scope,
+                      expectedSequence: state.operationSequence,
+                      reason: operationReason,
+                    })
+                  }
+                >
+                  Temporäre Regel dieses Bereichs beenden
+                </button>
+              </fieldset>
+              <ul>
+                {state.overrides.map((o) => (
+                  <li key={o.scope}>
+                    <strong>{channelNames[o.scope]}</strong>:{" "}
+                    {o.values.paused ? "pausiert" : "temporäre Werte"} · {o.reason} ·{" "}
+                    {Math.max(0, Math.ceil((Date.parse(o.endsAt) - actualServerClock) / 60000))}{" "}
+                    Minuten verbleibend
+                    {o.values.leadMinutes !== null && ` · Vorlauf ${o.values.leadMinutes} Min.`}
+                    {o.values.orderCapacity !== null &&
+                      ` · ${o.values.orderCapacity} Bestellungen/Slot`}
+                    {o.values.itemCapacity !== null && ` · ${o.values.itemCapacity} Artikel/Slot`}
+                    {o.values.maxOpenOrders !== null &&
+                      ` · höchstens ${o.values.maxOpenOrders} offen`}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </div>
           <fieldset disabled={busy}>
-            <legend>Versionierte Standortkonfiguration</legend>
+            <legend>Gespeicherte Regeln</legend>
             <label>
               Konfigurationsversion
               <select
                 aria-label="Konfigurationsversion"
                 value={selected}
-                onChange={(e) => applyVersion(state, e.target.value)}
+                onChange={(e) => {
+                  if (!dirty || window.confirm("Ungespeicherte Änderungen verwerfen?"))
+                    applyVersion(state, e.target.value);
+                }}
               >
                 {state.versions.map((v) => (
                   <option key={v.id} value={v.id}>
@@ -562,359 +657,391 @@ function LocationOperationsEditor({
                   {numberField("Annahmefrist neuer Bestellungen in Minuten", "acceptanceMinutes")}
                   {numberField("Maximal offene Bestellungen am Standort", "maxOpenOrders", true)}
                 </div>
-                <h4>Reguläre Öffnungsfenster</h4>
-                <p>
-                  Fenster mit einer früheren Endzeit laufen über Mitternacht. 00:00–00:00 ist kein
-                  gültiges Fenster.
-                </p>
-                {configuration.windows.map((w, i) => (
-                  <fieldset key={i} disabled={!editable}>
-                    <legend>Öffnungsfenster {i + 1}</legend>
-                    <label>
-                      Kanal
-                      <select
-                        value={w.fulfillment}
-                        onChange={(e) =>
-                          setConfiguration({
-                            ...configuration,
-                            windows: configuration.windows.map((x, j) =>
-                              j === i
-                                ? { ...x, fulfillment: e.target.value as "pickup" | "delivery" }
-                                : x,
-                            ),
-                          })
-                        }
-                      >
-                        <option value="pickup">Abholung</option>
-                        <option value="delivery">Lieferung</option>
-                      </select>
-                    </label>
-                    <label>
-                      Wochentag
-                      <select
-                        value={w.weekday}
-                        onChange={(e) =>
-                          setConfiguration({
-                            ...configuration,
-                            windows: configuration.windows.map((x, j) =>
-                              j === i ? { ...x, weekday: Number(e.target.value) } : x,
-                            ),
-                          })
-                        }
-                      >
-                        {weekdays.map((d, n) => (
-                          <option key={d} value={n}>
-                            {d}
-                          </option>
+                <div hidden={!!activeTopic && activeTopic !== "hours"} className="management-group">
+                  <h4>Reguläre Öffnungsfenster</h4>
+                  <p>
+                    Fenster mit einer früheren Endzeit laufen über Mitternacht. 00:00–00:00 ist kein
+                    gültiges Fenster.
+                  </p>
+                  {configuration.windows.map((w, i) => (
+                    <details key={i} className="management-rule">
+                      <summary>
+                        {weekdays[w.weekday]} · {channelNames[w.fulfillment]} · {w.opensAt}–
+                        {w.closesAt}
+                      </summary>
+                      <fieldset disabled={!editable}>
+                        <legend>Öffnungsfenster {i + 1}</legend>
+                        <label>
+                          Kanal
+                          <select
+                            value={w.fulfillment}
+                            onChange={(e) =>
+                              setConfiguration({
+                                ...configuration,
+                                windows: configuration.windows.map((x, j) =>
+                                  j === i
+                                    ? { ...x, fulfillment: e.target.value as "pickup" | "delivery" }
+                                    : x,
+                                ),
+                              })
+                            }
+                          >
+                            <option value="pickup">Abholung</option>
+                            <option value="delivery">Lieferung</option>
+                          </select>
+                        </label>
+                        <label>
+                          Wochentag
+                          <select
+                            value={w.weekday}
+                            onChange={(e) =>
+                              setConfiguration({
+                                ...configuration,
+                                windows: configuration.windows.map((x, j) =>
+                                  j === i ? { ...x, weekday: Number(e.target.value) } : x,
+                                ),
+                              })
+                            }
+                          >
+                            {weekdays.map((d, n) => (
+                              <option key={d} value={n}>
+                                {d}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        {(["opensAt", "closesAt"] as const).map((k) => (
+                          <label key={k}>
+                            {k === "opensAt" ? "Öffnet" : "Schließt"}
+                            <input
+                              type="time"
+                              value={w[k]}
+                              onChange={(e) =>
+                                setConfiguration({
+                                  ...configuration,
+                                  windows: configuration.windows.map((x, j) =>
+                                    j === i ? { ...x, [k]: e.target.value } : x,
+                                  ),
+                                })
+                              }
+                            />
+                          </label>
                         ))}
-                      </select>
-                    </label>
-                    {(["opensAt", "closesAt"] as const).map((k) => (
-                      <label key={k}>
-                        {k === "opensAt" ? "Öffnet" : "Schließt"}
-                        <input
-                          type="time"
-                          value={w[k]}
-                          onChange={(e) =>
+                        {(["orderCapacity", "itemCapacity"] as const).map((k) => (
+                          <label key={k}>
+                            {k === "orderCapacity" ? "Bestellungen pro Slot" : "Artikel pro Slot"}
+                            <input
+                              type="number"
+                              min="1"
+                              value={w[k] ?? ""}
+                              onChange={(e) =>
+                                setConfiguration({
+                                  ...configuration,
+                                  windows: configuration.windows.map((x, j) =>
+                                    j === i
+                                      ? {
+                                          ...x,
+                                          [k]:
+                                            e.target.value === "" ? null : Number(e.target.value),
+                                        }
+                                      : x,
+                                  ),
+                                })
+                              }
+                            />
+                          </label>
+                        ))}
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() =>
                             setConfiguration({
                               ...configuration,
-                              windows: configuration.windows.map((x, j) =>
-                                j === i ? { ...x, [k]: e.target.value } : x,
-                              ),
+                              windows: configuration.windows.filter((_, j) => j !== i),
                             })
                           }
-                        />
-                      </label>
-                    ))}
-                    {(["orderCapacity", "itemCapacity"] as const).map((k) => (
-                      <label key={k}>
-                        {k === "orderCapacity" ? "Bestellungen pro Slot" : "Artikel pro Slot"}
-                        <input
-                          type="number"
-                          min="1"
-                          value={w[k] ?? ""}
-                          onChange={(e) =>
-                            setConfiguration({
-                              ...configuration,
-                              windows: configuration.windows.map((x, j) =>
-                                j === i
-                                  ? {
-                                      ...x,
-                                      [k]: e.target.value === "" ? null : Number(e.target.value),
-                                    }
-                                  : x,
-                              ),
-                            })
-                          }
-                        />
-                      </label>
-                    ))}
-                    <button
-                      type="button"
-                      className="secondary"
-                      onClick={() =>
-                        setConfiguration({
-                          ...configuration,
-                          windows: configuration.windows.filter((_, j) => j !== i),
-                        })
-                      }
-                    >
-                      Öffnungsfenster entfernen
-                    </button>
-                  </fieldset>
-                ))}
-                <button
-                  type="button"
-                  disabled={!editable}
-                  onClick={() =>
-                    setConfiguration({
-                      ...configuration,
-                      windows: [
-                        ...configuration.windows,
-                        {
-                          fulfillment: "pickup",
-                          weekday: 1,
-                          opensAt: "12:00",
-                          closesAt: "22:00",
-                          orderCapacity: null,
-                          itemCapacity: null,
-                        },
-                      ],
-                    })
-                  }
+                        >
+                          Öffnungsfenster entfernen
+                        </button>
+                      </fieldset>
+                    </details>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={!editable}
+                    onClick={() =>
+                      setConfiguration({
+                        ...configuration,
+                        windows: [
+                          ...configuration.windows,
+                          {
+                            fulfillment: "pickup",
+                            weekday: 1,
+                            opensAt: "12:00",
+                            closesAt: "22:00",
+                            orderCapacity: null,
+                            itemCapacity: null,
+                          },
+                        ],
+                      })
+                    }
+                  >
+                    Öffnungsfenster hinzufügen
+                  </button>
+                </div>
+                <div
+                  hidden={!!activeTopic && activeTopic !== "exceptions"}
+                  className="management-group"
                 >
-                  Öffnungsfenster hinzufügen
-                </button>
-                <h4>Sondertage</h4>
-                {configuration.exceptions.map((e, i) => (
-                  <fieldset key={i} disabled={!editable}>
-                    <legend>Sondertag {i + 1}</legend>
-                    <label>
-                      Kanal
-                      <select
-                        value={e.fulfillment}
-                        onChange={(v) =>
-                          setConfiguration({
-                            ...configuration,
-                            exceptions: configuration.exceptions.map((x, j) =>
-                              j === i
-                                ? { ...x, fulfillment: v.target.value as "pickup" | "delivery" }
-                                : x,
-                            ),
-                          })
-                        }
-                      >
-                        <option value="pickup">Abholung</option>
-                        <option value="delivery">Lieferung</option>
-                      </select>
-                    </label>
-                    <label>
-                      Datum
-                      <input
-                        type="date"
-                        value={e.date}
-                        onChange={(v) =>
-                          setConfiguration({
-                            ...configuration,
-                            exceptions: configuration.exceptions.map((x, j) =>
-                              j === i ? { ...x, date: v.target.value } : x,
-                            ),
-                          })
-                        }
-                      />
-                    </label>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={e.closed}
-                        onChange={(v) =>
-                          setConfiguration({
-                            ...configuration,
-                            exceptions: configuration.exceptions.map((x, j) =>
-                              j === i
-                                ? {
-                                    ...x,
-                                    closed: v.target.checked,
-                                    opensAt: v.target.checked ? null : "12:00",
-                                    closesAt: v.target.checked ? null : "22:00",
-                                  }
-                                : x,
-                            ),
-                          })
-                        }
-                      />{" "}
-                      Geschlossen
-                    </label>
-                    {!e.closed &&
-                      (["opensAt", "closesAt"] as const).map((k) => (
-                        <label key={k}>
-                          {k === "opensAt" ? "Öffnet" : "Schließt"}
-                          <input
-                            type="time"
-                            value={e[k] ?? ""}
+                  <h4>Sondertage</h4>
+                  {configuration.exceptions.map((e, i) => (
+                    <details key={i} className="management-rule">
+                      <summary>
+                        {e.date || "Neuer Sondertag"} · {channelNames[e.fulfillment]} ·{" "}
+                        {e.closed ? "Geschlossen" : `${e.opensAt}–${e.closesAt}`}
+                      </summary>
+                      <fieldset disabled={!editable}>
+                        <legend>Sondertag {i + 1}</legend>
+                        <label>
+                          Kanal
+                          <select
+                            value={e.fulfillment}
                             onChange={(v) =>
                               setConfiguration({
                                 ...configuration,
                                 exceptions: configuration.exceptions.map((x, j) =>
-                                  j === i ? { ...x, [k]: v.target.value } : x,
+                                  j === i
+                                    ? { ...x, fulfillment: v.target.value as "pickup" | "delivery" }
+                                    : x,
+                                ),
+                              })
+                            }
+                          >
+                            <option value="pickup">Abholung</option>
+                            <option value="delivery">Lieferung</option>
+                          </select>
+                        </label>
+                        <label>
+                          Datum
+                          <input
+                            type="date"
+                            value={e.date}
+                            onChange={(v) =>
+                              setConfiguration({
+                                ...configuration,
+                                exceptions: configuration.exceptions.map((x, j) =>
+                                  j === i ? { ...x, date: v.target.value } : x,
                                 ),
                               })
                             }
                           />
                         </label>
-                      ))}
-                    {(["orderCapacity", "itemCapacity"] as const).map((k) => (
-                      <label key={k}>
-                        {k === "orderCapacity" ? "Bestellungen pro Slot" : "Artikel pro Slot"}
-                        <input
-                          type="number"
-                          min="1"
-                          value={e[k] ?? ""}
-                          onChange={(v) =>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={e.closed}
+                            onChange={(v) =>
+                              setConfiguration({
+                                ...configuration,
+                                exceptions: configuration.exceptions.map((x, j) =>
+                                  j === i
+                                    ? {
+                                        ...x,
+                                        closed: v.target.checked,
+                                        opensAt: v.target.checked ? null : "12:00",
+                                        closesAt: v.target.checked ? null : "22:00",
+                                      }
+                                    : x,
+                                ),
+                              })
+                            }
+                          />{" "}
+                          Geschlossen
+                        </label>
+                        {!e.closed &&
+                          (["opensAt", "closesAt"] as const).map((k) => (
+                            <label key={k}>
+                              {k === "opensAt" ? "Öffnet" : "Schließt"}
+                              <input
+                                type="time"
+                                value={e[k] ?? ""}
+                                onChange={(v) =>
+                                  setConfiguration({
+                                    ...configuration,
+                                    exceptions: configuration.exceptions.map((x, j) =>
+                                      j === i ? { ...x, [k]: v.target.value } : x,
+                                    ),
+                                  })
+                                }
+                              />
+                            </label>
+                          ))}
+                        {(["orderCapacity", "itemCapacity"] as const).map((k) => (
+                          <label key={k}>
+                            {k === "orderCapacity" ? "Bestellungen pro Slot" : "Artikel pro Slot"}
+                            <input
+                              type="number"
+                              min="1"
+                              value={e[k] ?? ""}
+                              onChange={(v) =>
+                                setConfiguration({
+                                  ...configuration,
+                                  exceptions: configuration.exceptions.map((x, j) =>
+                                    j === i
+                                      ? {
+                                          ...x,
+                                          [k]:
+                                            v.target.value === "" ? null : Number(v.target.value),
+                                        }
+                                      : x,
+                                  ),
+                                })
+                              }
+                            />
+                          </label>
+                        ))}
+                        <label>
+                          Grund
+                          <input
+                            value={e.reason}
+                            onChange={(v) =>
+                              setConfiguration({
+                                ...configuration,
+                                exceptions: configuration.exceptions.map((x, j) =>
+                                  j === i ? { ...x, reason: v.target.value } : x,
+                                ),
+                              })
+                            }
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() =>
                             setConfiguration({
                               ...configuration,
-                              exceptions: configuration.exceptions.map((x, j) =>
-                                j === i
-                                  ? {
-                                      ...x,
-                                      [k]: v.target.value === "" ? null : Number(v.target.value),
-                                    }
-                                  : x,
-                              ),
+                              exceptions: configuration.exceptions.filter((_, j) => j !== i),
                             })
                           }
-                        />
-                      </label>
-                    ))}
-                    <label>
-                      Grund
-                      <input
-                        value={e.reason}
-                        onChange={(v) =>
-                          setConfiguration({
-                            ...configuration,
-                            exceptions: configuration.exceptions.map((x, j) =>
-                              j === i ? { ...x, reason: v.target.value } : x,
-                            ),
-                          })
-                        }
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      className="secondary"
-                      onClick={() =>
-                        setConfiguration({
-                          ...configuration,
-                          exceptions: configuration.exceptions.filter((_, j) => j !== i),
-                        })
-                      }
-                    >
-                      Sondertag entfernen
-                    </button>
-                  </fieldset>
-                ))}
-                <button
-                  type="button"
-                  disabled={!editable}
-                  onClick={() =>
-                    setConfiguration({
-                      ...configuration,
-                      exceptions: [
-                        ...configuration.exceptions,
-                        {
-                          fulfillment: "pickup",
-                          date: "",
-                          closed: true,
-                          opensAt: null,
-                          closesAt: null,
-                          reason: "",
-                          orderCapacity: null,
-                          itemCapacity: null,
-                        },
-                      ],
-                    })
-                  }
+                        >
+                          Sondertag entfernen
+                        </button>
+                      </fieldset>
+                    </details>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={!editable}
+                    onClick={() =>
+                      setConfiguration({
+                        ...configuration,
+                        exceptions: [
+                          ...configuration.exceptions,
+                          {
+                            fulfillment: "pickup",
+                            date: "",
+                            closed: true,
+                            opensAt: null,
+                            closesAt: null,
+                            reason: "",
+                            orderCapacity: null,
+                            itemCapacity: null,
+                          },
+                        ],
+                      })
+                    }
+                  >
+                    Sondertag hinzufügen
+                  </button>
+                </div>
+                <div
+                  hidden={!!activeTopic && activeTopic !== "delivery"}
+                  className="management-group"
                 >
-                  Sondertag hinzufügen
-                </button>
-                <h4>Liefergebiete, Mindestwerte und Gebühren</h4>
-                <p>
-                  Beträge in Cent; 100 Cent entsprechen 1 Euro. Die Liefergebühr zählt nicht zum
-                  Mindestwert.
-                </p>
-                {configuration.zones.map((z, i) => (
-                  <fieldset key={i} disabled={!editable}>
-                    <legend>Liefergebiet {i + 1}</legend>
-                    <label>
-                      Postleitzahlen, durch Komma getrennt
-                      <input
-                        value={z.postalCodes.join(", ")}
-                        onChange={(e) =>
-                          setConfiguration({
-                            ...configuration,
-                            zones: configuration.zones.map((x, j) =>
-                              j === i
-                                ? {
-                                    ...x,
-                                    postalCodes: e.target.value.split(",").map((p) => p.trim()),
-                                  }
-                                : x,
-                            ),
-                          })
-                        }
-                      />
-                    </label>
-                    {(["minimumAmountMinor", "feeAmountMinor"] as const).map((k) => (
-                      <label key={k}>
-                        {k === "minimumAmountMinor"
-                          ? "Mindestartikelwert in Cent"
-                          : "Liefergebühr in Cent"}
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={z[k]}
-                          onChange={(e) =>
+                  <h4>Liefergebiete, Mindestwerte und Gebühren</h4>
+                  <p>
+                    Beträge in Cent; 100 Cent entsprechen 1 Euro. Die Liefergebühr zählt nicht zum
+                    Mindestwert.
+                  </p>
+                  {configuration.zones.map((z, i) => (
+                    <details key={i} className="management-rule">
+                      <summary>
+                        Liefergebiet {i + 1} ·{" "}
+                        {z.postalCodes.join(", ") || "Postleitzahlen ergänzen"}
+                      </summary>
+                      <fieldset disabled={!editable}>
+                        <legend>Liefergebiet {i + 1}</legend>
+                        <label>
+                          Postleitzahlen, durch Komma getrennt
+                          <input
+                            value={z.postalCodes.join(", ")}
+                            onChange={(e) =>
+                              setConfiguration({
+                                ...configuration,
+                                zones: configuration.zones.map((x, j) =>
+                                  j === i
+                                    ? {
+                                        ...x,
+                                        postalCodes: e.target.value.split(",").map((p) => p.trim()),
+                                      }
+                                    : x,
+                                ),
+                              })
+                            }
+                          />
+                        </label>
+                        {(["minimumAmountMinor", "feeAmountMinor"] as const).map((k) => (
+                          <label key={k}>
+                            {k === "minimumAmountMinor"
+                              ? "Mindestartikelwert in Cent"
+                              : "Liefergebühr in Cent"}
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={z[k]}
+                              onChange={(e) =>
+                                setConfiguration({
+                                  ...configuration,
+                                  zones: configuration.zones.map((x, j) =>
+                                    j === i ? { ...x, [k]: Number(e.target.value) } : x,
+                                  ),
+                                })
+                              }
+                            />
+                          </label>
+                        ))}
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() =>
                             setConfiguration({
                               ...configuration,
-                              zones: configuration.zones.map((x, j) =>
-                                j === i ? { ...x, [k]: Number(e.target.value) } : x,
-                              ),
+                              zones: configuration.zones.filter((_, j) => j !== i),
                             })
                           }
-                        />
-                      </label>
-                    ))}
-                    <button
-                      type="button"
-                      className="secondary"
-                      onClick={() =>
-                        setConfiguration({
-                          ...configuration,
-                          zones: configuration.zones.filter((_, j) => j !== i),
-                        })
-                      }
-                    >
-                      Liefergebiet entfernen
-                    </button>
-                  </fieldset>
-                ))}
-                <button
-                  type="button"
-                  disabled={!editable}
-                  onClick={() =>
-                    setConfiguration({
-                      ...configuration,
-                      zones: [
-                        ...configuration.zones,
-                        { postalCodes: [], minimumAmountMinor: 0, feeAmountMinor: 0 },
-                      ],
-                    })
-                  }
-                >
-                  Liefergebiet hinzufügen
-                </button>
+                        >
+                          Liefergebiet entfernen
+                        </button>
+                      </fieldset>
+                    </details>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={!editable}
+                    onClick={() =>
+                      setConfiguration({
+                        ...configuration,
+                        zones: [
+                          ...configuration.zones,
+                          { postalCodes: [], minimumAmountMinor: 0, feeAmountMinor: 0 },
+                        ],
+                      })
+                    }
+                  >
+                    Liefergebiet hinzufügen
+                  </button>
+                </div>
                 <p>
                   Auswahl: Version {version.number} · {configuration.windows.length} Öffnungsfenster
                   · {configuration.exceptions.length} Sondertage · {configuration.zones.length}{" "}
@@ -940,34 +1067,41 @@ function LocationOperationsEditor({
                 >
                   Konfigurationsentwurf speichern
                 </button>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={confirmed}
-                    disabled={!!dirty}
-                    onChange={(e) => setConfirmed(e.target.checked)}
-                  />{" "}
-                  Ausgewählte Zeiten, Kapazitäten und Lieferpreise geprüft; diese Version soll
-                  sofort wirksam werden.
-                </label>
-                <button
-                  type="button"
-                  disabled={!confirmed || !!dirty || !reason.trim()}
-                  onClick={() =>
-                    void execute({
-                      action: "publish",
-                      versionId: version.id,
-                      expectedRevision: revision,
-                      expectedPublicationId: baseline.publicationId,
-                      expectedDeliveryPolicyId: baseline.deliveryPolicyId,
-                      reason,
-                    })
-                  }
-                >
-                  {editable
-                    ? "Standortregeln veröffentlichen"
-                    : "Diese Version erneut veröffentlichen"}
-                </button>
+                {topic && activeTopic !== "publication" && (
+                  <button type="button" className="secondary" onClick={() => setReviewing(true)}>
+                    Änderungen prüfen
+                  </button>
+                )}
+                <div hidden={!!activeTopic && activeTopic !== "publication"}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={confirmed}
+                      disabled={!!dirty}
+                      onChange={(e) => setConfirmed(e.target.checked)}
+                    />{" "}
+                    Ausgewählte Zeiten, Kapazitäten und Lieferpreise geprüft; diese Version soll
+                    sofort wirksam werden.
+                  </label>
+                  <button
+                    type="button"
+                    disabled={!confirmed || !!dirty || !reason.trim()}
+                    onClick={() =>
+                      void execute({
+                        action: "publish",
+                        versionId: version.id,
+                        expectedRevision: revision,
+                        expectedPublicationId: baseline.publicationId,
+                        expectedDeliveryPolicyId: baseline.deliveryPolicyId,
+                        reason,
+                      })
+                    }
+                  >
+                    {editable
+                      ? "Standortregeln veröffentlichen"
+                      : "Diese Version erneut veröffentlichen"}
+                  </button>
+                </div>
                 <button
                   type="button"
                   className="secondary"
@@ -978,24 +1112,26 @@ function LocationOperationsEditor({
               </>
             )}
           </fieldset>
-          <h4>Letzte Betriebsänderungen</h4>
-          <ul>
-            {state.audit.map((a) => (
-              <li key={a.id}>
-                {new Date(a.createdAt).toLocaleString("de-DE", { timeZone: state.timezone })} ·{" "}
-                {(
-                  {
-                    create_draft: "Entwurf angelegt",
-                    save_draft: "Entwurf gespeichert",
-                    publish: "Veröffentlicht",
-                    override: "Betriebsmodus geändert",
-                    clear_override: "Temporäre Regel beendet",
-                  } as Record<string, string>
-                )[a.action] ?? a.action}{" "}
-                · {a.reason} · Bearbeiter {a.actorId}
-              </li>
-            ))}
-          </ul>
+          <details className="management-audit">
+            <summary>Letzte Betriebsänderungen</summary>
+            <ul>
+              {state.audit.map((a) => (
+                <li key={a.id}>
+                  {new Date(a.createdAt).toLocaleString("de-DE", { timeZone: state.timezone })} ·{" "}
+                  {(
+                    {
+                      create_draft: "Entwurf angelegt",
+                      save_draft: "Entwurf gespeichert",
+                      publish: "Veröffentlicht",
+                      override: "Betriebsmodus geändert",
+                      clear_override: "Temporäre Regel beendet",
+                    } as Record<string, string>
+                  )[a.action] ?? a.action}{" "}
+                  · {a.reason} · Bearbeiter {a.actorId}
+                </li>
+              ))}
+            </ul>
+          </details>
         </>
       )}
     </div>

@@ -2,3 +2,6 @@ dist/
 .openai/
 node_modules/
 public/reference.png
+public/reference-s1.png
+public/reference-e1.png
+public/operator-menu/

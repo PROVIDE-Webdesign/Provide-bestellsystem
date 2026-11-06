@@ -1,5 +1,7 @@
 "use client";
 import { MenuImport } from "./MenuImport";
+import { OperatorIcon } from "./OperatorVisuals.js";
+import { countMenuChanges, menuItemAvailability } from "../../lib/management-ui.js";
 import { useEffect, useRef, useState } from "react";
 import {
   parseMenuAdminState,
@@ -42,21 +44,34 @@ const choice = (): MenuChoice => ({
 export function MenuEditor({
   restaurantId,
   locations,
+  onDirtyChange,
 }: {
   restaurantId: string;
   locations: readonly Location[];
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   return (
-    <RestaurantMenuEditor key={restaurantId} restaurantId={restaurantId} locations={locations} />
+    <RestaurantMenuEditor
+      key={restaurantId}
+      restaurantId={restaurantId}
+      locations={locations}
+      {...(onDirtyChange ? { onDirtyChange } : {})}
+    />
   );
 }
 function RestaurantMenuEditor({
   restaurantId,
   locations,
+  onDirtyChange,
 }: {
   restaurantId: string;
   locations: readonly Location[];
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const [panel, setPanel] = useState("list");
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("all");
+  const [editingItem, setEditingItem] = useState("");
   const live = useRef(true);
   const generation = useRef(0);
   const pending = useRef(false);
@@ -81,6 +96,16 @@ function RestaurantMenuEditor({
   const [versionId, setVersion] = useState("");
   const [draft, setDraft] = useState<MenuAdminVersion | null>(null);
   const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+  useEffect(() => {
+    const guard = (event: BeforeUnloadEvent) => {
+      if (dirty) event.preventDefault();
+    };
+    window.addEventListener("beforeunload", guard);
+    return () => window.removeEventListener("beforeunload", guard);
+  }, [dirty]);
   const [confirmedInfo, setConfirmedInfo] = useState<readonly string[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -100,6 +125,10 @@ function RestaurantMenuEditor({
   function clearEditor() {
     authorized.current = false;
     setState(null);
+    setPanel("list");
+    setEditingItem("");
+    setSearch("");
+    setCategory("all");
     setMenu("");
     setVersion("");
     setDraft(null);
@@ -148,6 +177,10 @@ function RestaurantMenuEditor({
       (command !== null && !authorized.current)
     )
       return;
+    if (command && dirty && command.action !== "save_draft" && command.action !== "publish") {
+      setMessage("Bitte zuerst den Entwurf speichern oder die Änderungen bewusst verwerfen.");
+      return;
+    }
     const requestGeneration = ++generation.current;
     const current = () => live.current && requestGeneration === generation.current;
     const abort = new AbortController();
@@ -163,7 +196,7 @@ function RestaurantMenuEditor({
           headers: command ? { "content-type": "application/json" } : {},
           ...(command ? { body: JSON.stringify(command) } : {}),
           cache: "no-store",
-          signal: abort.signal,
+          signal: AbortSignal.any([abort.signal, AbortSignal.timeout(10000)]),
         },
       );
       if (!current()) return;
@@ -208,10 +241,22 @@ function RestaurantMenuEditor({
       );
       setDirty(false);
       setPreview(false);
+      if (command?.action === "create_menu" || command?.action === "import_draft")
+        setPanel("organize");
+      if (
+        command?.action === "publish" ||
+        command?.action === "rollback" ||
+        command?.action === "stop"
+      )
+        setPanel("list");
       setDeliveryTaxConfirmed(false);
       setMessage(
         command
-          ? "Änderung gespeichert. Veröffentlichte Stände bleiben unverändert."
+          ? command.action === "stop"
+            ? "Verfügbarkeit aktualisiert. Die Änderung ist sofort für Gäste sichtbar."
+            : command.action === "publish" || command.action === "rollback"
+              ? "Speisekarte veröffentlicht."
+              : "Entwurf gespeichert. Die veröffentlichte Karte bleibt unverändert."
           : "Menüstand geladen.",
       );
     } catch (e) {
@@ -225,6 +270,35 @@ function RestaurantMenuEditor({
       }
     }
   }
+  useEffect(() => {
+    void request();
+  }, [locationId]);
+  useEffect(() => {
+    if (panel !== "add" || !draft || draft.status !== "draft") return;
+    if (!draft.sections.length || draft.items.length >= 200) {
+      setPanel("organize");
+      setMessage("Bitte zuerst eine Kategorie anlegen; maximal 200 Gerichte sind möglich.");
+      return;
+    }
+    const id = crypto.randomUUID();
+    setEditingItem(id);
+    setPanel("item");
+    change({
+      ...draft,
+      items: [
+        ...draft.items,
+        {
+          id,
+          sectionKey: draft.sections[0]!.key,
+          name: "Neues Gericht",
+          description: null,
+          priceAmountMinor: 0,
+          isActive: true,
+          configuration: null,
+        },
+      ],
+    });
+  }, [panel, draft?.id]);
   const itemChange = (id: string, update: Partial<MenuDraftItem>) => {
     if (draft)
       change({ ...draft, items: draft.items.map((i) => (i.id === id ? { ...i, ...update } : i)) });
@@ -234,7 +308,11 @@ function RestaurantMenuEditor({
     itemChange(item.id, { configuration: config });
   };
   const baseline = menu?.versions.find(
-    (v) => v.id === menu.publications.find((p) => Date.parse(p.effectiveAt) <= now)?.versionId,
+    (v) =>
+      v.id ===
+      [...menu.publications]
+        .filter((p) => Date.parse(p.effectiveAt) <= now)
+        .sort((a, b) => Date.parse(b.effectiveAt) - Date.parse(a.effectiveAt))[0]?.versionId,
   );
   const selectedStop = draft?.items.find((i) => i.id === stopItem);
   const stopChoices = selectedStop?.configuration
@@ -264,49 +342,294 @@ function RestaurantMenuEditor({
     }
     void request(parsed);
   }
+  const changes = countMenuChanges(draft, baseline);
+  const visibleItems =
+    draft?.items.filter(
+      (item) =>
+        (category === "all" || item.sectionKey === category) &&
+        item.name.toLocaleLowerCase("de").includes(search.toLocaleLowerCase("de")),
+    ) ?? [];
+  async function ensureDraft(itemId?: string, add = false) {
+    if (!draft || busy) return;
+    if (draft.status === "published") {
+      const existing = menu?.versions.find((version) => version.status === "draft");
+      if (existing) {
+        selectVersion(existing.id);
+        if (itemId && !existing.items.some((item) => item.id === itemId)) {
+          setPanel("organize");
+          setMessage("Dieses Gericht ist im bestehenden Entwurf nicht enthalten.");
+          return;
+        }
+      } else {
+        setEditingItem(itemId ?? "");
+        await request({ action: "create_draft", menuId, sourceVersionId: draft.id });
+      }
+    }
+    if (itemId) {
+      setEditingItem(itemId);
+      setPanel("item");
+    } else setPanel(add ? "add" : "organize");
+  }
+  const goBack = () => setPanel("list");
+  const artwork = (name: string) => {
+    if (restaurantId !== "f2000000-0000-0000-0000-000000000001") return null;
+    const positions: Record<string, number> = {
+      "Chicken Teriyaki": 50.57,
+      "Veggie Bowl": 62.13,
+      "Salmon Bowl": 73.62,
+      Gyoza: 85.18,
+    };
+    return positions[name] ?? null;
+  };
   return (
-    <section className="menu-editor" aria-labelledby={"menu-title-" + restaurantId}>
-      <h3 id={"menu-title-" + restaurantId}>Speisekarte pflegen</h3>
-      <fieldset disabled={busy}>
-        <label>
-          Standort
-          <select
-            value={locationId}
-            onChange={(e) => {
-              if (dirty && !window.confirm("Ungespeicherte Änderungen verwerfen?")) return;
-              currentLocation.current = e.target.value;
-              generation.current++;
-              controller.current?.abort();
-              controller.current = null;
-              pending.current = false;
-              setBusy(false);
-              clearEditor();
-              setMessage("");
-              setLocation(e.target.value);
+    <section className="menu-editor menu-workbench" aria-labelledby={"menu-title-" + restaurantId}>
+      <h3 className="sr-only" id={"menu-title-" + restaurantId}>
+        Speisekarte pflegen
+      </h3>
+      {panel !== "list" && (
+        <div className="management-subheading">
+          <button type="button" className="secondary" onClick={goBack}>
+            ‹ Zur Speisekarte
+          </button>
+          <h2>
+            {
+              {
+                item: "Gericht bearbeiten",
+                organize: "Kategorien bearbeiten",
+                publish: "Änderungen prüfen",
+                availability: "Verfügbarkeit ändern",
+                create: "Neue Speisekarte",
+                import: "Speisekarte importieren",
+                tax: "Steuerregel",
+                versions: "Speisekarte auswählen",
+                add: "Gericht hinzufügen",
+              }[panel]
+            }
+          </h2>
+        </div>
+      )}
+      {panel === "list" && (
+        <>
+          <div className="menu-badges">
+            <span className="management-badge is-live">
+              <i />
+              {baseline
+                ? `Veröffentlicht · ${baseline.items.length} Gerichte`
+                : "Noch nicht veröffentlicht"}
+            </span>
+            {draft?.status === "draft" && (
+              <span className="management-badge">
+                <OperatorIcon name="edit" />
+                Entwurf · {changes} Änderungen{dirty ? " · ungespeichert" : ""}
+              </span>
+            )}
+          </div>
+          <label className="menu-search">
+            <OperatorIcon name="search" />
+            <input
+              aria-label="Gericht suchen"
+              placeholder="Gericht suchen"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+          <div className="menu-categories" aria-label="Gerichte nach Kategorie filtern">
+            <button
+              type="button"
+              aria-pressed={category === "all"}
+              onClick={() => setCategory("all")}
+            >
+              Alle
+            </button>
+            {draft?.sections.map((section) => (
+              <button
+                type="button"
+                key={section.key}
+                aria-pressed={category === section.key}
+                onClick={() => setCategory(section.key)}
+              >
+                {section.name}
+              </button>
+            ))}
+          </div>
+          <ul className="menu-item-list" aria-label="Gerichte">
+            {visibleItems.map((item) => {
+              const available = menuItemAvailability(item, state?.stops ?? [], menuId, now);
+              const photo = artwork(item.name);
+              return (
+                <li key={item.id} className="menu-item-row">
+                  <div className="menu-item-photo">
+                    {photo ? (
+                      <span
+                        className="menu-photo-sprite"
+                        style={{ backgroundPosition: `7.36% ${photo}%` }}
+                      />
+                    ) : (
+                      <OperatorIcon name="menu" />
+                    )}
+                  </div>
+                  <div className="menu-item-name">
+                    <strong>{item.name}</strong>
+                    <span>
+                      {draft?.sections.find((section) => section.key === item.sectionKey)?.name}
+                    </span>
+                  </div>
+                  <div className="menu-item-price">
+                    <strong>
+                      {new Intl.NumberFormat("de-DE", {
+                        style: "currency",
+                        currency: "EUR",
+                      }).format(item.priceAmountMinor / 100)}
+                    </strong>
+                    <button
+                      type="button"
+                      disabled={busy || !item.isActive}
+                      className={`menu-availability ${available.includes("ausverkauft") || available === "Ausverkauft" ? "is-sold-out" : available === "Inaktiv" ? "is-inactive" : ""}`}
+                      onClick={() => {
+                        setStopItem(item.id);
+                        setStopChoice("");
+                        setStopEnd("");
+                        setReason("");
+                        setPanel("availability");
+                      }}
+                    >
+                      <i />
+                      {available}
+                    </button>
+                  </div>
+                  <div className="menu-item-actions">
+                    <button
+                      type="button"
+                      aria-label={`${item.name} bearbeiten`}
+                      disabled={busy}
+                      onClick={() => void ensureDraft(item.id)}
+                    >
+                      <OperatorIcon name="edit" />
+                    </button>
+                    <details>
+                      <summary aria-label={`Weitere Aktionen für ${item.name}`}>⋮</summary>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStopItem(item.id);
+                            setStopChoice("");
+                            setStopEnd("");
+                            setReason("");
+                            setPanel("availability");
+                          }}
+                        >
+                          Verfügbarkeit
+                        </button>
+                        <button type="button" onClick={() => void ensureDraft(item.id)}>
+                          Bearbeiten
+                        </button>
+                      </div>
+                    </details>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {!visibleItems.length && (
+            <p className="management-empty">
+              {busy
+                ? "Speisekarte wird geladen …"
+                : !state
+                  ? "Speisekarte nicht verfügbar. Bitte erneut laden."
+                  : !draft
+                    ? "Lege deine erste Speisekarte an."
+                    : "Keine Gerichte für diese Auswahl."}
+            </p>
+          )}
+          <div className="menu-main-actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy || !draft}
+              onClick={() => void ensureDraft(undefined, true)}
+            >
+              ＋ Gericht hinzufügen
+            </button>
+            <button
+              type="button"
+              disabled={busy || !draft}
+              onClick={() => {
+                setPanel("publish");
+                setPreview(true);
+              }}
+            >
+              Änderungen prüfen <span>→</span>
+            </button>
+          </div>
+        </>
+      )}
+      <details className="menu-tools">
+        <summary aria-label="Speisekarten-Werkzeuge">
+          <OperatorIcon name="settings" />
+        </summary>
+        <div>
+          <button type="button" onClick={() => setPanel("versions")}>
+            Karte & Standort auswählen
+          </button>
+          <button type="button" onClick={() => void ensureDraft()}>
+            Kategorien bearbeiten
+          </button>
+          <button type="button" onClick={() => setPanel("create")}>
+            Neue Speisekarte
+          </button>
+          <button type="button" onClick={() => setPanel("import")}>
+            Importieren
+          </button>
+          {state?.deliveryTax && (
+            <button type="button" onClick={() => setPanel("tax")}>
+              Steuerregel für Lieferung
+            </button>
+          )}
+        </div>
+      </details>
+      <fieldset className="menu-detail-form" disabled={busy}>
+        <div hidden={panel !== "versions"}>
+          <label>
+            Standort
+            <select
+              value={locationId}
+              onChange={(e) => {
+                if (dirty && !window.confirm("Ungespeicherte Änderungen verwerfen?")) return;
+                currentLocation.current = e.target.value;
+                generation.current++;
+                controller.current?.abort();
+                controller.current = null;
+                pending.current = false;
+                setBusy(false);
+                clearEditor();
+                setMessage("");
+                setLocation(e.target.value);
+              }}
+            >
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                !dirty ||
+                window.confirm("Aktuellen Stand laden und ungespeicherte Änderungen verwerfen?")
+              )
+                void request();
             }}
           >
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.displayName}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          onClick={() => {
-            if (
-              !dirty ||
-              window.confirm("Aktuellen Stand laden und ungespeicherte Änderungen verwerfen?")
-            )
-              void request();
-          }}
-        >
-          Menüstand laden
-        </button>
+            Menüstand laden
+          </button>
+        </div>
         {state && (
           <>
-            {state.deliveryTax && (
+            {panel === "tax" && state.deliveryTax && (
               <fieldset>
                 <legend>Steuerregel für die Liefergebühr</legend>
                 <p>
@@ -392,7 +715,7 @@ function RestaurantMenuEditor({
                 </button>
               </fieldset>
             )}
-            {menuId && (
+            {panel === "import" && menuId && (
               <MenuImport
                 key={locationId + ":" + menuId}
                 disabled={busy || dirty}
@@ -408,7 +731,7 @@ function RestaurantMenuEditor({
               />
             )}
 
-            <fieldset>
+            <fieldset hidden={panel !== "create"}>
               <legend>Neue Speisekarte</legend>
               <label>
                 Name
@@ -426,58 +749,60 @@ function RestaurantMenuEditor({
                 Speisekarte anlegen
               </button>
             </fieldset>
-            <label>
-              Speisekarte
-              <select
-                value={menuId}
-                onChange={(e) => {
-                  if (dirty && !window.confirm("Ungespeicherte Änderungen verwerfen?")) return;
-                  const m = state.menus.find((m) => m.id === e.target.value);
-                  setMenu(e.target.value);
-                  setVersion(m?.versions[0]?.id ?? "");
-                  setDraft(m?.versions[0] ?? null);
-                  setConfirmedInfo(
-                    m?.versions[0]?.items
-                      .filter((i) => i.configuration !== null)
-                      .map((i) => i.id) ?? [],
-                  );
-                  setDirty(false);
-                  setPreview(false);
-                }}
-              >
-                {state.menus.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Version
-              <select
-                value={versionId}
-                onChange={(e) => {
-                  if (!dirty || window.confirm("Ungespeicherte Änderungen verwerfen?"))
-                    selectVersion(e.target.value);
-                }}
-              >
-                {menu?.versions.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    Version {v.number} – {v.status === "draft" ? "Entwurf" : "Veröffentlicht"}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div hidden={panel !== "versions"}>
+              <label>
+                Speisekarte
+                <select
+                  value={menuId}
+                  onChange={(e) => {
+                    if (dirty && !window.confirm("Ungespeicherte Änderungen verwerfen?")) return;
+                    const m = state.menus.find((m) => m.id === e.target.value);
+                    setMenu(e.target.value);
+                    setVersion(m?.versions[0]?.id ?? "");
+                    setDraft(m?.versions[0] ?? null);
+                    setConfirmedInfo(
+                      m?.versions[0]?.items
+                        .filter((i) => i.configuration !== null)
+                        .map((i) => i.id) ?? [],
+                    );
+                    setDirty(false);
+                    setPreview(false);
+                  }}
+                >
+                  {state.menus.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Version
+                <select
+                  value={versionId}
+                  onChange={(e) => {
+                    if (!dirty || window.confirm("Ungespeicherte Änderungen verwerfen?"))
+                      selectVersion(e.target.value);
+                  }}
+                >
+                  {menu?.versions.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      Version {v.number} – {v.status === "draft" ? "Entwurf" : "Veröffentlicht"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             {draft && (
               <>
-                <p>
+                <p hidden={panel === "list"}>
                   Version {draft.number}:{" "}
                   {draft.status === "draft"
                     ? "Entwurf, für Kunden unsichtbar"
                     : "Veröffentlicht, unveränderlich"}
                   {dirty ? " · Ungespeicherte Änderungen" : ""}
                 </p>
-                {draft.status === "published" && (
+                {draft.status === "published" && panel !== "list" && panel !== "availability" && (
                   <button
                     type="button"
                     onClick={() =>
@@ -489,202 +814,218 @@ function RestaurantMenuEditor({
                 )}
                 {draft.status === "draft" && (
                   <>
-                    {draft.sections.map((section, index) => (
-                      <div key={section.key}>
-                        <label>
-                          Kategorie
-                          <input
-                            value={section.name}
-                            onChange={(e) =>
+                    <div hidden={panel !== "organize"}>
+                      {draft.sections.map((section, index) => (
+                        <div key={section.key}>
+                          <label>
+                            Kategorie
+                            <input
+                              value={section.name}
+                              onChange={(e) =>
+                                change({
+                                  ...draft,
+                                  sections: draft.sections.map((s) =>
+                                    s.key === section.key ? { ...s, name: e.target.value } : s,
+                                  ),
+                                })
+                              }
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            aria-label={`${section.name} nach oben`}
+                            disabled={index === 0}
+                            onClick={() =>
+                              change({ ...draft, sections: move(draft.sections, index, -1) })
+                            }
+                          >
+                            Nach oben
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`${section.name} nach unten`}
+                            disabled={index === draft.sections.length - 1}
+                            onClick={() =>
+                              change({ ...draft, sections: move(draft.sections, index, 1) })
+                            }
+                          >
+                            Nach unten
+                          </button>
+                          <button
+                            type="button"
+                            disabled={draft.items.some((i) => i.sectionKey === section.key)}
+                            onClick={() =>
                               change({
                                 ...draft,
-                                sections: draft.sections.map((s) =>
-                                  s.key === section.key ? { ...s, name: e.target.value } : s,
-                                ),
+                                sections: draft.sections.filter((s) => s.key !== section.key),
                               })
                             }
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          aria-label={`${section.name} nach oben`}
-                          disabled={index === 0}
-                          onClick={() =>
-                            change({ ...draft, sections: move(draft.sections, index, -1) })
-                          }
-                        >
-                          Nach oben
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`${section.name} nach unten`}
-                          disabled={index === draft.sections.length - 1}
-                          onClick={() =>
-                            change({ ...draft, sections: move(draft.sections, index, 1) })
-                          }
-                        >
-                          Nach unten
-                        </button>
-                        <button
-                          type="button"
-                          disabled={draft.items.some((i) => i.sectionKey === section.key)}
-                          onClick={() =>
-                            change({
-                              ...draft,
-                              sections: draft.sections.filter((s) => s.key !== section.key),
-                            })
-                          }
-                        >
-                          Leere Kategorie entfernen
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        change({
-                          ...draft,
-                          sections: [
-                            ...draft.sections,
-                            {
-                              key: "category-" + crypto.randomUUID().slice(0, 8),
-                              name: "Neue Kategorie",
-                            },
-                          ],
-                        })
-                      }
-                    >
-                      Kategorie hinzufügen
-                    </button>
-                    {draft.items.map((item, index) => (
-                      <fieldset key={item.id}>
-                        <legend>{item.name || "Gericht"}</legend>
-                        <label>
-                          Name
-                          <input
-                            value={item.name}
-                            maxLength={300}
-                            onChange={(e) => itemChange(item.id, { name: e.target.value })}
-                          />
-                        </label>
-                        <label>
-                          Beschreibung
-                          <textarea
-                            value={item.description ?? ""}
-                            maxLength={1000}
-                            onChange={(e) =>
-                              itemChange(item.id, { description: e.target.value || null })
-                            }
-                          />
-                        </label>
-                        <label>
-                          Kategorie
-                          <select
-                            value={item.sectionKey}
-                            onChange={(e) => itemChange(item.id, { sectionKey: e.target.value })}
                           >
-                            {draft.sections.map((s) => (
-                              <option key={s.key} value={s.key}>
-                                {s.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label>
-                          Preis in Euro
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={item.priceAmountMinor / 100}
-                            onChange={(e) =>
-                              itemChange(item.id, {
-                                priceAmountMinor: Math.round(Number(e.target.value) * 100),
+                            Leere Kategorie entfernen
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          change({
+                            ...draft,
+                            sections: [
+                              ...draft.sections,
+                              {
+                                key: "category-" + crypto.randomUUID().slice(0, 8),
+                                name: "Neue Kategorie",
+                              },
+                            ],
+                          })
+                        }
+                      >
+                        Kategorie hinzufügen
+                      </button>
+                    </div>
+                    {draft.items.map((item, index) =>
+                      panel === "item" && editingItem === item.id ? (
+                        <fieldset key={item.id}>
+                          <legend>{item.name || "Gericht"}</legend>
+                          <label>
+                            Name
+                            <input
+                              value={item.name}
+                              maxLength={300}
+                              onChange={(e) => itemChange(item.id, { name: e.target.value })}
+                            />
+                          </label>
+                          <label>
+                            Beschreibung
+                            <textarea
+                              value={item.description ?? ""}
+                              maxLength={1000}
+                              onChange={(e) =>
+                                itemChange(item.id, { description: e.target.value || null })
+                              }
+                            />
+                          </label>
+                          <label>
+                            Kategorie
+                            <select
+                              value={item.sectionKey}
+                              onChange={(e) => itemChange(item.id, { sectionKey: e.target.value })}
+                            >
+                              {draft.sections.map((s) => (
+                                <option key={s.key} value={s.key}>
+                                  {s.name}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            Preis in Euro
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.priceAmountMinor / 100}
+                              onChange={(e) =>
+                                itemChange(item.id, {
+                                  priceAmountMinor: Math.round(Number(e.target.value) * 100),
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={item.isActive}
+                              onChange={(e) => itemChange(item.id, { isActive: e.target.checked })}
+                            />
+                            Gericht aktiv
+                          </label>
+                          {item.configuration === null ? (
+                            <>
+                              <p>
+                                Produktinformationen noch unbekannt. Vor neuer Veröffentlichung
+                                bestätigen.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => configChange(item, emptyConfiguration())}
+                              >
+                                Produktinformationen ergänzen
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <details className="management-rule">
+                                <summary>Varianten, Allergene & Steuern</summary>
+                                <ConfigurationEditor
+                                  key={draft.id + ":" + item.id + ":" + draft.revision}
+                                  value={item.configuration}
+                                  onChange={(v) => configChange(item, v)}
+                                />
+                              </details>
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  checked={confirmedInfo.includes(item.id)}
+                                  onChange={(e) =>
+                                    setConfirmedInfo((ids) =>
+                                      e.target.checked
+                                        ? [...ids, item.id]
+                                        : ids.filter((id) => id !== item.id),
+                                    )
+                                  }
+                                />
+                                Ich habe Steuersatz, Allergene, Zusatzstoffe und Auswahl dieses
+                                Gerichts geprüft.
+                              </label>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            aria-label={`${item.name} nach oben`}
+                            disabled={index === 0}
+                            onClick={() =>
+                              change({ ...draft, items: move(draft.items, index, -1) })
+                            }
+                          >
+                            Nach oben
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`${item.name} nach unten`}
+                            disabled={index === draft.items.length - 1}
+                            onClick={() => change({ ...draft, items: move(draft.items, index, 1) })}
+                          >
+                            Nach unten
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              change({
+                                ...draft,
+                                items: draft.items.filter((i) => i.id !== item.id),
                               })
                             }
-                          />
-                        </label>
-                        <label>
-                          <input
-                            type="checkbox"
-                            checked={item.isActive}
-                            onChange={(e) => itemChange(item.id, { isActive: e.target.checked })}
-                          />
-                          Gericht aktiv
-                        </label>
-                        {item.configuration === null ? (
-                          <>
-                            <p>
-                              Produktinformationen noch unbekannt. Vor neuer Veröffentlichung
-                              bestätigen.
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => configChange(item, emptyConfiguration())}
-                            >
-                              Produktinformationen ergänzen
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <ConfigurationEditor
-                              key={draft.id + ":" + item.id + ":" + draft.revision}
-                              value={item.configuration}
-                              onChange={(v) => configChange(item, v)}
-                            />
-                            <label>
-                              <input
-                                type="checkbox"
-                                checked={confirmedInfo.includes(item.id)}
-                                onChange={(e) =>
-                                  setConfirmedInfo((ids) =>
-                                    e.target.checked
-                                      ? [...ids, item.id]
-                                      : ids.filter((id) => id !== item.id),
-                                  )
-                                }
-                              />
-                              Ich habe Steuersatz, Allergene, Zusatzstoffe und Auswahl dieses
-                              Gerichts geprüft.
-                            </label>
-                          </>
-                        )}
-                        <button
-                          type="button"
-                          aria-label={`${item.name} nach oben`}
-                          disabled={index === 0}
-                          onClick={() => change({ ...draft, items: move(draft.items, index, -1) })}
-                        >
-                          Nach oben
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`${item.name} nach unten`}
-                          disabled={index === draft.items.length - 1}
-                          onClick={() => change({ ...draft, items: move(draft.items, index, 1) })}
-                        >
-                          Nach unten
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            change({ ...draft, items: draft.items.filter((i) => i.id !== item.id) })
-                          }
-                        >
-                          Aus diesem Entwurf entfernen
-                        </button>
-                      </fieldset>
-                    ))}
+                          >
+                            Aus diesem Entwurf entfernen
+                          </button>
+                        </fieldset>
+                      ) : null,
+                    )}
                     <button
+                      hidden={panel !== "add"}
                       type="button"
                       disabled={!draft.sections.length || draft.items.length >= 200}
-                      onClick={() =>
+                      onClick={() => {
+                        const id = crypto.randomUUID();
+                        setEditingItem(id);
+                        setPanel("item");
                         change({
                           ...draft,
                           items: [
                             ...draft.items,
                             {
-                              id: crypto.randomUUID(),
+                              id,
                               sectionKey: draft.sections[0]!.key,
                               name: "Neues Gericht",
                               description: null,
@@ -693,12 +1034,13 @@ function RestaurantMenuEditor({
                               configuration: null,
                             },
                           ],
-                        })
-                      }
+                        });
+                      }}
                     >
                       Gericht hinzufügen
                     </button>
                     <button
+                      hidden={!["item", "organize", "publish"].includes(panel)}
                       type="button"
                       onClick={() =>
                         submit({
@@ -715,121 +1057,130 @@ function RestaurantMenuEditor({
                     </button>
                   </>
                 )}
-                <button type="button" onClick={() => setPreview(!preview)}>
-                  Änderungsvorschau {preview ? "schließen" : "anzeigen"}
-                </button>
-                {preview && (
-                  <div aria-label="Menüvorschau">
-                    <h4>Änderungen gegenüber dem aktiven Stand</h4>
-                    <ul>
-                      {draft.items.map((i) => {
-                        const old = baseline?.items.find((o) => o.id === i.id);
-                        return (
-                          <li key={i.id}>
-                            {i.name}:{" "}
-                            {old
-                              ? `${old.name}, ${(old.priceAmountMinor / 100).toFixed(2)} EUR → ${(i.priceAmountMinor / 100).toFixed(2)} EUR`
-                              : "Neu"}
-                            ;{" "}
-                            {old &&
-                            JSON.stringify(old.configuration) !== JSON.stringify(i.configuration)
-                              ? "Produktinformationen/Auswahl geändert"
-                              : ""}
-                          </li>
-                        );
-                      })}
-                      {baseline?.items
-                        .filter((i) => !draft.items.some((d) => d.id === i.id))
-                        .map((i) => (
-                          <li key={i.id}>Entfernt: {i.name}</li>
-                        ))}
-                    </ul>
-                    {draft.sections.map((s) => (
-                      <section key={s.key}>
-                        <h4>{s.name}</h4>
-                        <ul>
-                          {draft.items
-                            .filter((i) => i.sectionKey === s.key && i.isActive)
-                            .map((i) => (
-                              <li key={i.id}>
-                                {i.name} – {(i.priceAmountMinor / 100).toFixed(2)} EUR; Varianten:{" "}
-                                {i.configuration?.variants.map((v) => v.name).join(", ") || "keine"}
-                                ; Allergene: {i.configuration?.allergens.join(", ") ?? "unbekannt"}
-                              </li>
-                            ))}
-                        </ul>
-                      </section>
-                    ))}
-                  </div>
-                )}
-                <fieldset>
-                  <legend>
-                    {draft.status === "draft"
-                      ? "Bewusst veröffentlichen"
-                      : "Auf diese Version zurückkehren"}
-                  </legend>
-                  <p>
-                    Standort: {location?.displayName}. Zeitangaben gelten in {timezone}. Leeres
-                    Datum bedeutet sofort.
-                  </p>
-                  <label>
-                    Geplante Aktivierung
-                    <input
-                      type="datetime-local"
-                      value={effective}
-                      onChange={(e) => setEffective(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    Änderungsnotiz
-                    <input maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} />
-                  </label>
-                  <button
-                    type="button"
-                    disabled={dirty || !preview}
-                    onClick={() => {
-                      const effectiveAt = effective
-                        ? timezone
-                          ? locationTimeToInstant(effective, timezone)
-                          : undefined
-                        : new Date().toISOString();
-                      if (!timezone || !effectiveAt) {
-                        setMessage("Bitte wähle einen eindeutigen Zeitpunkt.");
-                        return;
-                      }
-                      if (
-                        window.confirm(
-                          "Diese Version nach geprüfter Vorschau für den ausgewählten Standort aktivieren?",
-                        )
-                      )
-                        submit({
-                          action: draft.status === "draft" ? "publish" : "rollback",
-                          menuId,
-                          versionId: draft.id,
-                          expectedRevision: draft.revision,
-                          effectiveAt,
-                          note,
-                        });
-                    }}
-                  >
-                    Nach Vorschau {draft.status === "draft" ? "veröffentlichen" : "zurückkehren"}
+                <div hidden={panel !== "publish"}>
+                  <button type="button" onClick={() => setPreview(!preview)}>
+                    Änderungsvorschau {preview ? "schließen" : "anzeigen"}
                   </button>
-                </fieldset>
-                <ul aria-label="Veröffentlichungsverlauf">
-                  {menu?.publications.map((p, i) => (
-                    <li key={p.versionId + p.effectiveAt + i}>
-                      Version{" "}
-                      {menu.versions.find((v) => v.id === p.versionId)?.number ?? "älterer Stand"} ·{" "}
-                      {new Intl.DateTimeFormat("de-DE", {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                        ...(timezone ? { timeZone: timezone } : {}),
-                      }).format(new Date(p.effectiveAt))}
-                    </li>
-                  ))}
-                </ul>
-                <fieldset>
-                  <legend>Ausverkauft steuern</legend>
+                  {preview && (
+                    <div aria-label="Menüvorschau">
+                      <h4>Änderungen gegenüber dem aktiven Stand</h4>
+                      <ul>
+                        {draft.items.map((i) => {
+                          const old = baseline?.items.find((o) => o.id === i.id);
+                          return (
+                            <li key={i.id}>
+                              {i.name}:{" "}
+                              {old
+                                ? `${old.name}, ${(old.priceAmountMinor / 100).toFixed(2)} EUR → ${(i.priceAmountMinor / 100).toFixed(2)} EUR`
+                                : "Neu"}
+                              ;{" "}
+                              {old &&
+                              JSON.stringify(old.configuration) !== JSON.stringify(i.configuration)
+                                ? "Produktinformationen/Auswahl geändert"
+                                : ""}
+                            </li>
+                          );
+                        })}
+                        {baseline?.items
+                          .filter((i) => !draft.items.some((d) => d.id === i.id))
+                          .map((i) => (
+                            <li key={i.id}>Entfernt: {i.name}</li>
+                          ))}
+                      </ul>
+                      {draft.sections.map((s) => (
+                        <section key={s.key}>
+                          <h4>{s.name}</h4>
+                          <ul>
+                            {draft.items
+                              .filter((i) => i.sectionKey === s.key && i.isActive)
+                              .map((i) => (
+                                <li key={i.id}>
+                                  {i.name} – {(i.priceAmountMinor / 100).toFixed(2)} EUR; Varianten:{" "}
+                                  {i.configuration?.variants.map((v) => v.name).join(", ") ||
+                                    "keine"}
+                                  ; Allergene:{" "}
+                                  {i.configuration?.allergens.join(", ") ?? "unbekannt"}
+                                </li>
+                              ))}
+                          </ul>
+                        </section>
+                      ))}
+                    </div>
+                  )}
+                  <fieldset>
+                    <legend>
+                      {draft.status === "draft"
+                        ? "Bewusst veröffentlichen"
+                        : "Auf diese Version zurückkehren"}
+                    </legend>
+                    <p>
+                      Standort: {location?.displayName}. Zeitangaben gelten in {timezone}. Leeres
+                      Datum bedeutet sofort.
+                    </p>
+                    <label>
+                      Geplante Aktivierung
+                      <input
+                        type="datetime-local"
+                        value={effective}
+                        onChange={(e) => setEffective(e.target.value)}
+                      />
+                    </label>
+                    <label>
+                      Änderungsnotiz
+                      <input
+                        maxLength={200}
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      disabled={dirty || !preview}
+                      onClick={() => {
+                        const effectiveAt = effective
+                          ? timezone
+                            ? locationTimeToInstant(effective, timezone)
+                            : undefined
+                          : new Date().toISOString();
+                        if (!timezone || !effectiveAt) {
+                          setMessage("Bitte wähle einen eindeutigen Zeitpunkt.");
+                          return;
+                        }
+                        if (
+                          window.confirm(
+                            "Diese Version nach geprüfter Vorschau für den ausgewählten Standort aktivieren?",
+                          )
+                        )
+                          submit({
+                            action: draft.status === "draft" ? "publish" : "rollback",
+                            menuId,
+                            versionId: draft.id,
+                            expectedRevision: draft.revision,
+                            effectiveAt,
+                            note,
+                          });
+                      }}
+                    >
+                      Nach Vorschau {draft.status === "draft" ? "veröffentlichen" : "zurückkehren"}
+                    </button>
+                  </fieldset>
+                  <ul aria-label="Veröffentlichungsverlauf">
+                    {menu?.publications.map((p, i) => (
+                      <li key={p.versionId + p.effectiveAt + i}>
+                        Version{" "}
+                        {menu.versions.find((v) => v.id === p.versionId)?.number ?? "älterer Stand"}{" "}
+                        ·{" "}
+                        {new Intl.DateTimeFormat("de-DE", {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                          ...(timezone ? { timeZone: timezone } : {}),
+                        }).format(new Date(p.effectiveAt))}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <fieldset hidden={panel !== "availability"}>
+                  <legend>Verfügbarkeit ändern</legend>
                   <ul aria-label="Aktuelle Verfügbarkeit">
                     {state.stops
                       .filter((s) => s.menuId === menuId)
@@ -940,8 +1291,8 @@ function RestaurantMenuEditor({
           </>
         )}
       </fieldset>
-      <p role="status" aria-live="polite">
-        {busy ? "Menü wird sicher verarbeitet …" : message}
+      <p className="management-message" role="status" aria-live="polite">
+        {busy ? "Menü wird sicher verarbeitet …" : message === "Menüstand geladen." ? "" : message}
       </p>
     </section>
   );

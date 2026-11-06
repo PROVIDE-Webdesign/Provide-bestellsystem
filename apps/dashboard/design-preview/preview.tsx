@@ -1,8 +1,20 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { managementFixture } from "./management-fixtures";
 import { createRoot } from "react-dom/client";
 import { DashboardClient } from "../app/components/DashboardClient";
 import "../app/styles.css";
 import "../app/operator-design.css";
+import "../app/management-design.css";
+if (!crypto.randomUUID)
+  Object.defineProperty(crypto, "randomUUID", {
+    value: () =>
+      "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
+        (
+          Number(c) ^
+          (crypto.getRandomValues(new Uint8Array(1))[0]! & (15 >> (Number(c) / 4)))
+        ).toString(16),
+      ),
+  });
 const now = Date.parse("2026-11-05T18:00:00Z");
 const NativeDate = Date;
 window.Date = class extends NativeDate {
@@ -99,24 +111,14 @@ let items = samples.map((sample) => ({
     lineAmountMinor: Number(line[0]) * Number(line[2]),
   })),
 }));
-let operations = {
-  timezone: "Europe/Berlin",
-  serverNow: new NativeDate(now).toISOString(),
-  publicationId: null,
-  deliveryPolicyId: null,
-  currentVersionId: "fb000000-0000-0000-0000-000000000001",
-  operationSequence: 1,
-  openOrders: 5,
-  versions: [],
-  overrides: [],
-  audit: [],
-};
 window.fetch = async (input, init) => {
   const url = new URL(
     typeof input === "string" ? input : input instanceof Request ? input.url : input.toString(),
     window.location.origin,
   );
   const ok = (data) => Response.json({ data });
+  const managed = await managementFixture(url, init);
+  if (managed) return managed;
   if (url.pathname === "/api/access-context")
     return ok({
       aal: "aal1",
@@ -127,32 +129,10 @@ window.fetch = async (input, init) => {
           status: "active",
           access: "allowed",
           restaurant: { slug: "asian-kitchen", displayName: "Asian Kitchen" },
-          locations: [{ id: locationId, slug: "mitte", displayName: "Mitte" }],
+          locations: [{ id: locationId, slug: "mitte", displayName: "Teststandort Mitte" }],
         },
       ],
     });
-  if (url.pathname === "/api/operations") {
-    if (init?.method === "POST") {
-      const command = JSON.parse(String(init.body));
-      operations = {
-        ...operations,
-        operationSequence: operations.operationSequence + 1,
-        overrides:
-          command.action === "clear_override"
-            ? []
-            : [
-                {
-                  scope: command.scope,
-                  sequence: operations.operationSequence + 1,
-                  endsAt: command.endsAt,
-                  reason: command.reason,
-                  values: command.values,
-                },
-              ],
-      };
-    }
-    return ok(operations);
-  }
   if (url.pathname === "/api/order-alerts")
     return ok({
       restaurantId,
@@ -198,13 +178,35 @@ window.fetch = async (input, init) => {
   }
   return Response.json({ error: { message: "Isolierte Gestaltungsprüfung" } }, { status: 503 });
 };
+function AutoView() {
+  useEffect(() => {
+    const view = new URLSearchParams(location.search).get("view");
+    const text = view === "menu" ? "Speisekarte" : view === "settings" ? "Einstellungen" : null;
+    if (!text) return;
+    const observer = new MutationObserver(() => {
+      const button = [...document.querySelectorAll("nav button")].find(
+        (b) => b.textContent === text,
+      );
+      if (button) {
+        (button as HTMLButtonElement).click();
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { subtree: true, childList: true });
+    return () => observer.disconnect();
+  }, []);
+  return null;
+}
 createRoot(document.getElementById("root")!).render(
-  <DashboardClient
-    enabled
-    menuEnabled
-    historyEnabled
-    personnelEnabled
-    operationsEnabled
-    alertsEnabled
-  />,
+  <>
+    <AutoView />
+    <DashboardClient
+      enabled
+      menuEnabled
+      historyEnabled={false}
+      personnelEnabled={false}
+      operationsEnabled
+      alertsEnabled
+    />
+  </>,
 );

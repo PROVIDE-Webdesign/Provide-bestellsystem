@@ -1,5 +1,16 @@
 export function OperatorIcon({ name }: { name: string }) {
   const paths: Record<string, string> = {
+    edit: "m16 3 5 5-12 12-6 1 1-6L16 3Zm-3 3 5 5",
+    search: "M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-2 6 7 7",
+    store:
+      "M3 9h18l-2-6H5L3 9Zm1 0v12h16V9M9 21v-8h6v8M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0",
+    clock: "M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM12 6v7l4 2",
+    layers: "m12 2 11 6-11 6L1 8l11-6ZM2 13l10 6 10-6M2 18l10 6 10-6",
+    delivery:
+      "M2 5h12v12H2V5Zm12 5h5l4 5v2h-9M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm13 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0",
+    calendar: "M3 5h20v17H3V5ZM8 2v6M18 2v6M3 11h20M8 15h3m4 0h3m-10 4h3",
+    user: "M17 7a5 5 0 1 1-10 0 5 5 0 0 1 10 0ZM3 23v-4a9 9 0 0 1 18 0v4H3Z",
+    document: "M5 2h11l5 5v16H5V2Zm11 0v6h5M9 12h8m-8 5h8",
     bag: "M5 7h14l2 14H3L5 7ZM8 8V5a4 4 0 0 1 8 0v3",
     menu: "M4 2v6m4-6v6M2 2v5a4 4 0 0 0 8 0V2M6 11v11M18 2v20m0-20c-4 4-5 10 0 10",
     history: "M3 3v6h6M3 9a9 9 0 1 1 1 10M12 7v5l3 2",
