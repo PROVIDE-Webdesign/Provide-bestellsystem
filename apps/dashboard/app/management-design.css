@@ -967,3 +967,15 @@
 .operator-management .operator-shop-state {font-weight:400;}
 .operator-shell .menu-search > input {font-weight:400;}
 @media(max-width:760px) {.operator-brand .provide-bowl {width:36px;height:30px;vertical-align:middle;margin-right:8px;}}
+
+@media(min-width:761px){
+ .operator-management .operator-header{padding:18px 30px;gap:22px;flex-wrap:nowrap;}
+ .operator-management .operator-view-label{display:none;}
+ .operator-management .operator-header-actions{width:auto;margin-left:auto;}
+ .operator-management .operator-sidebar{position:static;display:flex;flex-direction:row;align-items:center;justify-content:space-between;width:100%;padding:18px 25px;gap:16px;border:0;border-bottom:1px solid #d7d5ce;}
+ .operator-management .operator-sidebar>button{flex:1;flex-direction:row;min-height:68px;gap:15px;font-size:27px;}
+ .operator-management .operator-sidebar svg{width:35px;height:35px;}
+ .operator-management .operator-content{margin:0;}
+ .operator-settings-view .settings-topic{padding-left:28px;padding-right:13px;gap:38px;}
+ .operator-settings-view .settings-topic>svg{stroke-width:1.2;}
+}
