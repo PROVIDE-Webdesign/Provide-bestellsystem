@@ -11,6 +11,7 @@ html {
   --muted: #d0ccc7;
   --line: #4b4640;
   container-type: inline-size;
+  overflow-x: clip;
   max-width: 814px;
   padding: 0 0 249px;
   background: #131212;
@@ -710,4 +711,17 @@ html {
   font-style: normal;
   line-height: 1.5;
   color: var(--muted);
+}
+
+/* Reflow the cart dock when enlarged text leaves a narrow shop container. */
+@container (max-width: 320px) {
+  .shop-shell .basket-button {
+    height: auto;
+    min-height: 56px;
+  }
+  .basket-button > span {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
