@@ -56,6 +56,15 @@ export interface SandboxProvider<Config extends StripeConfig = SandboxConfig> {
     sequence: number,
   ): Promise<ProviderRefund>;
 }
+export class CheckoutCreationRejected extends Error {
+  constructor(
+    readonly requestId: string,
+    readonly payloadSha256: string,
+  ) {
+    super("Checkout creation was definitively rejected");
+    this.name = "CheckoutCreationRejected";
+  }
+}
 const api = "https://api.stripe.com/v1";
 async function request(
   c: RequestConfig,
@@ -76,9 +85,45 @@ async function request(
     redirect: "manual",
     signal: AbortSignal.timeout(8000),
   });
-  if (!response.ok) throw new Error("Provider unavailable");
   const text = await response.text();
   if (text.length > 256 * 1024) throw new Error("Provider response too large");
+  if (!response.ok) {
+    // Only conclusive parameter rejection on creation may close an unbound job.
+    // Timeouts, 5xx, conflicts, preflight errors and unknown replies remain uncertain.
+    let error: Record<string, unknown> | undefined;
+    try {
+      error = object(object(JSON.parse(text))?.error);
+    } catch {
+      /* untrusted reply */
+    }
+    const requestId = response.headers.get("request-id");
+    const invalidParameter =
+      (error?.code === undefined && error?.param === "payment_method_types") ||
+      [
+        "parameter_unknown",
+        "parameter_missing",
+        "parameter_invalid_empty",
+        "parameter_invalid_integer",
+        "parameter_invalid_string_blank",
+      ].includes(String(error?.code));
+    if (
+      path === "/checkout/sessions" &&
+      body &&
+      idempotency?.startsWith("provide-online-create:") &&
+      response.status === 400 &&
+      response.headers.get("stripe-should-retry") === "false" &&
+      requestId &&
+      /^req_[A-Za-z0-9]+$/.test(requestId) &&
+      error?.type === "invalid_request_error" &&
+      invalidParameter &&
+      error.code !== "idempotency_key_in_use" &&
+      error.code !== "idempotency_error" &&
+      error.param !== "idempotency_key" &&
+      !error.payment_intent
+    )
+      throw new CheckoutCreationRejected(requestId, await digest(text));
+    throw new Error("Provider unavailable");
+  }
   const result = object(JSON.parse(text));
   if (!result) throw new Error("Invalid provider response");
   return result;

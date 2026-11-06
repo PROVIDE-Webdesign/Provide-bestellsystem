@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { stripeSandboxProvider } from "./stripe-sandbox.js";
+import { stripeSandboxProvider, CheckoutCreationRejected } from "./stripe-sandbox.js";
 const config = {
   key: "sk_test_synthetic",
   account: "acct_synthetic",
@@ -275,5 +275,96 @@ describe("Stripe sandbox HTTP adapter", () => {
     );
     await stripeSandboxProvider.refund(config, "pi_synthetic", job.id, "re_synthetic", 2950, 1);
     expect(calls[3]?.method).toBe("GET");
+  });
+});
+
+describe("checkout creation error certainty", () => {
+  it.each([
+    [400, "invalid_request_error", "parameter_unknown", "false", "req_validation", true],
+    [400, "invalid_request_error", undefined, "false", "req_validation", true],
+    [400, "idempotency_error", undefined, "false", "req_validation", false],
+    [400, "invalid_request_error", "lock_timeout", "false", "req_validation", false],
+    [400, "invalid_request_error", "rate_limit", "false", "req_validation", false],
+    [409, "invalid_request_error", "idempotency_key_in_use", "true", "req_validation", false],
+    [429, "rate_limit_error", undefined, "true", "req_validation", false],
+    [500, "api_error", undefined, "false", "req_validation", false],
+    [400, "invalid_request_error", undefined, undefined, "req_validation", false],
+    [400, "invalid_request_error", undefined, "false", undefined, false],
+  ] as const)(
+    "classifies only conclusive parameter rejection (%s/%s/%s)",
+    async (status, type, code, retry, requestId, definitive) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((url: string) => {
+          if (url.endsWith("/account")) return Promise.resolve(response({ id: config.account }));
+          if (url.includes("/v2/")) return Promise.resolve(response(ready()));
+          const headers = new Headers();
+          if (retry) headers.set("stripe-should-retry", retry);
+          if (requestId) headers.set("request-id", requestId);
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                error: {
+                  type,
+                  code,
+                  param: "payment_method_types",
+                  message: "Do not expose raw provider text",
+                },
+              }),
+              { status, headers },
+            ),
+          );
+        }),
+      );
+      let failure: unknown;
+      try {
+        await stripeSandboxProvider.session(config, job);
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure instanceof CheckoutCreationRejected).toBe(definitive);
+      expect(String(failure)).not.toContain("Do not expose");
+    },
+  );
+  it("does not classify a preflight rejection as failed creation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: { type: "invalid_request_error", param: "payment_method_types" },
+            }),
+            {
+              status: 400,
+              headers: { "request-id": "req_preflight", "stripe-should-retry": "false" },
+            },
+          ),
+        ),
+      ),
+    );
+    await expect(stripeSandboxProvider.session(config, job)).rejects.not.toBeInstanceOf(
+      CheckoutCreationRejected,
+    );
+  });
+  it("retains malformed 400 replies as uncertain", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        Promise.resolve(
+          url.endsWith("/account")
+            ? response({ id: config.account })
+            : url.includes("/v2/")
+              ? response(ready())
+              : new Response("invalid JSON", {
+                  status: 400,
+                  headers: { "request-id": "req_invalid", "stripe-should-retry": "false" },
+                }),
+        ),
+      ),
+    );
+    await expect(stripeSandboxProvider.session(config, job)).rejects.not.toBeInstanceOf(
+      CheckoutCreationRejected,
+    );
   });
 });

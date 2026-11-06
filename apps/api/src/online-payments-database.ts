@@ -64,6 +64,14 @@ export interface OnlineRepository {
     refund: string | null,
     digest: string,
   ): Promise<void>;
+  rejectCreation(
+    connection: string,
+    job: string,
+    lease: string,
+    requestId: string,
+    payloadSha256: string,
+    mode?: OnlinePaymentMode,
+  ): Promise<void>;
   fail(connection: string, job: string, lease: string, manual: boolean): Promise<void>;
   event(
     connection: string,
@@ -107,6 +115,14 @@ async function query<T>(
   }
 }
 export const postgresOnlineRepository: OnlineRepository = {
+  rejectCreation: (c, j, l, r, d, mode = "test") =>
+    query(c, "select private.reject_online_payment_creation($1,$2,$3,$4,$5) as data", [
+      j,
+      l,
+      r,
+      d,
+      mode,
+    ]),
   submit(c, s, v, retention, account, mode = "test") {
     const d = v.fulfillmentType === "delivery" ? v.delivery : null;
     return query(

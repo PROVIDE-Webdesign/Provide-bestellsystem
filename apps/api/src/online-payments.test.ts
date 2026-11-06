@@ -8,7 +8,11 @@ import {
   handleOnlinePayment,
 } from "./online-payments.js";
 import { createStatusAccessToken } from "./status-token.js";
-import { verifyStripeWebhook, type SandboxProvider } from "./stripe-sandbox.js";
+import {
+  verifyStripeWebhook,
+  CheckoutCreationRejected,
+  type SandboxProvider,
+} from "./stripe-sandbox.js";
 import type { OnlineRepository, OnlineJob } from "./online-payments-database.js";
 const scope = { restaurantSlug: "restaurant-a", locationSlug: "location-a" },
   id = "fa000000-0000-0000-0000-000000000001",
@@ -44,6 +48,7 @@ describe("online payment boundaries", () => {
       bind: vi.fn(),
       sync: vi.fn(),
       fail: vi.fn(),
+      rejectCreation: vi.fn(),
       event,
     };
     const raw = JSON.stringify({
@@ -200,6 +205,7 @@ describe("online payment boundaries", () => {
       bind: vi.fn(),
       sync,
       fail: vi.fn(),
+      rejectCreation: vi.fn(),
       event: vi.fn(),
     };
     const provider: SandboxProvider = {
@@ -249,6 +255,7 @@ describe("connected restaurant reconciliation", () => {
     bind: vi.fn(),
     sync: vi.fn(),
     fail: vi.fn(),
+    rejectCreation: vi.fn(),
     event: vi.fn(),
   });
   it.each(
@@ -348,6 +355,73 @@ describe("connected restaurant reconciliation", () => {
       expect(repo.fail).not.toHaveBeenCalled();
     },
   );
+  it.each([null, "rejected"])("finishes a conclusive creation rejection (%s)", async (close) => {
+    const job = {
+      ...jobFor("acct_restaurantA"),
+      session_id: null,
+      payment_status: "created",
+      close_requested: close,
+    };
+    const repo = repository(job);
+    const provider = {
+      session: vi
+        .fn()
+        .mockRejectedValue(new CheckoutCreationRejected("req_synthetic", "a".repeat(64))),
+      expire: vi.fn(),
+      refund: vi.fn(),
+    };
+    await processOnlinePayment("synthetic", config, repo, provider);
+    expect(repo.rejectCreation).toHaveBeenCalledExactlyOnceWith(
+      "synthetic",
+      job.id,
+      expect.any(String),
+      "req_synthetic",
+      "a".repeat(64),
+      "test",
+    );
+    expect(repo.fail).not.toHaveBeenCalled();
+    expect(provider.refund).not.toHaveBeenCalled();
+  });
+  it.each(["timeout", "server_error", "idempotency_conflict"])(
+    "retains uncertain creation after %s",
+    async (message) => {
+      const job = { ...jobFor("acct_restaurantA"), session_id: null, payment_status: "created" };
+      const repo = repository(job);
+      await processOnlinePayment("synthetic", config, repo, {
+        session: vi.fn().mockRejectedValue(new Error(message)),
+        expire: vi.fn(),
+        refund: vi.fn(),
+      });
+      expect(repo.rejectCreation).not.toHaveBeenCalled();
+      expect(repo.fail).toHaveBeenCalledWith("synthetic", job.id, expect.any(String), false);
+    },
+  );
+  it("retains a changed database state when rejection closure fails", async () => {
+    const job = { ...jobFor("acct_restaurantA"), session_id: null, payment_status: "created" };
+    const repo = repository(job);
+    repo.rejectCreation.mockRejectedValue(new Error("state changed"));
+    await processOnlinePayment("synthetic", config, repo, {
+      session: vi
+        .fn()
+        .mockRejectedValue(new CheckoutCreationRejected("req_synthetic", "a".repeat(64))),
+      expire: vi.fn(),
+      refund: vi.fn(),
+    });
+    expect(repo.fail).toHaveBeenCalledWith("synthetic", job.id, expect.any(String), false);
+  });
+  it("never closes an existing checkout from a creation rejection", async () => {
+    const job = jobFor("acct_restaurantA"),
+      repo = repository(job);
+    await processOnlinePayment("synthetic", config, repo, {
+      session: vi
+        .fn()
+        .mockRejectedValue(new CheckoutCreationRejected("req_synthetic", "a".repeat(64))),
+      expire: vi.fn(),
+      refund: vi.fn(),
+    });
+    expect(repo.rejectCreation).not.toHaveBeenCalled();
+    expect(repo.fail).toHaveBeenCalled();
+  });
   it("releases a completed but unpaid asynchronous reservation at the local deadline", async () => {
     const job = jobFor("acct_restaurantA", Date.now() - 1000),
       repo = repository(job);

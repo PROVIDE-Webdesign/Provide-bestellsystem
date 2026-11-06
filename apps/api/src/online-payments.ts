@@ -21,6 +21,7 @@ import {
 } from "./status-token.js";
 import {
   digest,
+  CheckoutCreationRejected,
   verifyStripeWebhook,
   type SandboxProvider,
   type SandboxConfig,
@@ -320,7 +321,22 @@ export async function processOnlinePayment(
         }),
       ),
     );
-  } catch {
+  } catch (error) {
+    if (error instanceof CheckoutCreationRejected && !j.session_id && !j.intent_id) {
+      try {
+        await repo.rejectCreation(
+          connection,
+          j.id,
+          lease,
+          error.requestId,
+          error.payloadSha256,
+          mode,
+        );
+        return;
+      } catch {
+        /* A concurrent or changed state must stay reconcilable. */
+      }
+    }
     await repo.fail(connection, j.id, lease, false);
   }
 }
