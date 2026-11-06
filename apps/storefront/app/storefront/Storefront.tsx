@@ -7,7 +7,12 @@ import { cartStorageKey, serializeCart, restoreCart } from "./cart-storage";
 
 import CheckoutChallenge from "./CheckoutChallenge";
 import { CheckoutClient, CheckoutClientError } from "./checkout-client";
-import { record, handoffIdPattern, handoffTokenPattern, parseCartHandoffSelection } from "@provide/contracts";
+import {
+  record,
+  handoffIdPattern,
+  handoffTokenPattern,
+  parseCartHandoffSelection,
+} from "@provide/contracts";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -57,6 +62,8 @@ import {
 
 interface StorefrontProps extends StorefrontScope {
   readonly onlinePaymentEnabled?: boolean;
+  readonly production?: boolean;
+  readonly livePrivacyUrl?: string;
   readonly checkoutProtectionEnabled?: boolean;
   readonly checkoutTurnstileSiteKey?: string;
   readonly privacyNoticeVersion: string;
@@ -79,23 +86,41 @@ const statusLabels: Record<PublicOrderStatus["status"], string> = {
 
 export default function Storefront(scope: StorefrontProps) {
   const [shopTab, setShopTab] = useState<ShopTab>("menu");
-  function navigateShop(tab: ShopTab) { setShopTab(tab); window.scrollTo({ top: 0, behavior: "instant" }); }
+  function navigateShop(tab: ShopTab) {
+    setShopTab(tab);
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
   const [websiteImport, setWebsiteImport] = useState<unknown>(null);
   useEffect(() => {
     const pointer = `provide:website-cart-pending:${scope.restaurantSlug}:${scope.locationSlug}`;
     const match = /^#website-cart=([a-f0-9-]{36})$/.exec(window.location.hash);
-    if (match) window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    if (match)
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
     try {
       const token = match?.[1] ?? sessionStorage.getItem(pointer);
       if (!token || !/^[a-f0-9-]{36}$/.test(token)) return;
       const raw = sessionStorage.getItem(`provide:website-cart:${token}`);
-      const value = raw && raw.length < 64000 ? JSON.parse(raw) : null;
-      if (value && typeof value.expiresAt === "number" && parseCartHandoffSelection(value.selection) && value.restaurantSlug === scope.restaurantSlug && value.locationSlug === scope.locationSlug && value.expiresAt > Date.now() && value.expiresAt <= Date.now() + 600000) {
+      const parsed: unknown = raw && raw.length < 64000 ? JSON.parse(raw) : null;
+      const value =
+        typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+          ? (parsed as Record<string, unknown>)
+          : null;
+      if (
+        value &&
+        typeof value.expiresAt === "number" &&
+        parseCartHandoffSelection(value.selection) &&
+        value.restaurantSlug === scope.restaurantSlug &&
+        value.locationSlug === scope.locationSlug &&
+        value.expiresAt > Date.now() &&
+        value.expiresAt <= Date.now() + 600000
+      ) {
         sessionStorage.setItem(pointer, token);
         setWebsiteImport(value.selection);
         setShopTab("cart");
       }
-    } catch { /* The website cart remains available through the browser back button. */ }
+    } catch {
+      /* The website cart remains available through the browser back button. */
+    }
   }, [scope.restaurantSlug, scope.locationSlug]);
   function dismissWebsiteCart() {
     setWebsiteImport(null);
@@ -104,7 +129,9 @@ export default function Storefront(scope: StorefrontProps) {
       const token = sessionStorage.getItem(pointer);
       if (token) sessionStorage.removeItem(`provide:website-cart:${token}`);
       sessionStorage.removeItem(pointer);
-    } catch { /* Storage is optional after the selection was accepted. */ }
+    } catch {
+      /* Storage is optional after the selection was accepted. */
+    }
   }
   const [pendingImport, setPendingImport] = useState<{ id: string; token: string } | null>(null);
   const [importMessage, setImportMessage] = useState("");
@@ -246,7 +273,11 @@ export default function Storefront(scope: StorefrontProps) {
     | ReturnType<typeof parseOnlineOrderConfirmation>
     | null
   >(null);
-  const [onlinePayment, setOnlinePayment] = useState(false);
+  const [onlinePaymentSelected, setOnlinePayment] = useState(false);
+  const onlinePaymentAvailable =
+    scope.onlinePaymentEnabled &&
+    (!scope.production || catalog?.liveOnlinePaymentAvailable === true);
+  const onlinePayment = onlinePaymentSelected && onlinePaymentAvailable;
   const [paymentAction, setPaymentAction] = useState<PaymentAction | null>(null);
   const [openingPayment, setOpeningPayment] = useState(false);
   const [postalCode, setPostalCode] = useState("");
@@ -293,7 +324,9 @@ export default function Storefront(scope: StorefrontProps) {
     return protection.active && protection.request === controller && !controller.signal.aborted;
   }
   const protectionConfigured =
-    scope.checkoutProtectionEnabled === true && !!scope.checkoutTurnstileSiteKey;
+    scope.checkoutProtectionEnabled === true &&
+    !!scope.checkoutTurnstileSiteKey &&
+    (!scope.production || !!scope.livePrivacyUrl);
   const intent = client.currentIntent;
   const needsReceipt = client.needsReceipt;
   const readyToSubmit =
@@ -371,7 +404,9 @@ export default function Storefront(scope: StorefrontProps) {
     if (!catalog || checkoutState === "submitting" || confirmation || client.currentIntent) return;
     const imported = buildImportedCart(websiteImport, catalog);
     if (!imported) {
-      setCartMessage("Die Auswahl von der Website passt nicht mehr zur Speisekarte. Bitte die Auswahl erneut prüfen.");
+      setCartMessage(
+        "Die Auswahl von der Website passt nicht mehr zur Speisekarte. Bitte die Auswahl erneut prüfen.",
+      );
       return;
     }
     setCart(imported);
@@ -384,7 +419,9 @@ export default function Storefront(scope: StorefrontProps) {
     cartCreatedAt.current = Date.now();
     dismissWebsiteCart();
     setShopTab("cart");
-    setCartMessage("Warenkorb von der Website übernommen. Bitte Abholzeit und aktuelle Preise prüfen.");
+    setCartMessage(
+      "Warenkorb von der Website übernommen. Bitte Abholzeit und aktuelle Preise prüfen.",
+    );
   }
   const reviewSignature = JSON.stringify([cart, fulfillmentType, localTime, postalCode]);
   const reviewIsAccepted = !!review?.accepted && review.signature === reviewSignature;
@@ -469,7 +506,7 @@ export default function Storefront(scope: StorefrontProps) {
         cache: "no-store",
       });
       const body = (await r.json()) as { data?: unknown };
-      const session = parsePaymentSession(body.data);
+      const session = parsePaymentSession(body.data, scope.production ? "live" : "test");
       if (!r.ok || !session) throw new Error("Payment unavailable");
       if (session.checkoutUrl) {
         window.location.assign(session.checkoutUrl);
@@ -661,7 +698,7 @@ export default function Storefront(scope: StorefrontProps) {
       document.removeEventListener("visibilitychange", refreshVisible);
       statusRequest.current?.abort();
     };
-  }, [orderStatus?.status, refreshOrderStatus, statusAccess]);
+  }, [orderStatus?.status, orderStatus?.paymentState, refreshOrderStatus, statusAccess]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1096,14 +1133,44 @@ export default function Storefront(scope: StorefrontProps) {
       <a className="skip-link" href="#menu">
         Zur Speisekarte
       </a>
-      {catalog && <ShopHeader disabled={checkoutState === "submitting"} catalog={catalog} fulfillment={fulfillmentType} onTimes={() => navigateShop("cart")} onFulfillment={(type) => { clearAnswer(); invalidateSubmission(); setFulfillmentType(type); }} />}
-      {shopTab === "orders" && savedOrders.length === 0 && !confirmation && !orderStatus && <section className="shop-empty"><h2>Meine Bestellungen</h2><p>Hier findest du deine auf diesem Gerät gespeicherten Bestellungen.</p><button onClick={() => navigateShop("menu")}>Zur Speisekarte</button></section>}
-      {websiteImport !== null && <section className="order-status" aria-label="Warenkorb von der Website">
-        <h2>Deine Auswahl von Asian Kitchen</h2>
-        <p>Übernimm deine Auswahl von der Restaurantwebsite. Ein bereits gespeicherter Shop-Warenkorb wird dabei ersetzt.</p>
-        <button disabled={!catalog || checkoutState === "submitting" || !!confirmation || !!client.currentIntent} onClick={acceptWebsiteCart}>Warenkorb übernehmen</button>
-        <button onClick={dismissWebsiteCart}>Bisherigen Warenkorb behalten</button>
-      </section>}
+      {catalog && (
+        <ShopHeader
+          disabled={checkoutState === "submitting"}
+          catalog={catalog}
+          fulfillment={fulfillmentType}
+          onTimes={() => navigateShop("cart")}
+          onFulfillment={(type) => {
+            clearAnswer();
+            invalidateSubmission();
+            setFulfillmentType(type);
+          }}
+        />
+      )}
+      {shopTab === "orders" && savedOrders.length === 0 && !confirmation && !orderStatus && (
+        <section className="shop-empty">
+          <h2>Meine Bestellungen</h2>
+          <p>Hier findest du deine auf diesem Gerät gespeicherten Bestellungen.</p>
+          <button onClick={() => navigateShop("menu")}>Zur Speisekarte</button>
+        </section>
+      )}
+      {websiteImport !== null && (
+        <section className="order-status" aria-label="Warenkorb von der Website">
+          <h2>Deine Auswahl von Asian Kitchen</h2>
+          <p>
+            Übernimm deine Auswahl von der Restaurantwebsite. Ein bereits gespeicherter
+            Shop-Warenkorb wird dabei ersetzt.
+          </p>
+          <button
+            disabled={
+              !catalog || checkoutState === "submitting" || !!confirmation || !!client.currentIntent
+            }
+            onClick={acceptWebsiteCart}
+          >
+            Warenkorb übernehmen
+          </button>
+          <button onClick={dismissWebsiteCart}>Bisherigen Warenkorb behalten</button>
+        </section>
+      )}
       {(pendingImport || importMessage) && (
         <section className="order-status" aria-label="Warenkorb übernehmen" aria-live="polite">
           <h2>Warenkorb von der Restaurant-Website</h2>
@@ -1141,7 +1208,11 @@ export default function Storefront(scope: StorefrontProps) {
         </section>
       )}
       {savedOrders.length > 0 && (
-        <section hidden={shopTab !== "orders"} className="order-status" aria-labelledby="saved-orders-title">
+        <section
+          hidden={shopTab !== "orders"}
+          className="order-status"
+          aria-labelledby="saved-orders-title"
+        >
           <h2 id="saved-orders-title">Meine Bestellungen</h2>
           <p>Auf diesem Gerät gespeicherte Bestellungen mit gültigem Statuszugang.</p>
           <ul>
@@ -1179,7 +1250,12 @@ export default function Storefront(scope: StorefrontProps) {
         </section>
       )}
       {(confirmation || orderStatus || statusMessage) && (
-        <section hidden={shopTab !== "orders"} className="order-status" aria-labelledby="order-status-title" aria-live="polite">
+        <section
+          hidden={shopTab !== "orders"}
+          className="order-status"
+          aria-labelledby="order-status-title"
+          aria-live="polite"
+        >
           <p className="eyebrow">DEINE BESTELLUNG</p>
           <h2 id="order-status-title">
             {orderStatus?.paymentState &&
@@ -1218,7 +1294,9 @@ export default function Storefront(scope: StorefrontProps) {
               )}{" "}
               ·{" "}
               {(orderStatus ?? confirmation)?.paymentCollectionMode === "online"
-                ? "Onlinezahlung im Testbetrieb"
+                ? scope.production
+                  ? "Onlinezahlung"
+                  : "Onlinezahlung im Testbetrieb"
                 : "Zahlung bei "}
               {(orderStatus ?? confirmation)?.paymentCollectionMode === "online"
                 ? ""
@@ -1241,7 +1319,9 @@ export default function Storefront(scope: StorefrontProps) {
           {confirmation && !orderStatus && (
             <p>
               {confirmation.paymentCollectionMode === "online"
-                ? "Bitte schließe die Testzahlung ab. Erst danach kann das Restaurant die Bestellung annehmen."
+                ? scope.production
+                  ? "Bitte reserviere den Betrag. Er wird abgebucht, sobald das Restaurant die Bestellung annimmt."
+                  : "Bitte schließe die Testzahlung ab. Erst danach kann das Restaurant die Bestellung annehmen."
                 : "Das Restaurant muss die Bestellung im nächsten Prozessschritt noch annehmen."}
             </p>
           )}
@@ -1253,7 +1333,11 @@ export default function Storefront(scope: StorefrontProps) {
               orderStatus.paymentState === "open" ||
               orderStatus.paymentState === "checking") && (
               <button type="button" disabled={openingPayment} onClick={() => void openPayment()}>
-                {openingPayment ? "Zahlung wird geöffnet …" : "Testzahlung öffnen oder fortsetzen"}
+                {openingPayment
+                  ? "Zahlung wird geöffnet …"
+                  : scope.production
+                    ? "Zahlung öffnen oder fortsetzen"
+                    : "Testzahlung öffnen oder fortsetzen"}
               </button>
             )}
           {statusMessage && (
@@ -1299,23 +1383,46 @@ export default function Storefront(scope: StorefrontProps) {
       )}
       {catalog && (
         <>
-
           <fieldset
             disabled={checkoutState === "submitting"}
             style={{ border: 0, padding: 0, minWidth: 0 }}
           >
             <div className="storefront-grid">
               <div id="menu" tabIndex={-1} hidden={shopTab !== "menu"}>
-                <ShopMenu catalog={catalog} disabled={checkoutState === "submitting"} onAdd={(menu, item, selection) => {
-                  const next = addCartItem(cart, menu, item, selection);
-                  if (next === cart) setCartMessage("Diese Auswahl passt nicht zu deinem Warenkorb. Bitte prüfe Auswahl und Speisekarte.");
-                  else { setCart(next); setCartMessage(""); invalidateSubmission(); }
-                }} />
-                {cartMessage && (shopTab !== "menu" || !cartMessage.startsWith("Dein gespeicherter Warenkorb")) && <p className="shop-message" role="status">{cartMessage}</p>}
+                <ShopMenu
+                  catalog={catalog}
+                  disabled={checkoutState === "submitting"}
+                  onAdd={(menu, item, selection) => {
+                    const next = addCartItem(cart, menu, item, selection);
+                    if (next === cart)
+                      setCartMessage(
+                        "Diese Auswahl passt nicht zu deinem Warenkorb. Bitte prüfe Auswahl und Speisekarte.",
+                      );
+                    else {
+                      setCart(next);
+                      setCartMessage("");
+                      invalidateSubmission();
+                    }
+                  }}
+                />
+                {shopTab === "menu" &&
+                  cartMessage &&
+                  !cartMessage.startsWith("Dein gespeicherter Warenkorb") && (
+                    <p className="shop-message" role="status">
+                      {cartMessage}
+                    </p>
+                  )}
               </div>
               <div className="side-column" hidden={shopTab !== "cart"}>
-                <button className="secondary" type="button" onClick={() => navigateShop("menu")}>← Zur Speisekarte</button>
-                <address className="shop-address">{catalog.restaurant.name} · {catalog.location.name}<br />{catalog.location.address.line1}, {catalog.location.address.postalCode} {catalog.location.address.city}</address>
+                <button className="secondary" type="button" onClick={() => navigateShop("menu")}>
+                  ← Zur Speisekarte
+                </button>
+                <address className="shop-address">
+                  {catalog.restaurant.name} · {catalog.location.name}
+                  <br />
+                  {catalog.location.address.line1}, {catalog.location.address.postalCode}{" "}
+                  {catalog.location.address.city}
+                </address>
                 <aside className="availability-panel" aria-labelledby="availability-title">
                   <p className="eyebrow">DEIN WUNSCHTERMIN</p>
                   <h2 id="availability-title">Wann passt es dir?</h2>
@@ -1532,7 +1639,7 @@ export default function Storefront(scope: StorefrontProps) {
                       void submitCheckout();
                     }}
                   >
-                    {scope.onlinePaymentEnabled && (
+                    {onlinePaymentAvailable && (
                       <label>
                         Zahlungsart
                         <select
@@ -1543,7 +1650,9 @@ export default function Storefront(scope: StorefrontProps) {
                           }}
                         >
                           <option value="on_fulfillment">Zahlung bei Übergabe</option>
-                          <option value="online">Online bezahlen – Testzahlung</option>
+                          <option value="online">
+                            {scope.production ? "Online bezahlen" : "Online bezahlen – Testzahlung"}
+                          </option>
                         </select>
                       </label>
                     )}
@@ -1620,7 +1729,19 @@ export default function Storefront(scope: StorefrontProps) {
                         setEmail(event.target.value);
                       }}
                     />
-                    <CheckoutPrivacyNotice noticeVersion={scope.privacyNoticeVersion} />
+                    {scope.production ? (
+                      <p id="checkout-privacy-context">
+                        {scope.livePrivacyUrl ? (
+                          <a href={scope.livePrivacyUrl} target="_blank" rel="noopener noreferrer">
+                            Datenschutzhinweis zur Bestellung
+                          </a>
+                        ) : (
+                          "Der Datenschutzhinweis ist gerade nicht verfügbar."
+                        )}
+                      </p>
+                    ) : (
+                      <CheckoutPrivacyNotice noticeVersion={scope.privacyNoticeVersion} />
+                    )}
                     <label className="privacy-confirmation">
                       <input
                         type="checkbox"
@@ -1631,7 +1752,9 @@ export default function Storefront(scope: StorefrontProps) {
                           setPrivacyAccepted(event.target.checked);
                         }}
                       />
-                      Ich habe den Datenschutzhinweis für den Test-Checkout gesehen.
+                      {scope.production
+                        ? "Ich habe den Datenschutzhinweis zur Bestellung gesehen."
+                        : "Ich habe den Datenschutzhinweis für den Test-Checkout gesehen."}
                     </label>
                     <section aria-label="Bestellversuch">
                       {!protectionConfigured && (
@@ -1689,7 +1812,9 @@ export default function Storefront(scope: StorefrontProps) {
                       {checkoutState === "submitting"
                         ? "Wird übermittelt …"
                         : onlinePayment
-                          ? "Bestellung für Testzahlung reservieren"
+                          ? scope.production
+                            ? "Bestellung zur Zahlung reservieren"
+                            : "Bestellung für Testzahlung reservieren"
                           : fulfillmentType === "delivery"
                             ? "Lieferbestellung absenden"
                             : "Abholbestellung absenden"}
@@ -1709,7 +1834,9 @@ export default function Storefront(scope: StorefrontProps) {
             </div>
           </fieldset>
           <footer hidden={shopTab === "menu"}>
-            <span>Testsystem · keine Livezahlung und kein produktiver Bestellbetrieb.</span>
+            {!scope.production && (
+              <span>Testsystem · keine Livezahlung und kein produktiver Bestellbetrieb.</span>
+            )}
             <button
               className="secondary"
               onClick={() => {
@@ -1721,7 +1848,13 @@ export default function Storefront(scope: StorefrontProps) {
               Speisekarte aktualisieren
             </button>
           </footer>
-          <ShopNavigation tab={shopTab} onTab={navigateShop} quantity={totalQuantity} total={money(cartTotalAmountMinor(cart), cart[0]?.currency ?? "EUR")} hasOrder={savedOrders.length > 0 || !!confirmation} />
+          <ShopNavigation
+            tab={shopTab}
+            onTab={navigateShop}
+            quantity={totalQuantity}
+            total={money(cartTotalAmountMinor(cart), cart[0]?.currency ?? "EUR")}
+            hasOrder={savedOrders.length > 0 || !!confirmation}
+          />
         </>
       )}
     </main>

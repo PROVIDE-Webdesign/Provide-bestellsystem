@@ -7,12 +7,17 @@ import {
   type StorefrontScope,
 } from "@provide/contracts";
 
+import { liveCheckoutPlatform, type OnlineEnvironment } from "./online-payments.js";
 import { jsonError, jsonSuccess } from "./http.js";
 import type { ApiLogger } from "./logger.js";
 import type { RequestContext } from "./context.js";
 
 export interface StorefrontReader {
-  catalog(connectionString: string, scope: StorefrontScope): Promise<unknown>;
+  catalog(
+    connectionString: string,
+    scope: StorefrontScope,
+    livePlatform?: string,
+  ): Promise<unknown>;
   availability(connectionString: string, query: AvailabilityQuery): Promise<unknown>;
 }
 export interface StorefrontEnvironment {
@@ -39,7 +44,7 @@ export interface StorefrontRoute extends StorefrontScope {
 export async function handleStorefront(
   request: Request,
   route: StorefrontRoute,
-  env: StorefrontEnvironment,
+  env: StorefrontEnvironment & Partial<OnlineEnvironment>,
   reader: StorefrontReader,
   context: RequestContext,
   logger: ApiLogger,
@@ -85,9 +90,14 @@ export async function handleStorefront(
     );
 
   try {
+    const platform = query ? undefined : liveCheckoutPlatform(env);
     const result = query
       ? await reader.availability(env.HYPERDRIVE.connectionString, query)
-      : await reader.catalog(env.HYPERDRIVE.connectionString, route);
+      : await reader.catalog(
+          env.HYPERDRIVE.connectionString,
+          route,
+          ...(platform ? [platform] : []),
+        );
     if (result === null)
       return jsonError("not_found", "Resource was not found.", context.requestId, 404, cors);
     const data = query ? parsePublicAvailability(result) : parsePublicCatalog(result);

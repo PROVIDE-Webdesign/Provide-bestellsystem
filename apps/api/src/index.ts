@@ -26,6 +26,7 @@ import {
   type LocationOperationsRepository,
 } from "./location-operations.js";
 import { handleMenuAdmin, postgresMenuAdmin, type MenuAdminRepository } from "./menu-admin.js";
+import { dispatchOrderPush, handleOrderPush, type OrderPushEnvironment } from "./order-push.js";
 import { dispatchAcceptanceAlerts } from "./order-alerts.js";
 import { handleCartQuote, postgresCartQuoteReader, type CartQuoteReader } from "./cart-quote.js";
 import { handleDelivery, type DeliveryRepository } from "./delivery.js";
@@ -36,7 +37,8 @@ import {
   type OnlineEnvironment,
 } from "./online-payments.js";
 import { postgresOnlineRepository, type OnlineRepository } from "./online-payments-database.js";
-import { stripeSandboxProvider, type SandboxProvider } from "./stripe-sandbox.js";
+import { stripePaymentProvider } from "./stripe-sandbox.js";
+import type { PaymentProvider } from "./online-payments.js";
 import { postgresDeliveryRepository } from "./delivery-database.js";
 import { isAppEnvironment } from "@provide/contracts";
 
@@ -76,7 +78,7 @@ interface HyperdriveBinding {
   readonly connectionString: string;
 }
 
-interface Env extends OnlineEnvironment, CheckoutProtectionEnvironment {
+interface Env extends OnlineEnvironment, CheckoutProtectionEnvironment, OrderPushEnvironment {
   readonly SUPPORT_CASES_ENABLED?: string;
   readonly ACCOUNT_RECOVERY_ENABLED?: string;
   readonly ACCOUNT_RECOVERY_ORIGIN?: string;
@@ -127,7 +129,7 @@ export function createApiWorker(
   notificationAdapter: NotificationAdapter = unconfiguredNotificationAdapter,
   deliveryRepository: DeliveryRepository = postgresDeliveryRepository,
   onlineRepository: OnlineRepository = postgresOnlineRepository,
-  onlineProvider: SandboxProvider = stripeSandboxProvider,
+  onlineProvider: PaymentProvider = stripePaymentProvider,
   emailRepository: EmailRepository = postgresEmailRepository,
   emailAdapter: EmailAdapter = unconfiguredEmailAdapter,
   cartQuoteReader: CartQuoteReader = postgresCartQuoteReader,
@@ -143,7 +145,7 @@ export function createApiWorker(
   checkoutChallenge: CheckoutChallengeVerifier = turnstileCheckoutChallenge,
 ) {
   return {
-    async fetch(request: Request, env: Env): Promise<Response> {
+    async fetch(request: Request, env: Env, execution?: ExecutionContext): Promise<Response> {
       const context = createRequestContext();
       const cors = corsHeaders(request, parseAllowedOrigins(env.API_ALLOWED_ORIGINS));
       const environment = isAppEnvironment(env.APP_ENV) ? env.APP_ENV : "unknown";
@@ -227,10 +229,22 @@ export function createApiWorker(
           logger,
           cors,
         );
-      if (route.name === "stripeWebhook")
-        return handleStripeWebhook(request, env, onlineRepository, context, onlineProvider);
+      if (route.name === "dashboardOrderPush")
+        return handleOrderPush(request, route, env, dashboardTokenVerifier, context, logger, cors);
+      if (route.name === "stripeWebhook") {
+        const response = await handleStripeWebhook(
+          request,
+          env,
+          onlineRepository,
+          context,
+          onlineProvider,
+        );
+        if (response.ok && env.DASHBOARD_ORDER_PUSH_ENABLED === "true")
+          execution?.waitUntil(dispatchOrderPush(env, logger));
+        return response;
+      }
       if ("restaurantSlug" in route) {
-        return handleProtectedStorefront(
+        const response = await handleProtectedStorefront(
           request,
           route,
           env,
@@ -305,6 +319,15 @@ export function createApiWorker(
             return jsonError("not_found", "Resource was not found.", context.requestId, 404, cors);
           },
         );
+        if (
+          response.ok &&
+          env.DASHBOARD_ORDER_PUSH_ENABLED === "true" &&
+          (route.name === "orders" ||
+            route.name === "delivery-orders" ||
+            route.name === "payment-session")
+        )
+          execution?.waitUntil(dispatchOrderPush(env, logger));
+        return response;
       }
 
       if (route.name === "dashboardAccess") {
@@ -402,7 +425,11 @@ export function createApiWorker(
       );
       context.waitUntil(dispatchGuestPurge(env, logger, guestPurge));
       context.waitUntil(dispatchAcceptanceAlerts(env, dashboardOrdersReader, logger));
-      context.waitUntil(dispatchOnlinePayments(env, onlineRepository, onlineProvider));
+      context.waitUntil(
+        dispatchOnlinePayments(env, onlineRepository, onlineProvider).finally(() =>
+          dispatchOrderPush(env, logger, true),
+        ),
+      );
       context.waitUntil(dispatchEmailNotifications(env, emailRepository, emailAdapter, logger));
       context.waitUntil(
         dispatchOrderNotifications(env, notificationRepository, notificationAdapter, logger),

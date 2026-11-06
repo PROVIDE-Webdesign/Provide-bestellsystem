@@ -117,7 +117,11 @@ export async function handleCartHandoff(request: Request, env: Env): Promise<Res
       if (!claim.rowCount) return fail(410, "handoff_expired");
       return Response.json(
         {
-          data: { selection: claim.rows[0]!.selection, expiresAt: claim.rows[0]!.expires_at, scope },
+          data: {
+            selection: claim.rows[0]!.selection,
+            expiresAt: claim.rows[0]!.expires_at,
+            scope,
+          },
         },
         { headers },
       );

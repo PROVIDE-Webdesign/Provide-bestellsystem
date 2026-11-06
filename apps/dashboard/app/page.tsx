@@ -10,6 +10,7 @@ export default function DashboardPage() {
         operationsEnabled={process.env.DASHBOARD_LOCATION_OPERATIONS_ENABLED === "true"}
         menuEnabled={process.env.DASHBOARD_MENU_ENABLED === "true"}
         liveEnabled={process.env.DASHBOARD_REALTIME_ENABLED === "true"}
+        pushEnabled={process.env.DASHBOARD_ORDER_PUSH_ENABLED === "true"}
         alertsEnabled={process.env.DASHBOARD_ORDER_ALERTS_ENABLED === "true"}
       />
     </main>

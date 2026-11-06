@@ -62,6 +62,41 @@ function upstream(data: unknown, status = 200, headers: HeadersInit = {}) {
 }
 const network = () => "192.0.2.1";
 describe("O3 production gateway function units", () => {
+  it.each([
+    ["production", "live", 200],
+    ["production", "test", 503],
+    ["preview", "live", 503],
+    ["preview", "test", 200],
+  ])("matches hosted Stripe links to %s mode (%s)", async (APP_ENV, mode, status) => {
+    const productionOrigin = "https://checkout.provide-fixture.de";
+    const paymentParams = { ...params, resource: "payment-session" };
+    const fixture = await request(
+      "payment-session",
+      {
+        orderId: "f2000000-0000-0000-0000-000000000001",
+        paymentDeadline: new Date(Date.now() + 60_000).toISOString(),
+        paymentAccessToken: "a".repeat(43),
+      },
+      { origin: productionOrigin },
+    );
+    const target = new URL(fixture.url);
+    const signedRequest = new Request(productionOrigin + target.pathname, fixture);
+    const checkoutUrl = `https://checkout.stripe.com/c/pay/cs_${mode}_fixture`;
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(upstream({ checkoutUrl, paymentState: "open" }));
+    const response = await handleCheckoutGateway(
+      signedRequest,
+      paymentParams,
+      { ...env, APP_ENV, CHECKOUT_STOREFRONT_ORIGIN: productionOrigin },
+      fetcher,
+      network,
+    );
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(response.status).toBe(status);
+    if (status === 200)
+      await expect(response.json()).resolves.toMatchObject({ data: { checkoutUrl } });
+  });
   it("O3-T01/T08 server-only bootstrap sets the host cookie and never exposes the verifier", async () => {
     let signed: Request | undefined;
     const fetcher: typeof fetch = (input, init) => {
@@ -82,7 +117,7 @@ describe("O3 production gateway function units", () => {
     );
     expect(r.status).toBe(200);
     expect(r.headers.get("set-cookie")).toMatch(
-      /__Host-provide-checkout=[A-Za-z0-9_-]{43}; Path=\/; Secure; HttpOnly; SameSite=Lax; Max-Age=53\d\d/,
+      /__Host-provide-checkout=[A-Za-z0-9_-]{43}; Path=\/; Secure; HttpOnly; SameSite=Lax; Max-Age=(?:53\d{2}|5400)$/,
     );
     expect(r.headers.get("set-cookie")).not.toContain("Domain");
     const body = await r.text();

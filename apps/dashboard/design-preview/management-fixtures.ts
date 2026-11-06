@@ -28,7 +28,7 @@ const items = dishes.map(([name, sectionKey, priceAmountMinor], index) => ({
   isActive: true,
   configuration: config,
 }));
-let menu = {
+const menu = {
   timezone: "Europe/Berlin",
   stops: [
     {
@@ -85,7 +85,7 @@ const configuration = {
     { postalCodes: ["52064"], minimumAmountMinor: 1500, feeAmountMinor: 350 },
   ],
 };
-let operations = {
+const operations = {
   timezone: "Europe/Berlin",
   serverNow: "2026-11-05T18:00:00Z",
   publicationId: id(31),

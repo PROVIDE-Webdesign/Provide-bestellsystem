@@ -47,7 +47,15 @@ await writeFile(
     { mode: "transform" },
   ),
 );
-for (const name of ["model.mjs", "checkout.mjs", "bridge.mjs", "bridge.css", "cart-drawer.mjs", "cart-drawer.css", "manifest.json"])
+for (const name of [
+  "model.mjs",
+  "checkout.mjs",
+  "bridge.mjs",
+  "bridge.css",
+  "cart-drawer.mjs",
+  "cart-drawer.css",
+  "manifest.json",
+])
   await writeFile(path.join(out, name), await readFile(path.join(demo, name)));
 function replaceOnce(html, from, to) {
   if (html.split(from).length !== 2)
@@ -138,8 +146,16 @@ html = replaceOnce(
   "Stand: August 2026. Diese Information beschreibt die technische Demonstrationswebsite.",
   "Stand: 28. Oktober 2026. Diese ergänzte Information beschreibt die interne Bestell-Pilotfassung.",
 );
-html = replaceOnce(html, "</head>", '<link rel="stylesheet" href="./bridge.css"><link rel="stylesheet" href="./cart-drawer.css">\n</head>');
-html = replaceOnce(html, "</body>", '<script type="module" src="./cart-drawer.mjs"></script>\n</body>');
+html = replaceOnce(
+  html,
+  "</head>",
+  '<link rel="stylesheet" href="./bridge.css"><link rel="stylesheet" href="./cart-drawer.css">\n</head>',
+);
+html = replaceOnce(
+  html,
+  "</body>",
+  '<script type="module" src="./cart-drawer.mjs"></script>\n</body>',
+);
 await writeFile(path.join(out, "index.html"), html);
 console.log(
   JSON.stringify({

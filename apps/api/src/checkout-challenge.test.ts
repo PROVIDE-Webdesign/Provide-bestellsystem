@@ -147,8 +147,8 @@ it("keeps a transient provider failure retryable without leaking a token", async
       issueId,
     ),
   ).rejects.toThrow("Challenge unavailable");
-  const diagnostic = JSON.parse(String(warning.mock.calls[0]?.[0]));
-  expect(diagnostic.codes).toEqual(["internal-error"]);
+  const diagnostic: unknown = JSON.parse(String(warning.mock.calls[0]?.[0]));
+  expect(diagnostic).toMatchObject({ codes: ["internal-error"] });
   expect(JSON.stringify(diagnostic)).not.toMatch(
     /private-token|secret-untrusted|synthetic-challenge/,
   );

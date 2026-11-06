@@ -34,6 +34,9 @@ export function parsePublicCatalog(value: unknown): PublicCatalog {
   const timezone = string(location.timezone);
   new Intl.DateTimeFormat("de-DE", { timeZone: timezone }).format();
   return {
+    ...(typeof source.liveOnlinePaymentAvailable === "boolean"
+      ? { liveOnlinePaymentAvailable: source.liveOnlinePaymentAvailable }
+      : {}),
     restaurant: { slug: string(restaurant.slug), name: string(restaurant.name) },
     location: {
       slug: string(location.slug),

@@ -1,3 +1,7 @@
+import { menuTool, openMenuPublish } from "./menu-navigation.ts";
+import { verifyUnifiedDashboardBrowser } from "./unified-dashboard.ts";
+import { openMenu, openCart, openOrders } from "./shop-navigation.ts";
+import { verifyPaymentStatusPolling } from "./payment-status.ts";
 import { verifyTwoRestaurantsBrowser } from "./two-restaurants.ts";
 import { verifySupportBrowser } from "./support.ts";
 import { verifyCheckoutProtectionBrowser } from "./checkout-protection.ts";
@@ -42,6 +46,12 @@ const output = fileURLToPath(new URL("../../../../output/menu-cart-browser/", im
 await mkdir(output, { recursive: true });
 const server = await createServer({
   configFile: false,
+  cacheDir: fileURLToPath(
+    new URL(
+      `../../../../output/vite-cache/menu-${process.env.BROWSER_ENGINE ?? "chromium"}/`,
+      import.meta.url,
+    ),
+  ),
   root: fileURLToPath(new URL("./", import.meta.url)),
   plugins: [react()],
   resolve: { alias: { "@": fileURLToPath(new URL("../../../dashboard/", import.meta.url)) } },
@@ -83,7 +93,10 @@ try {
       });
     });
     const errors: string[] = [];
-    page.on("pageerror", (e) => errors.push(e.message));
+    page.on("pageerror", (e) => {
+      errors.push(e.message);
+      console.error("Browser runtime:", e.message);
+    });
     let quoted = 0,
       submitted = 0;
     const numbered = {
@@ -207,23 +220,30 @@ try {
       await route.fulfill({ status: 404, json: {} });
     });
     await page.goto("http://127.0.0.1:4321");
+    await openMenu(page);
     await page.getByRole("heading", { name: item.name, exact: true }).waitFor();
     const dish = page
-      .locator("li.dish")
+      .locator("li.shop-dish")
       .filter({ has: page.getByRole("heading", { name: item.name, exact: true }) });
     const nameBox = await dish.getByRole("heading", { name: item.name, exact: true }).boundingBox();
     assert.ok(nameBox && nameBox.width >= 150, "Dish name must have a readable column on mobile");
-    await dish.getByRole("button", { name: "Hinzufügen" }).click();
-    await dish.getByRole("alert").waitFor();
+    await dish.getByRole("button", { name: `${item.name} hinzufügen`, exact: true }).click();
+    const picker = page.getByRole("dialog", { name: item.name, exact: true });
+    await picker.getByRole("button", { name: "Hinzufügen", exact: true }).click();
+    await picker.getByRole("alert").waitFor();
     await page.screenshot({ path: output + `picker-${viewport.width}.png`, fullPage: true });
-    assert.match(await dish.getByRole("alert").innerText(), /vervollständige/);
-    await dish.getByLabel("Variante", { exact: true }).selectOption(configuration.variants[1]!.id);
-    await dish.getByRole("checkbox", { name: /Extra B/ }).check();
-    await dish.getByRole("button", { name: "Hinzufügen" }).click();
+    assert.match(await picker.getByRole("alert").innerText(), /vervollständige/);
+    await picker
+      .getByLabel("Variante", { exact: true })
+      .selectOption(configuration.variants[1]!.id);
+    await picker.getByRole("checkbox", { name: /Extra B/ }).check();
+    await picker.getByRole("button", { name: "Hinzufügen" }).click();
+    await openCart(page);
     await page.getByRole("heading", { name: "1 Gerichte" }).waitFor();
     await page.reload();
+    await openCart(page);
     await page.getByRole("heading", { name: "1 Gerichte" }).waitFor();
-    await page.getByRole("heading", { name: item.name, exact: true }).waitFor();
+    await page.getByText(item.name, { exact: true }).waitFor();
     assert.equal(
       await page.getByRole("button", { name: "Abholbestellung absenden" }).isDisabled(),
       true,
@@ -297,7 +317,9 @@ try {
       }
     });
     await page.reload();
+    await openCart(page);
     await page.getByRole("heading", { name: "0 Gerichte" }).waitFor();
+    await openOrders(page);
     await page.getByRole("heading", { name: "Bestellung angenommen", exact: true }).waitFor();
     await page.waitForLoadState("networkidle");
     const published: MenuAdminVersion = {
@@ -391,7 +413,9 @@ try {
       await route.fulfill({ json: { data: state } });
     });
     await page.goto("http://127.0.0.1:4321/?dashboard");
+    await menuTool(page, "Karte & Standort auswählen");
     await page.getByRole("button", { name: "Menüstand laden" }).click();
+    await menuTool(page, "Steuerregel für Lieferung");
     const fee = page.getByRole("group", { name: "Steuerregel für die Liefergebühr" });
     const feeSave = fee.getByRole("button", { name: "Steuerregel als neue Lieferregel speichern" });
     assert.equal(await feeSave.isDisabled(), true);
@@ -402,16 +426,23 @@ try {
     await fee.getByText("Aktuell: 19 %", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Als neuen Entwurf kopieren" }).click();
     await page.getByText("Version 2: Entwurf, für Kunden unsichtbar", { exact: false }).waitFor();
+    await page.getByRole("button", { name: "‹ Zur Speisekarte", exact: true }).click();
+    await page.getByRole("button", { name: item.name + " bearbeiten", exact: true }).click();
     await page.getByLabel("Preis in Euro", { exact: true }).fill("14");
+    await page.getByText("Varianten, Allergene & Steuern", { exact: true }).click();
     await page.getByLabel("Bestätigter Steuersatz in Prozent").fill("19");
     await page.getByRole("button", { name: "Entwurf speichern" }).click();
     await page.getByText(/Bitte bestätige zuerst die geprüften Produktinformationen/).waitFor();
     assert.equal(saves, 0);
     await page.getByRole("checkbox", { name: /Ich habe Steuersatz/ }).check();
     await page.getByRole("button", { name: "Entwurf speichern" }).click();
-    await page.getByText(/Änderung gespeichert/).waitFor();
+    await page
+      .getByText("Entwurf gespeichert. Die veröffentlichte Karte bleibt unverändert.", {
+        exact: true,
+      })
+      .waitFor();
     assert.equal(saves, 1);
-    await page.getByRole("button", { name: "Änderungsvorschau anzeigen" }).click();
+    await openMenuPublish(page);
     await page.getByText(/12.50 EUR → 14.00 EUR/).waitFor();
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
@@ -420,6 +451,7 @@ try {
     await page.waitForLoadState("networkidle");
     assert.deepEqual(errors, []);
     await page.screenshot({ path: output + `editor-${viewport.width}.png`, fullPage: true });
+    await menuTool(page, "Importieren");
     const fileInput = page.getByLabel("Importdatei (JSON)");
     await fileInput.setInputFiles({
       name: "pending.json",
@@ -480,11 +512,15 @@ try {
       });
     });
     await page.goto("http://127.0.0.1:4321/?board");
+    await page.getByText("Filter und Suche", { exact: true }).click();
     await page.getByLabel("Bestellnummer suchen").fill("BS-00000421");
     await page.getByRole("button", { name: "Suchen", exact: true }).click();
     await page.getByRole("button", { name: "Suche zurücksetzen", exact: true }).waitFor();
     try {
-      await page.getByRole("button", { name: /BS-00000421/ }).click({ timeout: 10000 });
+      await page
+        .locator("button.operator-order-card")
+        .filter({ has: page.locator("strong", { hasText: "#421" }) })
+        .click({ timeout: 10000 });
     } catch (error) {
       await page.screenshot({
         path: output + `order-number-dashboard-failure-${viewport.width}.png`,
@@ -493,7 +529,7 @@ try {
       console.error("Dashboard number failure:", await page.locator("body").innerText(), errors);
       throw error;
     }
-    await page.getByRole("heading", { name: "#BS-00000421", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "#421", exact: true }).waitFor();
     await page.screenshot({
       path: output + `order-number-dashboard-${viewport.width}.png`,
       fullPage: true,
@@ -518,6 +554,8 @@ try {
   await verifyCheckoutProtectionBrowser(browser, output);
   await verifyReceiptScopeBrowser(browser, output);
   await verifyTwoRestaurantsBrowser(browser, output);
+  await verifyPaymentStatusPolling(browser);
+  await verifyUnifiedDashboardBrowser(browser, output);
 } finally {
   await browser.close();
   await server.close();

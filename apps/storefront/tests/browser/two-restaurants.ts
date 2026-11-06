@@ -1,3 +1,4 @@
+import { openMenu, openCart, openOrders } from "./shop-navigation.ts";
 import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import type { Browser, Page } from "playwright";
@@ -278,10 +279,12 @@ export async function verifyTwoRestaurantsBrowser(browser: Browser, output: stri
         await page
           .getByRole("heading", { name: restaurants[0]!.catalog.restaurant.name, exact: true })
           .waitFor();
-        assert.equal(
-          await page.locator(".preview-label").textContent(),
-          "Testansicht · Checkout nicht freigeschaltet",
-        );
+        await openCart(page);
+        await page
+          .getByText("Testsystem · keine Livezahlung und kein produktiver Bestellbetrieb.", {
+            exact: true,
+          })
+          .waitFor();
         await page
           .getByText("Der sichere Checkout ist noch nicht freigeschaltet.", { exact: true })
           .waitFor();
@@ -305,21 +308,29 @@ export async function verifyTwoRestaurantsBrowser(browser: Browser, output: stri
         await page
           .getByRole("heading", { name: current.catalog.restaurant.name, exact: true })
           .waitFor();
-        assert.equal(
-          await page.locator(".preview-label").textContent(),
-          "Testansicht · Test-Checkout aktiviert",
-        );
+        await openCart(page);
+        await page
+          .getByText("Testsystem · keine Livezahlung und kein produktiver Bestellbetrieb.", {
+            exact: true,
+          })
+          .waitFor();
         if (current.letter === "a") await verifyNotice(page, "enabled");
         const other = restaurants.find((r) => r !== current)!;
         assert.equal(
           await page.getByRole("heading", { name: other.item.name, exact: true }).count(),
           0,
         );
+        await openMenu(page);
         const dish = page
-          .locator("li.dish")
+          .locator("li.shop-dish")
           .filter({ has: page.getByRole("heading", { name: current.item.name, exact: true }) });
-        await dish.getByLabel("Variante", { exact: true }).selectOption(current.variant.id);
-        await dish.getByRole("button", { name: "Hinzufügen", exact: true }).click();
+        await dish
+          .getByRole("button", { name: `${current.item.name} hinzufügen`, exact: true })
+          .click();
+        const picker = page.getByRole("dialog", { name: current.item.name, exact: true });
+        await picker.getByLabel("Variante", { exact: true }).selectOption(current.variant.id);
+        await picker.getByRole("button", { name: "Hinzufügen", exact: true }).click();
+        await openCart(page);
         if (current.quantity === 2)
           await page.getByRole("button", { name: `${current.item.name} einmal mehr` }).click();
         await page
@@ -329,6 +340,7 @@ export async function verifyTwoRestaurantsBrowser(browser: Browser, output: stri
       for (const [index, current] of restaurants.entries()) {
         const page = pages[index]!;
         await page.reload();
+        await openCart(page);
         await page
           .getByRole("heading", { name: `${current.quantity} Gerichte`, exact: true })
           .waitFor();
@@ -402,6 +414,7 @@ export async function verifyTwoRestaurantsBrowser(browser: Browser, output: stri
         );
         if (index === 0) {
           await pages[1]!.reload();
+          await openCart(pages[1]!);
           await pages[1]!
             .getByRole("heading", { name: `${other.quantity} Gerichte`, exact: true })
             .waitFor();
@@ -415,7 +428,9 @@ export async function verifyTwoRestaurantsBrowser(browser: Browser, output: stri
           .getByText(`Bestellnummer: ${current.confirmation.orderNumber}`, { exact: true })
           .waitFor();
         await page.getByRole("heading", { name: "Bestellung angenommen", exact: true }).waitFor();
+        await openCart(page);
         await page.getByRole("heading", { name: "0 Gerichte", exact: true }).waitFor();
+        await openOrders(page);
         assert.equal(current.writes, 1, "Reload must restore status without a new order");
         assert.ok(current.statusReads > 0);
         assert.equal(

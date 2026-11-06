@@ -124,6 +124,7 @@ export async function verifyLocationOperationsBrowser(page: Page, output: string
   });
   await page.goto("http://127.0.0.1:4321/?operations");
   await page.getByText("Offene Bestellungen:", { exact: false }).waitFor();
+  await page.getByText("Vorübergehend anpassen", { exact: true }).click();
   await page.getByLabel("Grund der Betriebsänderung").fill("Synthetic peak");
   await page.getByLabel("Neue Bestellungen pausieren").check();
   await page.getByRole("button", { name: "Betriebsmodus anwenden", exact: true }).click();
@@ -144,6 +145,7 @@ export async function verifyLocationOperationsBrowser(page: Page, output: string
   // Exact label excludes the optional temporary field.
   await page.getByLabel("Vorlauf in Minuten", { exact: true }).fill("40");
   await page.getByLabel("Annahmefrist neuer Bestellungen in Minuten", { exact: true }).fill("7");
+  await page.locator("summary").filter({ hasText: "Liefergebiet 1" }).click();
   await page.getByLabel("Mindestartikelwert in Cent", { exact: true }).fill("1800");
   assert.equal(
     await page
@@ -173,6 +175,7 @@ export async function verifyLocationOperationsBrowser(page: Page, output: string
   );
   // Reload loses unsaved form state but retains the server's active operational rule.
   await page.reload();
+  await page.getByText("Vorübergehend anpassen", { exact: true }).click();
   await page.getByText("Synthetic peak ·", { exact: false }).waitFor();
   state = {
     ...state,

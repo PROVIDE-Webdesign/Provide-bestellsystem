@@ -1,0 +1,14 @@
+{
+  "id": "/",
+  "name": "PROVIDE Restaurant-Dashboard",
+  "short_name": "PROVIDE",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f7f2",
+  "theme_color": "#303d27",
+  "icons": [
+    { "src": "/dashboard-icon-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "/dashboard-icon-512.png", "type": "image/png", "sizes": "512x512" }
+  ]
+}

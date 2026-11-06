@@ -177,6 +177,7 @@ try {
   gateway = httpsServer(tls);
   vite = await viteServer({
     configFile: false,
+    cacheDir: join(root, "output/vite-cache/http"),
     root: join(root, "apps/storefront/tests/browser"),
     plugins: [react()],
     resolve: { alias: { "@": join(root, "apps/dashboard") } },
@@ -386,10 +387,16 @@ try {
     await page.goto(
       browserOrigin + `/?restaurant=${scope.restaurantSlug}&location=${scope.locationSlug}`,
     );
+    await page
+      .getByRole("navigation", { name: "Speisekategorien" })
+      .getByRole("button")
+      .nth(1)
+      .click();
     const dish = page
-      .locator("li.dish")
+      .locator("li.shop-dish")
       .filter({ has: page.getByRole("heading", { name: "Gemüsecurry", exact: true }) });
-    await dish.getByRole("button", { name: "Hinzufügen" }).click();
+    await dish.getByRole("button", { name: "Gemüsecurry hinzufügen", exact: true }).click();
+    await page.getByRole("button", { name: /^Warenkorb ·/ }).click();
     await page.getByRole("button", { name: "Gemüsecurry einmal mehr" }).click();
     await page.getByRole("heading", { name: "2 Gerichte", exact: true }).waitFor();
     if (mode === "delivery") {

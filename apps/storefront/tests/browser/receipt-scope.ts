@@ -1,3 +1,4 @@
+import { openMenu, openCart } from "./shop-navigation.ts";
 import assert from "node:assert/strict";
 import type { Browser, Page, Route } from "playwright";
 import fixture from "../../../../fixtures/storefront-catalog.json" with { type: "json" };
@@ -145,6 +146,7 @@ export async function verifyReceiptScopeBrowser(browser: Browser, output: string
       try {
         await page.goto("http://127.0.0.1:4321");
         await page.getByRole("heading", { name: "Synthetic Restaurant A", exact: true }).waitFor();
+        await openCart(page);
         if (["bootstrap", "issue"].includes(scenario))
           await page
             .getByRole("button", { name: "Sicherheitsprüfung starten", exact: true })
@@ -171,7 +173,13 @@ export async function verifyReceiptScopeBrowser(browser: Browser, output: string
             await page
               .getByRole("heading", { name: "Synthetic Restaurant B", exact: true })
               .waitFor();
-            await page.getByRole("button", { name: "Hinzufügen", exact: true }).first().click();
+            await openMenu(page);
+            await page
+              .locator("li.shop-dish")
+              .getByRole("button", { name: / hinzufügen$/ })
+              .first()
+              .click();
+            await openCart(page);
             await page.getByLabel("Name", { exact: true }).fill("Gast B");
             await page.getByLabel("Name", { exact: true }).focus();
             assert.equal(await page.locator(".cart-panel h2").textContent(), "1 Gerichte");

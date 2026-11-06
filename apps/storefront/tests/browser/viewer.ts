@@ -130,7 +130,10 @@ export async function verifyViewerBrowser(page: Page, output: string, width: num
     assert.equal(writes, 0);
   };
   await page.goto("http://127.0.0.1:4321/?viewer");
+  await page.getByRole("button", { name: "Einstellungen", exact: true }).click();
   await page.getByText("Viewer · nur lesen", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Bestellungen", exact: true }).click();
+  await page.getByLabel("Verbindung und Bestelleingang").click();
   await page.getByText("Nur Lesezugriff: keine Änderungen und keine Kundendaten.").waitFor();
   await page
     .getByText(
@@ -146,11 +149,14 @@ export async function verifyViewerBrowser(page: Page, output: string, width: num
       .count(),
     0,
   );
-  const card = page.getByRole("button", { name: /BS-00000421/ });
+  const card = page.locator('button.operator-order-card[title="BS-00000421"]');
   await card.waitFor();
   await card.focus();
   await page.keyboard.press("Enter");
-  await page.getByText("Synthetic Viewer Dish").waitFor();
+  await page
+    .locator(".operator-detail")
+    .getByText("Synthetic Viewer Dish", { exact: false })
+    .waitFor();
   await noActions();
   assert.equal(
     await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
@@ -158,10 +164,16 @@ export async function verifyViewerBrowser(page: Page, output: string, width: num
   );
   await page.screenshot({ path: `${output}/viewer-readonly-${width}.png`, fullPage: true });
   await page.goto("http://127.0.0.1:4321/?board&viewer&live");
-  await page.getByRole("button", { name: /BS-00000421/ }).click();
-  await page.getByText("Synthetic Viewer Dish").waitFor();
+  await page.locator('button.operator-order-card[title="BS-00000421"]').click();
+  await page
+    .locator(".operator-detail")
+    .getByText("Synthetic Viewer Dish", { exact: false })
+    .waitFor();
   await noActions();
   const before = reads;
+  const refreshed = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === "/api/orders" && response.status() === 200,
+  );
   status = "preparing";
   await page.evaluate(() =>
     window.dispatchEvent(
@@ -170,7 +182,14 @@ export async function verifyViewerBrowser(page: Page, output: string, width: num
       }),
     ),
   );
-  await page.getByRole("button", { name: /BS-00000421.*In Zubereitung/ }).waitFor();
+  await page
+    .locator('button.operator-order-card[title="BS-00000421"]')
+    .filter({ hasText: "In Zubereitung" })
+    .waitFor();
+  const refreshedData = (await (await refreshed).json()) as {
+    data: { orders: { status: string }[] };
+  };
+  assert.equal(refreshedData.data.orders[0]?.status, "preparing");
   assert.ok(reads > before);
   await noActions();
   denied = true;
@@ -184,7 +203,7 @@ export async function verifyViewerBrowser(page: Page, output: string, width: num
   await page
     .getByText("Zugriff nicht mehr bestätigt. Bitte neu anmelden und Standortrechte prüfen.")
     .waitFor();
-  assert.equal(await page.getByRole("button", { name: /BS-00000421/ }).count(), 0);
+  assert.equal(await page.locator('button.operator-order-card[title="BS-00000421"]').count(), 0);
   assert.equal(await page.getByText("Synthetic Viewer Dish").count(), 0);
   await page.screenshot({ path: `${output}/viewer-revoked-${width}.png`, fullPage: true });
   assert.equal(writes, 0);
@@ -194,14 +213,16 @@ export async function verifyViewerBrowser(page: Page, output: string, width: num
   assert.equal(await page.getByText("Synthetic Viewer Restaurant", { exact: true }).count(), 0);
   assert.equal(await page.getByText("Synthetic Mitte", { exact: true }).count(), 0);
   assert.equal(await page.getByText("Synthetic Viewer Dish").count(), 0);
-  assert.equal(await page.getByRole("button", { name: /BS-00000421/ }).count(), 0);
+  assert.equal(await page.locator('button.operator-order-card[title="BS-00000421"]').count(), 0);
   assert.equal(await page.getByText("Viewer · nur lesen", { exact: true }).count(), 0);
   await page.screenshot({ path: `${output}/viewer-banned-context-${width}.png`, fullPage: true });
   banned = false;
   denied = false;
   await page.reload();
+  await page.getByRole("button", { name: "Einstellungen", exact: true }).click();
   await page.getByText("Viewer · nur lesen", { exact: true }).waitFor();
-  await page.getByRole("button", { name: /BS-00000421/ }).waitFor();
+  await page.getByRole("button", { name: "Bestellungen", exact: true }).click();
+  await page.locator('button.operator-order-card[title="BS-00000421"]').waitFor();
   await noActions();
   await page.unroute("**/api/access-context");
   await page.unroute("**/api/order-alerts?*");

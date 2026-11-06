@@ -172,6 +172,7 @@ it("runs the website and shop in Chromium against the real handoff and PostgreSQ
   await admin.connect();
   const server = await createServer({
     configFile: false,
+    cacheDir: resolve("output/vite-cache/handoff"),
     root: resolve("apps/storefront/tests/browser"),
     plugins: [react()],
     resolve: { alias: { "@": resolve("apps/dashboard") } },
@@ -322,8 +323,9 @@ it("runs the website and shop in Chromium against the real handoff and PostgreSQ
       return url;
     }
     async function verifyQuote(page, r, profileName, quantity = r.quantity) {
+      await page.getByRole("button", { name: /^Warenkorb ·/ }).click();
       await page.getByRole("heading", { name: r.title, exact: true }).waitFor();
-      await page.getByText(r.locationName, { exact: true }).waitFor();
+      await page.locator(".shop-address").getByText(r.locationName, { exact: false }).waitFor();
       const when = new Date(Math.ceil((Date.now() + 2 * 3600_000) / 900_000) * 900_000);
       const local = new Intl.DateTimeFormat("sv-SE", {
         timeZone: "Europe/Berlin",
@@ -452,9 +454,9 @@ it("runs the website and shop in Chromium against the real handoff and PostgreSQ
         0,
       );
     }
-    await mkdir(resolve(".git/bs16-check"), { recursive: true });
+    await mkdir(resolve("output/cart-handoff"), { recursive: true });
     await writeFile(
-      resolve(".git/bs16-check/" + (storageOff ? "storage" : "browser") + "-evidence.json"),
+      resolve("output/cart-handoff/" + (storageOff ? "storage" : "browser") + "-evidence.json"),
       JSON.stringify(evidence, null, 2),
     );
   } finally {

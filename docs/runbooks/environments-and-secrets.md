@@ -96,3 +96,74 @@ Liefercheckout. Für die Übermittlung müssen zusätzlich Checkout, Gaststatus 
 cachedeaktivierte Hyperdrive-Verbindung verfügbar sein. Regeln und Feature-Flags im Datenbankstand
 bleiben weitere Voraussetzungen. In AB3.8 werden ausschließlich synthetische lokale/CI-Daten
 verwendet.
+
+## Bestellsystem-Produktion vorbereiten
+
+Der gemeinsame Release-Stand enth?lt Shop, Dashboard und API. Die Produktionsdatenbank liegt in
+einem separaten Supabase-Projekt. Preview, Testzug?nge und synthetische Restaurants bleiben im
+Preview-Projekt. Produktionsdaten entstehen erst im freigegebenen Betrieb.
+
+### Geschlossene Bereitstellung proben
+
+Nach `pnpm check` die Worker-Konfigurationen f?r eine geschlossene Produktionsumgebung erzeugen.
+`<absoluter-neuer-ordner>` steht f?r einen neu anzulegenden lokalen Ordner. Die Ausgabe enth?lt
+weder Routen noch DB-Bindings, Zeitpl?ne, Anbieterzug?nge oder Asian-Kitchen-Demodateien. Den
+Probelauf aus dem Repository-Stamm starten.
+
+```sh
+node scripts/prepare-closed-production.mjs <absoluter-neuer-ordner>
+pnpm --filter @provide/api exec wrangler deploy --dry-run --config <absoluter-neuer-ordner>/api.json
+pnpm --filter @provide/dashboard exec wrangler deploy --dry-run --config <absoluter-neuer-ordner>/dashboard.json
+pnpm --filter @provide/storefront exec wrangler deploy --dry-run --config <absoluter-neuer-ordner>/storefront.json
+```
+
+### Produktionsumgebung anbinden
+
+1. Supabase-Projekt in Frankfurt bereitstellen. Projektkennung und Zielregion mit dem freigegebenen
+   Auftrag abgleichen. Die Migrationen aus dem gepr?ften Release anwenden.
+   `private.synthetic_test_environment` und `private.synthetic_test_locations` m?ssen leer sein.
+   Migrationen, Berechtigungen und Auth-Weiterleitungen abgleichen.
+2. Einen eigenen Cloudflare-Hyperdrive f?r die Produktionsdatenbank mit deaktiviertem Cache
+   einrichten und den tats?chlichen Cache-Zustand best?tigen. Erst dann
+   `HYPERDRIVE_CACHE_DISABLED=true` setzen. Die geschlossenen Worker-Konfigurationen um die
+   freigegebenen Produktionsdomains, die Produktionsbindung und die n?tigen Laufzeitwerte erg?nzen.
+   API, Dashboard und Shop haben getrennte Namen und feste Origins.
+3. Auth-Issuer und Dashboard-Publishable-Key auf das Produktionsprojekt setzen. Shop-Origin,
+   Checkout-Origin und `PAYMENT_RETURN_ORIGIN` m?ssen ?bereinstimmen. Die freigegebene
+   Datenschutzerkl?rung im Shop verlinken. Dieselbe mit `live-` beginnende Hinweisversion in API und
+   Shop hinterlegen. Turnstile und produktive Checkout-Secrets setzen. Die API und der Shop teilen
+   sich den Gateway-Schl?ssel. Fingerprint-, Netzwerk-, Status- und Zahlungszugriffsschl?ssel haben
+   jeweils ihren eigenen Zweck.
+4. Gesundheitspr?fungen von au?erhalb der Plattform f?r API, Datenbank, Shop und Dashboard
+   einrichten. Einen separaten Alarmcheck mit Eskalationskontakt und vereinbarten Reaktionszeiten
+   einrichten. Eine St?rung und die Entwarnung nachweisen. Vor der ersten Freigabe eine
+   verschl?sselte Produktionssicherung in einer getrennten Umgebung wiederherstellen und
+   Migrationen, Datenbest?nde und Berechtigungen vergleichen. Sicherungsziel, Schl?ssel und
+   Aufbewahrung dokumentieren.
+
+### Stripe Connect und kontrollierte Abnahme
+
+1. Betreiber, Standort und Stripe-Live-H?ndlerkonto f?r genau das Pilotrestaurant best?tigen. Auf
+   der Plattform das richtige Live-Konto ausw?hlen und die Kartenf?higkeit des verbundenen H?ndlers
+   unter `configuration.merchant.capabilities.card_payments` pr?fen. Die Zuordnung in
+   `private.restaurant_live_payment_accounts` eintragen und zun?chst deaktiviert lassen.
+2. Den eingeschr?nkten Live-Schl?ssel als `STRIPE_LIVE_SECRET_KEY` hinterlegen. Die Plattform-ID als
+   `STRIPE_LIVE_ACCOUNT_ID` setzen. F?r Ereignisse verbundener Konten den Connect-Endpunkt
+   `/v1/payments/stripe/webhook` der Produktions-API einrichten und das zugeh?rige Geheimnis als
+   `STRIPE_LIVE_WEBHOOK_SECRET` speichern. Der Endpunkt abonniert `checkout.session.completed`,
+   `checkout.session.expired`, `checkout.session.async_payment_succeeded`,
+   `checkout.session.async_payment_failed`, `payment_intent.amount_capturable_updated`,
+   `payment_intent.succeeded`, `payment_intent.payment_failed`, `refund.created`, `refund.updated`,
+   `refund.failed`.
+3. Abgleich und Zeitplan zuerst bei geschlossenem Bestelleingang pr?fen. Anschlie?end nach Freigabe
+   die H?ndlerzuordnung und Live-Bestellung ausschlie?lich f?r den Pilotstandort ?ffnen. Bei
+   weiteren Standorten desselben Restaurants dort `payment.online` ausdr?cklich deaktivieren und im
+   Shop pr?fen, an welchen Standorten Online-Zahlung angeboten wird. Nach der kontrollierten
+   Bestellung Stripe-Konto, Betrag, Reservierung, genau eine Abbuchung nach Annahme, Bestellstatus
+   und Erstattung vergleichen. Bestell- und Zahlungsreferenzen ohne Kundendaten im Freigabeprotokoll
+   dokumentieren.
+4. Zum Stoppen neuer Zahlungen `ONLINE_LIVE_PAYMENT_ENABLED` in der API und
+   `PUBLIC_LIVE_ONLINE_PAYMENT_ENABLED` im Shop deaktivieren. Die Live-Verarbeitung, den Zeitplan
+   und den Webhook bis zur Abwicklung laufender Zahlungen und Erstattungen aktiv lassen. Bei einem
+   Rollback muss der API-Stand Live-Auftr?ge weiterhin abgleichen k?nnen. Der externe
+   Bestellmail-Versand bleibt bis zur separaten Abnahme deaktiviert.

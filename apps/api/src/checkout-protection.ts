@@ -23,6 +23,7 @@ import {
   parsePublicOrderStatusRequest,
   parsePaymentAction,
   type CheckoutAttestation,
+  type OnlinePaymentMode,
   type StorefrontScope,
 } from "@provide/contracts";
 import type { StorefrontRoute } from "./storefront.js";
@@ -144,6 +145,7 @@ async function confirmation(
             scope,
             o.orderId,
             String(o.paymentDeadline),
+            o.stripeMode === "live" ? "live" : "test",
           ),
         })
       : mode === "delivery-orders"
@@ -431,7 +433,11 @@ export async function handleProtectedStorefront(
           known?.outcome === "expired" ? 410 : 403,
           known?.outcome === "expired" ? "checkout_session_expired" : "forbidden",
         );
-      const submit = (retention: number, account: string | null = null) => {
+      const submit = (
+        retention: number,
+        account: string | null = null,
+        paymentMode?: OnlinePaymentMode,
+      ) => {
         const c = record(publicCommand)!;
         const customer = record(c.customer)!;
         const d = record(c.delivery);
@@ -467,6 +473,7 @@ export async function handleProtectedStorefront(
           command,
           retention,
           account,
+          paymentMode,
         );
       };
       const protectedWriters: ProtectedWriters = {
@@ -477,7 +484,7 @@ export async function handleProtectedStorefront(
         },
         online: {
           ...writers.online,
-          submit: (_c, _s, _command, retention, account) => submit(retention, account),
+          submit: (_c, _s, _command, retention, account, mode) => submit(retention, account, mode),
         },
       };
       const downstream = new Request(request.url, {

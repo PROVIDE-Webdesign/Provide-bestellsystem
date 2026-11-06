@@ -202,7 +202,9 @@ export function OperatorSettings({
                     <strong>{item.title}</strong>
                     <small>{item.summary}</small>
                   </span>
-                  <span className="management-chevron"><OperatorIcon name="chevron" /></span>
+                  <span className="management-chevron">
+                    <OperatorIcon name="chevron" />
+                  </span>
                 </button>
               ))}
             <button type="button" className="settings-topic" onClick={() => setTopic("account")}>
@@ -211,7 +213,9 @@ export function OperatorSettings({
                 <strong>Mein Zugang</strong>
                 <small>{roleLabel}</small>
               </span>
-              <span className="management-chevron"><OperatorIcon name="chevron" /></span>
+              <span className="management-chevron">
+                <OperatorIcon name="chevron" />
+              </span>
             </button>
           </div>
           {changes > 0 && (

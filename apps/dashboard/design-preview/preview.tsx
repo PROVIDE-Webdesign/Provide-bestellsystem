@@ -87,7 +87,7 @@ const transitions = {
   rejected: [],
   cancelled: [],
 };
-let items = samples.map((sample) => ({
+const items = samples.map((sample) => ({
   orderId: `fa000000-0000-0000-0000-${String(sample.number).padStart(12, "0")}`,
   orderNumber: `BS-${String(sample.number).padStart(8, "0")}`,
   restaurantId,
@@ -159,7 +159,13 @@ window.fetch = async (input, init) => {
           (item) =>
             !url.searchParams.get("status") || item.status === url.searchParams.get("status"),
         )
-        .map(({ restaurantId, locationId, contactName, lines, ...summary }) => summary),
+        .map(({ restaurantId, locationId, contactName, lines, ...summary }) => {
+          void restaurantId;
+          void locationId;
+          void contactName;
+          void lines;
+          return summary;
+        }),
       nextCursor: null,
     });
   const match = /^\/api\/orders\/([^/]+)(\/status)?$/.exec(url.pathname);

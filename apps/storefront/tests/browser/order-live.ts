@@ -123,6 +123,8 @@ export async function verifyOrderLiveBrowser(page: Page, output: string, width: 
     );
   const tones = () => page.evaluate(() => Number(sessionStorage.getItem("synthetic-tone-starts")));
   await page.goto("http://127.0.0.1:4321/?board&live");
+  await page.getByLabel("Verbindung und Bestelleingang").click();
+  await page.getByText("Filter und Suche", { exact: true }).click();
   await page.getByRole("heading", { name: "Offener Bestelleingang (1)", exact: true }).waitFor();
   await page.getByText("Live verbunden", { exact: true }).waitFor();
   await page.waitForLoadState("networkidle");
@@ -168,7 +170,7 @@ export async function verifyOrderLiveBrowser(page: Page, output: string, width: 
     .getByRole("list", { name: "Zur Annahme priorisiert", exact: true })
     .getByRole("button", { name: /BS-00000448/ })
     .click();
-  await page.getByRole("heading", { name: "#BS-00000448", exact: true }).waitFor();
+  await page.getByRole("heading", { name: "#448", exact: true }).waitFor();
   status = "accepted";
   serverNow += 1000;
   await signal(3);
@@ -217,6 +219,7 @@ export async function verifyOrderLiveBrowser(page: Page, output: string, width: 
   await page.getByText("Keine Bestellung wartet auf Annahme.", { exact: true }).waitFor();
   await page.waitForLoadState("networkidle");
   await page.reload();
+  await page.getByLabel("Verbindung und Bestelleingang").click();
   await page.getByRole("heading", { name: "Offener Bestelleingang (0)", exact: true }).waitFor();
   await page.getByRole("button", { name: "Ton aktivieren und testen", exact: true }).waitFor();
   assert.equal(await tones(), 0, "Reload never restores autoplay permission");

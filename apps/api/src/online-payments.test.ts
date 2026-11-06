@@ -253,7 +253,9 @@ describe("connected restaurant reconciliation", () => {
   });
   it.each(
     ["acct_restaurantA", "acct_restaurantB"].flatMap((account) =>
-      (["wait", "accept", "reject", "expire"] as const).map((decision) => [account, decision] as const),
+      (["wait", "accept", "reject", "expire"] as const).map(
+        (decision) => [account, decision] as const,
+      ),
     ),
   )("reconciles manual payment for %s after %s", async (account, decision) => {
     const now = Date.now();
@@ -266,12 +268,23 @@ describe("connected restaurant reconciliation", () => {
     };
     const repo = repository(job);
     const held = {
-      id: job.session_id, status: "complete", paid: false, authorized: true, intent: "pi_connected", url: null,
+      id: job.session_id,
+      status: "complete",
+      paid: false,
+      authorized: true,
+      intent: "pi_connected",
+      url: null,
     };
     const provider = {
-      session: vi.fn().mockResolvedValueOnce(held).mockResolvedValue({
-        ...held, authorized: false, paid: decision === "accept", authorizationReleased: decision !== "accept",
-      }),
+      session: vi
+        .fn()
+        .mockResolvedValueOnce(held)
+        .mockResolvedValue({
+          ...held,
+          authorized: false,
+          paid: decision === "accept",
+          authorizationReleased: decision !== "accept",
+        }),
       expire: vi.fn(),
       refund: vi.fn(),
       settleAuthorization: vi.fn(),
@@ -286,9 +299,13 @@ describe("connected restaurant reconciliation", () => {
       );
     }
     expect(repo.sync).toHaveBeenCalledExactlyOnceWith(
-      "synthetic", id, expect.any(String),
+      "synthetic",
+      id,
+      expect.any(String),
       decision === "wait" ? "authorized" : decision === "accept" ? "paid" : "expired",
-      "pi_connected", null, expect.any(String),
+      "pi_connected",
+      null,
+      expect.any(String),
     );
     expect(repo.fail).not.toHaveBeenCalled();
     expect(provider.refund).not.toHaveBeenCalled();
@@ -424,6 +441,7 @@ describe("connected restaurant reconciliation", () => {
         new Date(timestamp * 1000).toISOString(),
         "acct_restaurantA",
         succeeded,
+        "test",
       );
     },
   );

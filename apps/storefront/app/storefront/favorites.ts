@@ -11,7 +11,15 @@ export function parseFavorites(raw: string | null): string[] {
   try {
     const value: unknown = JSON.parse(raw);
     return Array.isArray(value)
-      ? [...new Set(value.filter((id): id is string => typeof id === "string" && /^[a-zA-Z0-9:_-]{1,100}$/.test(id)))].slice(0, 100)
+      ? [
+          ...new Set(
+            value.filter(
+              (id): id is string => typeof id === "string" && /^[a-zA-Z0-9:_-]{1,100}$/.test(id),
+            ),
+          ),
+        ].slice(0, 100)
       : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }

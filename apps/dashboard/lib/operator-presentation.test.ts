@@ -21,6 +21,7 @@ describe("operator order presentation", () => {
       "9223372036854775807",
     );
     const { orderNumber, ...legacy } = order;
+    expect(orderNumber).toBe("BS-00001042");
     expect(shortOrderNumber(legacy)).toBe(order.orderId);
   });
   it("distinguishes reserved and unsettled payments from paid orders", () => {

@@ -6,6 +6,7 @@ import {
   parseOnlineOrderConfirmation,
   parsePaymentAction,
   parsePaymentSession,
+  type OnlinePaymentMode,
   parseDeliveryQuote,
   parseDeliveryQuoteRequest,
   parseGuestDeliveryOrderRequest,
@@ -159,6 +160,7 @@ export async function submitGuestPickupOrder(
   params: GatewayParams,
   apiUrl: string | undefined,
   fetcher: typeof fetch = fetch,
+  paymentMode: OnlinePaymentMode = "test",
 ): Promise<Response> {
   const headers = {
     "cache-control": "no-store",
@@ -242,7 +244,7 @@ export async function submitGuestPickupOrder(
         : params.resource === "online-orders"
           ? parseOnlineOrderConfirmation(payload.data)
           : params.resource === "payment-session"
-            ? parsePaymentSession(payload.data)
+            ? parsePaymentSession(payload.data, paymentMode)
             : params.resource === "delivery-quote"
               ? parseDeliveryQuote(payload.data)
               : params.resource === "delivery-orders"

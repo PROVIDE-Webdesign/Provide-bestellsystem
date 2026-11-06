@@ -85,7 +85,9 @@ function RestaurantMenuEditor({
       live.current = false;
       generation.current++;
       authorized.current = false;
+      pending.current = false;
       controller.current?.abort();
+      controller.current = null;
       window.clearInterval(timer);
     };
   }, []);
@@ -564,7 +566,13 @@ function RestaurantMenuEditor({
           </div>
         </>
       )}
-      <details className="menu-tools">
+      <details
+        className="menu-tools"
+        onClick={(event) => {
+          if (event.target instanceof Element && event.target.closest("button"))
+            event.currentTarget.open = false;
+        }}
+      >
         <summary aria-label="Speisekarten-Werkzeuge">
           <OperatorIcon name="settings" />
         </summary>

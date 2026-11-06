@@ -1,1 +1,151 @@
-{"restaurant": {"slug": "storefront-restaurant-a", "name": "ASIAN KITCHEN"}, "location": {"slug": "storefront-a-mitte", "name": "Teststandort Mitte", "timezone": "Europe/Berlin", "address": {"line1": "Testweg 1", "line2": null, "postalCode": "52062", "city": "Aachen", "countryCode": "DE"}}, "menus": [{"id": "f4000000-0000-0000-0000-000000000001", "versionId": "f5000000-0000-0000-0000-000000000001", "name": "Unsere Speisekarte", "currency": "EUR", "sections": [{"key": "vorspeisen", "name": "Vorspeisen", "items": [{"id": "3fd3f22e-cc0a-5a3f-99bd-c6009e8442bc", "sectionKey": "vorspeisen", "name": "Frühlingsrollen", "description": "Knusprige Rollen mit Gemüse, Glasnudeln und hausgemachtem Sweet-Chili-Dip.", "priceAmountMinor": 690, "isActive": true, "availability": "available"}, {"id": "d027ccb4-9d7f-5e95-9992-fde54e8250a4", "sectionKey": "vorspeisen", "name": "Gyoza", "description": "Gebratene Teigtaschen mit Hähnchen und Gemüse, dazu Ponzu-Sauce.", "priceAmountMinor": 750, "isActive": true, "availability": "available"}, {"id": "8a2d281a-1479-5a83-92a9-53d03609020f", "sectionKey": "vorspeisen", "name": "Edamame Meersalz", "description": "Gedämpfte Sojabohnen mit Meersalz und einem Hauch Sesam.", "priceAmountMinor": 590, "isActive": true, "availability": "available"}, {"id": "ffd29aac-abf3-5308-a001-cd4b5093b988", "sectionKey": "vorspeisen", "name": "Tempura Garnelen", "description": "Knusprige Garnelen im leichten Tempurateig mit Yuzu-Mayonnaise.", "priceAmountMinor": 990, "isActive": true, "availability": "available"}]}, {"key": "hauptgerichte", "name": "Hauptgerichte", "items": [{"id": "672463cd-2f40-5b61-8f55-5c9be9e06b70", "sectionKey": "hauptgerichte", "name": "Crispy Duck", "description": "Knusprige Ente mit Pak Choi, Duftreis und würziger Hoisin-Sauce.", "priceAmountMinor": 1990, "isActive": true, "availability": "available"}, {"id": "559421de-1246-5ba8-bf2c-acd51b935c24", "sectionKey": "hauptgerichte", "name": "Beef Teriyaki", "description": "Zartes Rindfleisch mit saisonalem Gemüse und hausgemachter Teriyaki-Sauce.", "priceAmountMinor": 1890, "isActive": true, "availability": "available"}, {"id": "bbf42025-3fdb-5b97-b071-db2010396ccf", "sectionKey": "hauptgerichte", "name": "Miso Lachs", "description": "Glasierter Lachs mit Miso, Brokkoli, Sesam und Jasminreis.", "priceAmountMinor": 2190, "isActive": true, "availability": "available"}, {"id": "18aa303c-4cce-5096-9459-fc9d79094d6e", "sectionKey": "hauptgerichte", "name": "Thai Green Curry", "description": "Grünes Curry mit Kokosmilch, Thai-Basilikum, Gemüse und Jasminreis.", "priceAmountMinor": 1690, "isActive": true, "availability": "available"}]}, {"key": "desserts", "name": "Desserts", "items": [{"id": "1c4589c1-3dc4-566e-961d-30781eb15808", "sectionKey": "desserts", "name": "Mochi Trio", "description": "Drei Mochi-Eiskugeln: Mango, Kokos und Matcha.", "priceAmountMinor": 790, "isActive": true, "availability": "available"}, {"id": "0a5a97b8-44ff-5bf3-860e-4a1ecf3200de", "sectionKey": "desserts", "name": "Matcha Cheesecake", "description": "Cremiger Käsekuchen mit feiner Matcha-Note und Beerenkompott.", "priceAmountMinor": 850, "isActive": true, "availability": "available"}, {"id": "fb6bec83-aa71-5653-bb03-0a94688308f9", "sectionKey": "desserts", "name": "Mango Sticky Rice", "description": "Warmer Kokos-Klebreis mit frischer Mango und geröstetem Sesam.", "priceAmountMinor": 750, "isActive": true, "availability": "available"}, {"id": "7da268b4-0624-5002-9817-c7cdbb552835", "sectionKey": "desserts", "name": "Yuzu Crème Brûlée", "description": "Feine Vanillecreme mit Yuzu, karamellisierter Kruste und Beeren.", "priceAmountMinor": 890, "isActive": true, "availability": "available"}]}]}]}
+{
+  "restaurant": { "slug": "storefront-restaurant-a", "name": "ASIAN KITCHEN" },
+  "location": {
+    "slug": "storefront-a-mitte",
+    "name": "Teststandort Mitte",
+    "timezone": "Europe/Berlin",
+    "address": {
+      "line1": "Testweg 1",
+      "line2": null,
+      "postalCode": "52062",
+      "city": "Aachen",
+      "countryCode": "DE"
+    }
+  },
+  "menus": [
+    {
+      "id": "f4000000-0000-0000-0000-000000000001",
+      "versionId": "f5000000-0000-0000-0000-000000000001",
+      "name": "Unsere Speisekarte",
+      "currency": "EUR",
+      "sections": [
+        {
+          "key": "vorspeisen",
+          "name": "Vorspeisen",
+          "items": [
+            {
+              "id": "3fd3f22e-cc0a-5a3f-99bd-c6009e8442bc",
+              "sectionKey": "vorspeisen",
+              "name": "Frühlingsrollen",
+              "description": "Knusprige Rollen mit Gemüse, Glasnudeln und hausgemachtem Sweet-Chili-Dip.",
+              "priceAmountMinor": 690,
+              "isActive": true,
+              "availability": "available"
+            },
+            {
+              "id": "d027ccb4-9d7f-5e95-9992-fde54e8250a4",
+              "sectionKey": "vorspeisen",
+              "name": "Gyoza",
+              "description": "Gebratene Teigtaschen mit Hähnchen und Gemüse, dazu Ponzu-Sauce.",
+              "priceAmountMinor": 750,
+              "isActive": true,
+              "availability": "available"
+            },
+            {
+              "id": "8a2d281a-1479-5a83-92a9-53d03609020f",
+              "sectionKey": "vorspeisen",
+              "name": "Edamame Meersalz",
+              "description": "Gedämpfte Sojabohnen mit Meersalz und einem Hauch Sesam.",
+              "priceAmountMinor": 590,
+              "isActive": true,
+              "availability": "available"
+            },
+            {
+              "id": "ffd29aac-abf3-5308-a001-cd4b5093b988",
+              "sectionKey": "vorspeisen",
+              "name": "Tempura Garnelen",
+              "description": "Knusprige Garnelen im leichten Tempurateig mit Yuzu-Mayonnaise.",
+              "priceAmountMinor": 990,
+              "isActive": true,
+              "availability": "available"
+            }
+          ]
+        },
+        {
+          "key": "hauptgerichte",
+          "name": "Hauptgerichte",
+          "items": [
+            {
+              "id": "672463cd-2f40-5b61-8f55-5c9be9e06b70",
+              "sectionKey": "hauptgerichte",
+              "name": "Crispy Duck",
+              "description": "Knusprige Ente mit Pak Choi, Duftreis und würziger Hoisin-Sauce.",
+              "priceAmountMinor": 1990,
+              "isActive": true,
+              "availability": "available"
+            },
+            {
+              "id": "559421de-1246-5ba8-bf2c-acd51b935c24",
+              "sectionKey": "hauptgerichte",
+              "name": "Beef Teriyaki",
+              "description": "Zartes Rindfleisch mit saisonalem Gemüse und hausgemachter Teriyaki-Sauce.",
+              "priceAmountMinor": 1890,
+              "isActive": true,
+              "availability": "available"
+            },
+            {
+              "id": "bbf42025-3fdb-5b97-b071-db2010396ccf",
+              "sectionKey": "hauptgerichte",
+              "name": "Miso Lachs",
+              "description": "Glasierter Lachs mit Miso, Brokkoli, Sesam und Jasminreis.",
+              "priceAmountMinor": 2190,
+              "isActive": true,
+              "availability": "available"
+            },
+            {
+              "id": "18aa303c-4cce-5096-9459-fc9d79094d6e",
+              "sectionKey": "hauptgerichte",
+              "name": "Thai Green Curry",
+              "description": "Grünes Curry mit Kokosmilch, Thai-Basilikum, Gemüse und Jasminreis.",
+              "priceAmountMinor": 1690,
+              "isActive": true,
+              "availability": "available"
+            }
+          ]
+        },
+        {
+          "key": "desserts",
+          "name": "Desserts",
+          "items": [
+            {
+              "id": "1c4589c1-3dc4-566e-961d-30781eb15808",
+              "sectionKey": "desserts",
+              "name": "Mochi Trio",
+              "description": "Drei Mochi-Eiskugeln: Mango, Kokos und Matcha.",
+              "priceAmountMinor": 790,
+              "isActive": true,
+              "availability": "available"
+            },
+            {
+              "id": "0a5a97b8-44ff-5bf3-860e-4a1ecf3200de",
+              "sectionKey": "desserts",
+              "name": "Matcha Cheesecake",
+              "description": "Cremiger Käsekuchen mit feiner Matcha-Note und Beerenkompott.",
+              "priceAmountMinor": 850,
+              "isActive": true,
+              "availability": "available"
+            },
+            {
+              "id": "fb6bec83-aa71-5653-bb03-0a94688308f9",
+              "sectionKey": "desserts",
+              "name": "Mango Sticky Rice",
+              "description": "Warmer Kokos-Klebreis mit frischer Mango und geröstetem Sesam.",
+              "priceAmountMinor": 750,
+              "isActive": true,
+              "availability": "available"
+            },
+            {
+              "id": "7da268b4-0624-5002-9817-c7cdbb552835",
+              "sectionKey": "desserts",
+              "name": "Yuzu Crème Brûlée",
+              "description": "Feine Vanillecreme mit Yuzu, karamellisierter Kruste und Beeren.",
+              "priceAmountMinor": 890,
+              "isActive": true,
+              "availability": "available"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

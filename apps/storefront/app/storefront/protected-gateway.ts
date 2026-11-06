@@ -341,6 +341,7 @@ export async function handleCheckoutGateway(
               params,
               env.PUBLIC_API_URL,
               signedFetcher,
+              env.APP_ENV === "production" ? "live" : "test",
             );
       if (upstreamFailure)
         return failure(upstreamFailure.status, upstreamFailure.code, upstreamFailure.retry);

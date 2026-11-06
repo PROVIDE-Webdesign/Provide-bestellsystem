@@ -14,6 +14,7 @@ export interface AvailabilityQuery extends StorefrontScope {
   readonly itemCount: number;
 }
 export interface PublicCatalog {
+  readonly liveOnlinePaymentAvailable?: boolean;
   readonly restaurant: { readonly slug: string; readonly name: string };
   readonly location: {
     readonly slug: string;

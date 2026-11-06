@@ -26,11 +26,14 @@ async function read(
 }
 
 export const postgresStorefrontReader: StorefrontReader = {
-  catalog: (connectionString, scope) =>
-    read(connectionString, "SELECT private.read_storefront_catalog($1::text, $2::text) AS data", [
-      scope.restaurantSlug,
-      scope.locationSlug,
-    ]),
+  catalog: (connectionString, scope, livePlatform) =>
+    read(
+      connectionString,
+      livePlatform
+        ? "SELECT private.read_storefront_catalog($1::text, $2::text, $3::text) AS data"
+        : "SELECT private.read_storefront_catalog($1::text, $2::text) AS data",
+      [scope.restaurantSlug, scope.locationSlug, ...(livePlatform ? [livePlatform] : [])],
+    ),
   availability: (connectionString, query) =>
     read(
       connectionString,

@@ -15,6 +15,7 @@ import {
   type OrderLiveSubscriber,
 } from "../../../dashboard/lib/order-live";
 import "../../app/styles.css";
+import "../../app/shop-design.css";
 const support = new URLSearchParams(location.search).has("support");
 const recovery = new URLSearchParams(location.search).has("recovery");
 const recoveryOperator = new URLSearchParams(location.search).has("operator");
@@ -110,8 +111,11 @@ if (
   personnel ||
   invitations ||
   viewer
-)
+) {
   void import("../../../dashboard/app/styles.css");
+  void import("../../../dashboard/app/operator-design.css");
+  void import("../../../dashboard/app/management-design.css");
+}
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {support ? (
@@ -124,7 +128,7 @@ createRoot(document.getElementById("root")!).render(
         <RecoveryPanel operator={recoveryOperator} />
       </main>
     ) : viewer && !board ? (
-      <main>
+      <main className="operator-root">
         <DashboardClient
           enabled
           menuEnabled
@@ -132,6 +136,7 @@ createRoot(document.getElementById("root")!).render(
           historyEnabled
           personnelEnabled
           alertsEnabled
+          pushEnabled={new URLSearchParams(location.search).has("push")}
         />
       </main>
     ) : personnel ? (
@@ -157,22 +162,43 @@ createRoot(document.getElementById("root")!).render(
         locations={[{ id: "f3000000-0000-0000-0000-000000000001", displayName: "Synthetic Mitte" }]}
       />
     ) : board ? (
-      <OrderBoard
-        liveEnabled={live}
-        alertsEnabled={live}
-        {...(live ? { subscribeLive: syntheticLive } : {})}
-        restaurantId="f2000000-0000-0000-0000-000000000001"
-        role={viewer ? "viewer" : "owner"}
-        locations={[
-          {
-            id: "f3000000-0000-0000-0000-000000000001",
-            slug: "synthetic-mitte",
-            displayName: "Synthetic Mitte",
-          },
-        ]}
-      />
+      <main className="operator-root">
+        <div className="operator-shell">
+          <header className="operator-header">
+            <strong className="operator-brand">PROVIDE</strong>
+            <span>Synthetic Betrieb</span>
+            <div className="operator-header-actions">
+              <div id="operator-inbox-f2000000-0000-0000-0000-000000000001" />
+            </div>
+          </header>
+          <div className="operator-content">
+            <h1>Bestellungen</h1>
+            <OrderBoard
+              liveEnabled={live}
+              alertsEnabled={live}
+              {...(live ? { subscribeLive: syntheticLive } : {})}
+              restaurantId="f2000000-0000-0000-0000-000000000001"
+              role={viewer ? "viewer" : "owner"}
+              locations={[
+                {
+                  id: "f3000000-0000-0000-0000-000000000001",
+                  slug: "synthetic-mitte",
+                  displayName: "Synthetic Mitte",
+                },
+              ]}
+            />
+          </div>
+        </div>
+      </main>
     ) : dashboard ? (
-      <MenuEditorHarness />
+      <main className="operator-root">
+        <div className="operator-shell operator-management">
+          <div className="operator-content">
+            <h1>Speisekarte</h1>
+            <MenuEditorHarness />
+          </div>
+        </div>
+      </main>
     ) : (
       <StorefrontHarness />
     )}

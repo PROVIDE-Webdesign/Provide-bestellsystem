@@ -1,3 +1,4 @@
+import { menuTool, openMenuPublish, editMenuItem } from "./menu-navigation.ts";
 import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import type { Dialog, Page, Route } from "playwright";
@@ -87,13 +88,20 @@ export async function verifyMenuAccessBrowser(page: Page, output: string, width:
     );
   };
   await page.route("**/api/menu?*", respond);
-  const load = () => page.getByRole("button", { name: "Menüstand laden", exact: true }).click();
+  const load = async () => {
+    await menuTool(page, "Karte & Standort auswählen");
+    await page.getByRole("button", { name: "Menüstand laden", exact: true }).click();
+  };
   const ready = async () => {
     status = 200;
     networkError = false;
     await page.goto("http://127.0.0.1:4321/?dashboard");
     await load();
-    await page.getByText("Menüstand geladen.", { exact: true }).waitFor();
+    await page.waitForFunction(() => {
+      const form = document.querySelector<HTMLFieldSetElement>(".menu-detail-form");
+      return form !== null && !form.disabled;
+    });
+    await editMenuItem(page, privateDish);
     assert.equal(await page.getByLabel("Preis in Euro", { exact: true }).inputValue(), "12.34");
   };
   const empty = async () => {
@@ -101,7 +109,16 @@ export async function verifyMenuAccessBrowser(page: Page, output: string, width:
       await page.getByRole("button", { name: "Entwurf speichern", exact: true }).count(),
       0,
     );
-    assert.equal(await page.locator(".menu-editor input, .menu-editor textarea").count(), 0);
+    assert.equal(await page.getByLabel("Preis in Euro", { exact: true }).count(), 0);
+    const values = await page
+      .locator(".menu-detail-form input, .menu-detail-form textarea")
+      .evaluateAll((elements) => elements.map((element) => (element as HTMLInputElement).value));
+    assert.ok(
+      values.every((value) => value === ""),
+      "No old private draft values survive scope or access changes",
+    );
+    const search = page.getByLabel("Gericht suchen", { exact: true });
+    if (await search.count()) assert.equal(await search.inputValue(), "");
     assert.equal(await page.getByLabel("Menüvorschau", { exact: true }).count(), 0);
     const text = await page.locator("body").innerText();
     for (const secret of [
@@ -112,18 +129,30 @@ export async function verifyMenuAccessBrowser(page: Page, output: string, width:
       "Private Änderungsnotiz",
     ])
       assert.equal(text.includes(secret), false);
-    assert.deepEqual(await page.locator(".menu-editor button").allTextContents(), [
-      "Menüstand laden",
-    ]);
+    assert.equal(
+      await page.getByRole("button", { name: "Entwurf speichern", exact: true }).count(),
+      0,
+    );
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Speisekarte anlegen", exact: true })
+        .filter({ visible: true })
+        .count(),
+      0,
+    );
   };
   try {
     for (const method of ["GET", "POST"] as const)
       for (const denied of [401, 403]) {
         await ready();
+        await menuTool(page, "Neue Speisekarte");
         await page.getByLabel("Name", { exact: true }).first().fill("Private Neuanlage");
         await page.getByLabel("Kurzname für die Speisekarte").fill("private-neuanlage");
+        await openMenuPublish(page);
         await page.getByLabel("Änderungsnotiz").fill("Private Änderungsnotiz");
+        await menuTool(page, "Steuerregel für Lieferung");
         await page.getByLabel("Begründung", { exact: true }).fill("Private Steuerbegründung");
+        await menuTool(page, "Importieren");
         await page.getByLabel("Importdatei (JSON)").setInputFiles({
           name: "private-import.json",
           mimeType: "application/json",
@@ -137,7 +166,7 @@ export async function verifyMenuAccessBrowser(page: Page, output: string, width:
           ),
         });
         await page.getByText(/Interne Importplanung/).waitFor();
-        await page.getByRole("button", { name: "Änderungsvorschau anzeigen", exact: true }).click();
+        await openMenuPublish(page);
         status = denied;
         if (method === "GET") await load();
         else await page.getByRole("button", { name: "Entwurf speichern", exact: true }).click();
@@ -157,13 +186,18 @@ export async function verifyMenuAccessBrowser(page: Page, output: string, width:
         assert.equal(writes, afterDenied);
         status = 200;
         await load();
-        await page.getByText("Menüstand geladen.", { exact: true }).waitFor();
+        await page.waitForFunction(() => {
+          const form = document.querySelector<HTMLFieldSetElement>(".menu-detail-form");
+          return form !== null && !form.disabled;
+        });
         assert.equal(await page.getByLabel("Name", { exact: true }).first().inputValue(), "");
         assert.equal(await page.getByLabel("Kurzname für die Speisekarte").inputValue(), "");
         assert.equal(await page.getByLabel("Änderungsnotiz").inputValue(), "");
+        await menuTool(page, "Steuerregel für Lieferung");
         assert.equal(await page.getByLabel("Begründung", { exact: true }).inputValue(), "");
         assert.equal(await page.getByText(/Interne Importplanung/).count(), 0);
         assert.equal(await page.getByLabel("Menüvorschau", { exact: true }).count(), 0);
+        await editMenuItem(page, privateDish);
         assert.equal(
           await page.getByRole("button", { name: "Entwurf speichern", exact: true }).isEnabled(),
           true,
@@ -174,7 +208,7 @@ export async function verifyMenuAccessBrowser(page: Page, output: string, width:
       await ready();
       await page
         .getByLabel("Name", { exact: true })
-        .nth(1)
+        .filter({ visible: true })
         .fill("Berechtigte ungespeicherte Änderung");
       status = failure === "conflict" ? 409 : 503;
       networkError = failure === "network";
@@ -183,7 +217,7 @@ export async function verifyMenuAccessBrowser(page: Page, output: string, width:
         () => !document.querySelector<HTMLFieldSetElement>(".menu-editor > fieldset")!.disabled,
       );
       assert.equal(
-        await page.getByLabel("Name", { exact: true }).nth(1).inputValue(),
+        await page.getByLabel("Name", { exact: true }).filter({ visible: true }).inputValue(),
         "Berechtigte ungespeicherte Änderung",
       );
       assert.equal(
@@ -193,15 +227,23 @@ export async function verifyMenuAccessBrowser(page: Page, output: string, width:
       results.push({ scenario: `${failure}-preserves-authorized-draft`, result: "PASS" });
     }
     await ready();
+    await openMenuPublish(page);
     await page.getByLabel("Änderungsnotiz").fill("Private Änderungsnotiz");
+    await menuTool(page, "Karte & Standort auswählen");
     await page.getByRole("combobox", { name: /^Standort/ }).selectOption(locationB);
     await empty();
     await load();
-    await page.getByText("Menüstand geladen.", { exact: true }).waitFor();
+    await page.waitForFunction(() => {
+      const form = document.querySelector<HTMLFieldSetElement>(".menu-detail-form");
+      return form !== null && !form.disabled;
+    });
     assert.equal(await page.getByText(privateDish, { exact: true }).count(), 0);
     await page.getByRole("combobox", { name: /^Standort/ }).selectOption(locationA);
     await load();
-    await page.getByText("Menüstand geladen.", { exact: true }).waitFor();
+    await page.waitForFunction(() => {
+      const form = document.querySelector<HTMLFieldSetElement>(".menu-detail-form");
+      return form !== null && !form.disabled;
+    });
     assert.equal(await page.getByLabel("Änderungsnotiz").inputValue(), "");
     results.push({ scenario: "location-change-clears-dependent-fields", result: "PASS" });
     for (const phase of ["headers", "body"] as const)

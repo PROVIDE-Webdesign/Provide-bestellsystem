@@ -9,6 +9,8 @@ export default tseslint.config(
       "**/coverage/**",
       "**/node_modules/**",
       "**/.wrangler/**",
+      "**/public/asian-kitchen/**",
+      "**/output/**",
     ],
   },
   eslint.configs.recommended,
@@ -25,6 +27,20 @@ export default tseslint.config(
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
     },
+  },
+  {
+    files: ["apps/dashboard/public/dashboard-push-sw.js"],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: { globals: { self: "readonly", clients: "readonly", URL: "readonly" } },
+  },
+  // Standalone design fixtures have synthetic transports and no application TS project.
+  // Keep recommended syntax checks; deployed app code remains fully type checked.
+  {
+    files: [
+      "apps/dashboard/design-preview/**/*.{ts,tsx}",
+      "apps/storefront/design-preview/**/*.{ts,tsx}",
+    ],
+    extends: [tseslint.configs.disableTypeChecked],
   },
   // Dependency-free browser adapters are plain JavaScript outside the TS project.
   // Keep syntax and recommended lint rules; typed application code remains strict.
@@ -44,6 +60,7 @@ export default tseslint.config(
           "fetch",
           "matchMedia",
           "queueMicrotask",
+          "sessionStorage",
           "window",
         ].map((name) => [name, "readonly"]),
       ),

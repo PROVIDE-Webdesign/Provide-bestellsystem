@@ -11,6 +11,7 @@ import { createDashboardBrowserClient } from "../../lib/supabase-browser.js";
 import { MfaPanel } from "./MfaPanel.js";
 import { OperatorIcon } from "./OperatorVisuals.js";
 import { OrderBoard } from "./OrderBoard.js";
+import { unsubscribeOrderPushDevice } from "./OrderPush.js";
 
 type ViewState =
   | { readonly name: "loading" }
@@ -32,6 +33,7 @@ export function DashboardClient({
   operationsEnabled = false,
   liveEnabled = false,
   alertsEnabled = false,
+  pushEnabled = false,
   historyEnabled = false,
   personnelEnabled = false,
 }: {
@@ -40,6 +42,7 @@ export function DashboardClient({
   readonly operationsEnabled?: boolean;
   readonly liveEnabled?: boolean;
   readonly alertsEnabled?: boolean;
+  readonly pushEnabled?: boolean;
   readonly historyEnabled?: boolean;
   readonly personnelEnabled?: boolean;
 }) {
@@ -81,6 +84,7 @@ export function DashboardClient({
   }, [load]);
 
   async function signOut() {
+    if (pushEnabled) void unsubscribeOrderPushDevice().catch(() => {});
     const supabase = createDashboardBrowserClient();
     if (supabase) await supabase.auth.signOut();
     window.location.assign("/login");
@@ -116,7 +120,24 @@ export function DashboardClient({
       className={`operator-shell ${["Speisekarte", "Einstellungen"].includes(section) ? `operator-management ${section === "Einstellungen" ? "operator-settings-view" : ""}` : ""}`}
     >
       <header className="operator-header">
-        <strong className="operator-brand">{section === "Speisekarte" && <svg className="provide-bowl" viewBox="0 0 64 48" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 23h47c-1 14-9 21-23 21S8 37 5 23Z"/><path d="m30 23 19-22m-10 22 17-18M21 46h17"/></svg>}PROVIDE</strong>
+        <strong className="operator-brand">
+          {section === "Speisekarte" && (
+            <svg
+              className="provide-bowl"
+              viewBox="0 0 64 48"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M5 23h47c-1 14-9 21-23 21S8 37 5 23Z" />
+              <path d="m30 23 19-22m-10 22 17-18M21 46h17" />
+            </svg>
+          )}
+          PROVIDE
+        </strong>
         <select
           aria-label="Restaurant wählen"
           value={membership?.restaurantId ?? ""}
@@ -191,6 +212,7 @@ export function DashboardClient({
                 key={membership.restaurantId + selectedLocation?.id}
                 liveEnabled={liveEnabled}
                 alertsEnabled={alertsEnabled}
+                pushEnabled={pushEnabled}
                 restaurantId={membership.restaurantId}
                 role={membership.role}
                 locations={membership.locations}

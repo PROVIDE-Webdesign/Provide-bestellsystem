@@ -41,9 +41,10 @@ describe("protected checkout capture transaction", () => {
     },
   );
   it("rolls back when enabling reservation fails instead of silently charging automatically", async () => {
-    db.query.mockImplementation(async (sql: string) => {
-      if (sql.includes("provide.manual_capture")) throw Error("reservation unavailable");
-      return { rows: [{ data: {} }] };
+    db.query.mockImplementation((sql: string) => {
+      if (sql.includes("provide.manual_capture"))
+        return Promise.reject(new Error("reservation unavailable"));
+      return Promise.resolve({ rows: [{ data: {} }] });
     });
     await expect(
       postgresCheckoutProtection.submit(

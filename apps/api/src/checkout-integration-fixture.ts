@@ -55,7 +55,15 @@ export function createProtectedIntegrationWorker(
       headers.set("content-type", originalHeaders.get("content-type")!);
     return worker.fetch(
       new Request(request, { headers, ...(method !== "GET" ? { body: text } : {}) }),
-      { ...env, ...isolatedCheckoutSettings },
+      {
+        ...env,
+        ...isolatedCheckoutSettings,
+        CHECKOUT_STOREFRONT_ORIGIN:
+          env.APP_ENV === "production"
+            ? (env.CHECKOUT_STOREFRONT_ORIGIN ??
+              isolatedCheckoutSettings.CHECKOUT_STOREFRONT_ORIGIN)
+            : isolatedCheckoutSettings.CHECKOUT_STOREFRONT_ORIGIN,
+      },
     );
   }
   return {

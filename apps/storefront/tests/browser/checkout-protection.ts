@@ -1,3 +1,4 @@
+import { openMenu, openCart } from "./shop-navigation.ts";
 import assert from "node:assert/strict";
 import type { Browser } from "playwright";
 import { parsePublicCatalog } from "@provide/contracts";
@@ -159,10 +160,12 @@ export async function verifyCheckoutProtectionBrowser(browser: Browser, output: 
       });
       try {
         await page.goto("http://127.0.0.1:4321");
+        await openMenu(page);
         const dish = page
-          .locator("li.dish")
+          .locator("li.shop-dish")
           .filter({ has: page.getByRole("heading", { name: item.name, exact: true }) });
-        await dish.getByRole("button", { name: "Hinzufügen" }).click();
+        await dish.getByRole("button", { name: `${item.name} hinzufügen`, exact: true }).click();
+        await openCart(page);
         await page.getByLabel("Datum und Uhrzeit").fill("2026-10-08T16:00");
         await page.getByRole("button", { name: "Warenkorb und Preise prüfen" }).click();
         await page
