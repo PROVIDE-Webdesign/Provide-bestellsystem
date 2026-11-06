@@ -928,3 +928,42 @@
     font-size: 32px;
   }
 }
+
+/* Match the approved framed S1/E1 views without changing the order board. */
+@media (min-width:761px) {
+ .operator-management {width:calc(100% - 40px);margin:20px auto;border:1px solid #ded9d1;border-radius:20px;overflow:clip;min-height:0;background:#fbf9f6;}
+ .operator-management .operator-header {height:106px;background:#faf8f5;}
+ .operator-management .operator-brand {display:flex;align-items:center;gap:12px;padding-right:20px;color:#111;}
+ .operator-management .operator-brand .provide-bowl {width:60px;height:48px;}
+ .operator-management .operator-header > select {width:276px;max-width:276px;font-weight:400;}
+ .operator-management .operator-sidebar {min-height:104px;background:#faf8f5;}
+ .operator-management .operator-sidebar > button[aria-current=page] {font-weight:700;}
+ .operator-management .operator-content > h1 {font-size:56px;line-height:1.1;margin-bottom:22px;font-weight:800;color:#080808;}
+ .operator-management .menu-badges {margin-bottom:28px;}
+ .operator-management .management-badge {font-size:26px;padding:11px 18px;font-weight:400;}
+ .operator-management .operator-content {padding:30px;}
+ .operator-shell .menu-workbench .menu-search {min-height:74px;margin:0 0 28px;}
+ .operator-shell .menu-search > input {font-weight:400;}
+ .operator-management .menu-item-list {margin-left:-7px;margin-right:-7px;}
+ .operator-management .menu-item-row {gap:32px;min-height:152px;}
+ .operator-management .menu-main-actions {margin-left:-7px;margin-right:-7px;}
+ .operator-management .menu-item-name > strong {font-size:38px;}
+ .operator-management .menu-item-actions {gap:22px;}
+ .operator-management .menu-item-actions summary {font-weight:400;}
+ .operator-settings-view .operator-brand {border-right:0;padding-right:20px;font-size:42px;}
+ .operator-settings-view .operator-header > select {width:338px;max-width:338px;}
+ .operator-settings-view .operator-sidebar > button {border:0;background:transparent;}
+ .operator-settings-view .operator-sidebar > button:not(:last-child) {border-right:1px solid #ccc9c0;border-radius:0;}
+ .operator-settings-view .operator-sidebar > button[aria-current=page] {border-radius:14px;background:#596b43;}
+ .operator-settings-view .operator-content {padding:48px 28px 34px;}
+ .operator-settings-view .operator-content > h1 {margin:0 10px 34px;}
+ .operator-settings-view .settings-location {margin-left:10px;margin-bottom:40px;}
+ .operator-settings-view .settings-topic-list {padding:8px 20px;}
+ .operator-settings-view .settings-topic {min-height:132px;}
+ .operator-settings-view .settings-publication {margin-top:36px;}
+}
+.management-chevron {display:flex;align-items:center;justify-content:center;}
+.operator-shell .management-chevron > svg {width:22px;height:32px;stroke-width:1.8;}
+.operator-management .operator-shop-state {font-weight:400;}
+.operator-shell .menu-search > input {font-weight:400;}
+@media(max-width:760px) {.operator-brand .provide-bowl {width:36px;height:30px;vertical-align:middle;margin-right:8px;}}

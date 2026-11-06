@@ -116,7 +116,7 @@ export function DashboardClient({
       className={`operator-shell ${["Speisekarte", "Einstellungen"].includes(section) ? `operator-management ${section === "Einstellungen" ? "operator-settings-view" : ""}` : ""}`}
     >
       <header className="operator-header">
-        <strong className="operator-brand">PROVIDE</strong>
+        <strong className="operator-brand">{section === "Speisekarte" && <svg className="provide-bowl" viewBox="0 0 64 48" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 23h47c-1 14-9 21-23 21S8 37 5 23Z"/><path d="m30 23 19-22m-10 22 17-18M21 46h17"/></svg>}PROVIDE</strong>
         <select
           aria-label="Restaurant wählen"
           value={membership?.restaurantId ?? ""}
@@ -168,7 +168,7 @@ export function DashboardClient({
                 }
               }}
             >
-              <OperatorIcon name={item.icon} />
+              <OperatorIcon name={item.name === "Bestellungen" ? "clipboard" : item.icon} />
               <span>{item.name}</span>
             </button>
           ))}

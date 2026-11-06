@@ -142,7 +142,7 @@ export function OperatorSettings({
       summary: config
         ? (() => {
             const date = new Intl.DateTimeFormat("sv-SE", {
-              timeZone: state!.timezone,
+              timeZone: state.timezone,
               year: "numeric",
               month: "2-digit",
               day: "2-digit",
@@ -202,7 +202,7 @@ export function OperatorSettings({
                     <strong>{item.title}</strong>
                     <small>{item.summary}</small>
                   </span>
-                  <span className="management-chevron">›</span>
+                  <span className="management-chevron"><OperatorIcon name="chevron" /></span>
                 </button>
               ))}
             <button type="button" className="settings-topic" onClick={() => setTopic("account")}>
@@ -211,7 +211,7 @@ export function OperatorSettings({
                 <strong>Mein Zugang</strong>
                 <small>{roleLabel}</small>
               </span>
-              <span className="management-chevron">›</span>
+              <span className="management-chevron"><OperatorIcon name="chevron" /></span>
             </button>
           </div>
           {changes > 0 && (
