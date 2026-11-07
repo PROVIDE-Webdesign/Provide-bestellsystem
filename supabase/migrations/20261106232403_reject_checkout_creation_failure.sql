@@ -15,7 +15,7 @@ begin
  select * into j from public.online_payment_jobs where id=target_job for update;
  if o.id is null or j.id is null or target_lease is null
  or j.lease_token is distinct from target_lease or j.lease_until is null or j.lease_until<=statement_timestamp()
- or j.stripe_mode<>target_mode or o.status<>'submitted'
+ or coalesce(to_jsonb(j)->>'stripe_mode','test')<>target_mode or o.status<>'submitted'
  or j.session_id is not null or j.intent_id is not null or j.capture_requested_at is not null
  or j.refund_id is not null or j.refund_state<>'none' or j.provider_terminal
  or (j.close_requested is not null and j.close_requested not in ('cancelled','rejected')) then

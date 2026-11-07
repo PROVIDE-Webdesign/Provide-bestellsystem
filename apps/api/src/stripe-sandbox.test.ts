@@ -288,7 +288,11 @@ describe("checkout creation error certainty", () => {
     [409, "invalid_request_error", "idempotency_key_in_use", "true", "req_validation", false],
     [429, "rate_limit_error", undefined, "true", "req_validation", false],
     [500, "api_error", undefined, "false", "req_validation", false],
-    [400, "invalid_request_error", undefined, undefined, "req_validation", false],
+    [400, "invalid_request_error", undefined, undefined, "req_validation", true],
+    [400, "invalid_request_error", "parameter_unknown", undefined, "req_validation", true],
+    [400, "invalid_request_error", "unknown_error", undefined, "req_validation", false],
+    [400, "invalid_request_error", "parameter_unknown", "true", "req_validation", false],
+    [400, "invalid_request_error", "parameter_unknown", "unexpected", "req_validation", false],
     [400, "invalid_request_error", undefined, "false", undefined, false],
   ] as const)(
     "classifies only conclusive parameter rejection (%s/%s/%s)",

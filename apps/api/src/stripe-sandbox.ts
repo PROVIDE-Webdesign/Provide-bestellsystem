@@ -111,7 +111,7 @@ async function request(
       body &&
       idempotency?.startsWith("provide-online-create:") &&
       response.status === 400 &&
-      response.headers.get("stripe-should-retry") === "false" &&
+      [null, "false"].includes(response.headers.get("stripe-should-retry")) &&
       requestId &&
       /^req_[A-Za-z0-9]+$/.test(requestId) &&
       error?.type === "invalid_request_error" &&
