@@ -3,7 +3,7 @@
   align-items: center;
   gap: 8px;
 }
-.operator-alarm-controls > button {
+.operator-shell .operator-alarm-controls > button {
   min-height: 44px;
 }
 .operator-alarm-menu {
