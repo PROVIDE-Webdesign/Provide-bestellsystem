@@ -241,7 +241,8 @@ export async function sendOrderPush(
       method: "POST",
       headers: message.headers,
       body: message.body ? new Uint8Array(message.body) : null,
-      redirect: "error",
+      // workerd rejects "error" before sending. Return redirects without following them.
+      redirect: "manual",
       signal: AbortSignal.timeout(5000),
     });
     await response.body?.cancel().catch(() => {});

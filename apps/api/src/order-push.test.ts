@@ -56,7 +56,7 @@ describe("restaurant Web Push", () => {
     const [url, request] = provider.mock.calls[0]!;
     const headers = new Headers(request?.headers);
     expect(url).toBe(endpoint);
-    expect(request).toMatchObject({ method: "POST", redirect: "error" });
+    expect(request).toMatchObject({ method: "POST", redirect: "manual" });
     expect(headers.get("authorization")).toMatch(/^vapid t=/);
     expect(headers.get("content-encoding")).toBe("aes128gcm");
     expect(headers.get("urgency")).toBe("high");
@@ -64,6 +64,23 @@ describe("restaurant Web Push", () => {
     expect(headers.get("topic")).toBe("AAAAAAAAAAAAAAAAAAAAAQ");
     expect(request?.body).toBeInstanceOf(Uint8Array);
     expect(new TextDecoder().decode(request?.body as Uint8Array)).not.toContain(delivery.eventId);
+  });
+
+  it("does not follow provider redirects or forward credentials to their target", async () => {
+    for (const status of [301, 302, 307, 308]) {
+      const provider = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          new Response(null, {
+            status,
+            headers: { location: "https://unexpected.example.invalid/" },
+          }),
+        );
+      await expect(sendOrderPush(delivery, config, provider)).resolves.toBe("retry");
+      expect(provider).toHaveBeenCalledTimes(1);
+      expect(provider.mock.calls[0]?.[0]).toBe(endpoint);
+      expect(provider.mock.calls[0]?.[1]?.redirect).toBe("manual");
+    }
   });
 
   it("drops expired subscriptions and retries transient provider failures", async () => {
