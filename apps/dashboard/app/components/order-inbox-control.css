@@ -1,0 +1,107 @@
+.operator-alarm-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.operator-alarm-controls > button {
+  min-height: 44px;
+}
+.operator-alarm-menu {
+  position: relative;
+  z-index: 20;
+}
+.operator-alarm-menu > summary {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 8px 12px;
+  border: 1px solid #647148;
+  border-radius: 10px;
+  background: #edf1e3;
+  color: #34431f;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  list-style: none;
+  cursor: pointer;
+}
+.operator-alarm-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.operator-alarm-menu > summary svg {
+  width: 22px;
+  height: 22px;
+}
+.operator-alarm-menu > summary:hover,
+.operator-alarm-menu[open] > summary {
+  background: #e0e8ce;
+}
+.operator-alarm-menu .order-inbox {
+  position: absolute;
+  box-sizing: border-box;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(420px, calc(100vw - 24px));
+  max-height: calc(100dvh - 180px);
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid #babdb0;
+  border-radius: 12px;
+  background: #fff;
+  color: #161914;
+  box-shadow: 0 8px 30px #0002;
+  font-size: 15px;
+}
+.operator-alarm-menu h2 {
+  font:
+    700 21px Arial,
+    sans-serif;
+}
+.operator-alarm-menu .order-card {
+  border: 1px solid #bbb;
+  background: #f2f4eb;
+  font-size: 14px;
+}
+@media (min-width: 761px) and (max-width: 1600px) {
+  .operator-header:has(.operator-alarm-controls) {
+    box-sizing: border-box;
+    height: 128px;
+    flex-wrap: wrap;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    gap: 8px 20px;
+  }
+  .operator-header:has(.operator-alarm-controls) .operator-header-actions {
+    flex: 1 0 100%;
+    justify-content: flex-end;
+  }
+  .operator-shell:has(.operator-alarm-controls) .operator-sidebar {
+    top: 128px;
+    min-height: calc(100dvh - 128px);
+  }
+}
+@media (max-width: 760px) {
+  .operator-header-actions > div:has(> .operator-alarm-controls) {
+    flex: 1 0 100%;
+    min-width: 0;
+  }
+  .operator-alarm-menu {
+    flex: 1;
+    min-width: 0;
+  }
+  .operator-alarm-menu > summary {
+    min-height: 44px;
+    padding: 8px;
+    font-size: 14px;
+  }
+  .operator-alarm-menu > summary svg {
+    width: 18px;
+    height: 18px;
+  }
+  .operator-alarm-menu .order-inbox {
+    max-height: calc(100dvh - 232px);
+  }
+}

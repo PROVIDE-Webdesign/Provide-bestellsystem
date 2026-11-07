@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { OperatorIcon } from "./OperatorVisuals.js";
 import { useEffect, useRef, useState } from "react";
 import { OrderPush } from "./OrderPush.js";
+import "./order-inbox-control.css";
 import {
   subscribeDashboardOrderLive,
   type OrderLiveState,
@@ -285,7 +286,7 @@ export function OrderInbox({
     <>
       {header &&
         createPortal(
-          <div className="operator-inbox-header">
+          <div className="operator-alarm-controls">
             <button
               type="button"
               disabled={soundBusy || !alertsEnabled}
@@ -296,8 +297,11 @@ export function OrderInbox({
               <OperatorIcon name="sound" />
               {sound ? "Ton an" : "Ton aus"}
             </button>
-            <details className="operator-inbox-info">
-              <summary aria-label="Verbindung und Bestelleingang">ⓘ</summary>
+            <details className="operator-alarm-menu">
+              <summary>
+                <OperatorIcon name="clipboard" />
+                <span>Bestelleingang &amp; Alarm</span>
+              </summary>
               {content}
             </details>
           </div>,
