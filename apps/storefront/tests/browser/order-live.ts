@@ -123,17 +123,17 @@ export async function verifyOrderLiveBrowser(page: Page, output: string, width: 
     );
   const tones = () => page.evaluate(() => Number(sessionStorage.getItem("synthetic-tone-starts")));
   await page.goto("http://127.0.0.1:4321/?board&live");
-  await page.getByLabel("Verbindung und Bestelleingang").click();
+  await page.getByText("Bestelleingang & Alarm", { exact: true }).click();
   await page.getByRole("heading", { name: "Offener Bestelleingang (1)", exact: true }).waitFor();
   await page.getByText("Live verbunden", { exact: true }).waitFor();
   await page.waitForLoadState("networkidle");
   assert.equal(await tones(), 0, "No autoplay before intentional click");
-  await page.getByLabel("Verbindung und Bestelleingang").click();
+  await page.getByText("Bestelleingang & Alarm", { exact: true }).click();
   await page.getByText("Filter und Suche", { exact: true }).click();
   await page.getByLabel("Bestellnummer suchen").fill("BS-00000999");
   await page.getByRole("button", { name: "Suchen", exact: true }).click();
   await page.getByText("Filter und Suche", { exact: true }).click();
-  await page.getByLabel("Verbindung und Bestelleingang").click();
+  await page.getByText("Bestelleingang & Alarm", { exact: true }).click();
   await page
     .getByText("Für diesen Filter liegen keine Bestellungen vor.", { exact: true })
     .waitFor();
@@ -222,7 +222,7 @@ export async function verifyOrderLiveBrowser(page: Page, output: string, width: 
   await page.getByText("Keine Bestellung wartet auf Annahme.", { exact: true }).waitFor();
   await page.waitForLoadState("networkidle");
   await page.reload();
-  await page.getByLabel("Verbindung und Bestelleingang").click();
+  await page.getByText("Bestelleingang & Alarm", { exact: true }).click();
   await page.getByRole("heading", { name: "Offener Bestelleingang (0)", exact: true }).waitFor();
   await page.getByRole("button", { name: "Ton aktivieren und testen", exact: true }).waitFor();
   assert.equal(await tones(), 0, "Reload never restores autoplay permission");

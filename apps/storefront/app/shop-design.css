@@ -538,7 +538,7 @@ html {
     padding: 12px 0;
   }
   .shop-favorites li {
-    grid-template-columns: 40px minmax(0, 1fr) auto 38px 40px;
+    grid-template-columns: 40px minmax(0, 1fr) auto 44px 44px;
     gap: 4px;
     min-height: 54px;
     border-radius: 10px;
@@ -552,8 +552,8 @@ html {
   }
   .shop-favorites .heart-button,
   .shop-favorites .shop-plus {
-    min-width: 38px;
-    width: 38px;
+    min-width: 44px;
+    width: 44px;
   }
   .shop-shell .heart-button svg {
     width: 24px;
@@ -714,6 +714,12 @@ html {
 }
 
 /* Reflow the cart dock when enlarged text leaves a narrow shop container. */
+@container (max-width: 360px) {
+  .shop-categories button {
+    font-size: 18px;
+    padding-inline: 10px;
+  }
+}
 @container (max-width: 320px) {
   .shop-shell .basket-button {
     height: auto;

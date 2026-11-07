@@ -1,6 +1,6 @@
 export function OperatorIcon({ name }: { name: string }) {
   const paths: Record<string, string> = {
-    chevron: "m9 4 8 8-8 8",
+    chevron: "m7 3 10 9-10 9",
     clipboard: "M8 4H5a2 2 0 0 0-2 2v16h19V6a2 2 0 0 0-2-2h-3M8 4V2h8v4H8V4ZM8 11h9m-9 5h7",
     edit: "m16 3 5 5-12 12-6 1 1-6L16 3Zm-3 3 5 5",
     search: "M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-2 6 7 7",
@@ -9,9 +9,10 @@ export function OperatorIcon({ name }: { name: string }) {
     clock: "M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM12 6v7l4 2",
     layers: "m12 2 11 6-11 6L1 8l11-6ZM2 13l10 6 10-6M2 18l10 6 10-6",
     delivery:
-      "M4 10h9l4 7h-4M4 10l2-5h5v5M15 4h4l4 13h-6M3 5h7M2 17h16M8 19a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm16 0a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
-    calendar: "M3 5h20v17H3V5ZM8 2v6M18 2v6M3 11h20M8 15h3m4 0h3m-10 4h3",
-    user: "M17 7a5 5 0 1 1-10 0 5 5 0 0 1 10 0ZM3 23v-4a9 9 0 0 1 18 0v4H3Z",
+      "M9 20a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm16 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0M6 17h10l4-7-2-7h4l3 14M4 7h7v4H5l-2 6M11 11l3 6M1 11h2M0 15h2",
+    calendar:
+      "M3 5h20v17H3V5ZM8 2v6M18 2v6M3 11h20M8 15h.2m4.8 0h.2m4.8 0h.2M8 19h.2m4.8 0h.2m4.8 0h.2",
+    user: "M17 6a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM3 23v-3a10 7 0 0 1 20 0v3H3Z",
     document: "M5 2h11l5 5v16H5V2Zm11 0v6h5M9 12h8m-8 5h8",
     bag: "M5 7h14l2 14H3L5 7ZM8 8V5a4 4 0 0 1 8 0v3",
     menu: "M4 2v6m4-6v6M2 2v5a4 4 0 0 0 8 0V2M6 11v11M18 2v20m0-20c-4 4-5 10 0 10",
@@ -27,6 +28,7 @@ export function OperatorIcon({ name }: { name: string }) {
   };
   return (
     <svg
+      data-icon={name}
       viewBox="0 0 26 24"
       aria-hidden="true"
       fill="none"

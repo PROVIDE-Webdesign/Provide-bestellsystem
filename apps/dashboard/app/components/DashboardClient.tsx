@@ -109,6 +109,7 @@ export function DashboardClient({
   const selectedLocation =
     membership?.locations.find((item) => item.id === location) ?? membership?.locations[0];
   const canManage = membership && ["owner", "manager"].includes(membership.role);
+  const managementView = ["Speisekarte", "Einstellungen"].includes(section);
   const navigation = [
     { name: "Bestellungen", icon: "bag", enabled: true },
     { name: "Speisekarte", icon: "menu", enabled: menuEnabled && canManage },
@@ -117,7 +118,7 @@ export function DashboardClient({
   ];
   return (
     <div
-      className={`operator-shell ${["Speisekarte", "Einstellungen"].includes(section) ? `operator-management ${section === "Einstellungen" ? "operator-settings-view" : ""}` : ""}`}
+      className={`operator-shell ${managementView ? `operator-management ${section === "Einstellungen" ? "operator-settings-view" : ""}` : ""}`}
     >
       <header className="operator-header">
         <strong className="operator-brand">
@@ -176,7 +177,7 @@ export function DashboardClient({
       </header>
       <nav className="operator-sidebar" aria-label="Restaurantverwaltung">
         {navigation
-          .filter((item) => item.enabled)
+          .filter((item) => item.enabled && (!managementView || item.name !== "Verlauf"))
           .map((item) => (
             <button
               type="button"

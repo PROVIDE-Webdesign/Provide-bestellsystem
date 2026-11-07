@@ -25,6 +25,21 @@
 .operator-management .operator-operations {
   gap: 0;
 }
+/* The order-board alarm row is hidden in management views. Its layout must not
+   expand their compact header or the horizontal S1/E1 navigation. */
+@media (min-width: 761px) {
+  .operator-shell.operator-management .operator-header {
+    height: 106px;
+    flex-wrap: nowrap;
+  }
+  .operator-shell.operator-management .operator-header .operator-header-actions {
+    flex: 0 0 auto;
+  }
+  .operator-shell.operator-management .operator-sidebar {
+    top: auto;
+    min-height: 104px;
+  }
+}
 .operator-management .operator-view-label {
   visibility: hidden;
 }
@@ -724,8 +739,8 @@
   }
   .menu-item-actions > button,
   .menu-item-actions summary {
-    min-width: 36px;
-    min-height: 34px;
+    min-width: 44px;
+    min-height: 44px;
   }
   .menu-item-actions > button > svg {
     width: 23px;
@@ -1060,9 +1075,9 @@
   justify-content: center;
 }
 .operator-shell .management-chevron > svg {
-  width: 22px;
+  width: 30px;
   height: 32px;
-  stroke-width: 1.8;
+  stroke-width: 2.5;
 }
 .operator-management .operator-shop-state {
   font-weight: 400;
@@ -1125,5 +1140,56 @@
   }
   .operator-settings-view .settings-topic > svg {
     stroke-width: 1.2;
+  }
+  .operator-settings-view .settings-topic > svg[data-icon="delivery"] {
+    width: 84px;
+    margin-left: -12px;
+  }
+  .operator-settings-view .settings-topic > svg[data-icon="layers"] {
+    height: 62px;
+  }
+}
+@media (min-width: 761px) and (max-width: 1000px) {
+  .operator-shell.operator-management .operator-header {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 16px 24px;
+    gap: 16px;
+  }
+  .operator-management .operator-header > select {
+    flex: 1;
+    width: auto;
+    max-width: none;
+    min-width: 180px;
+  }
+  .operator-shell.operator-management .operator-header .operator-header-actions {
+    flex: 1 0 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+  .operator-management .operator-sidebar > button {
+    font-size: 20px;
+    gap: 10px;
+  }
+  .operator-management .operator-sidebar svg {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+.operator-shell .operator-header > select,
+.operator-shell .settings-location select {
+  appearance: none;
+  padding-right: 48px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333c2b' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 9 7 7 7-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 24px 24px;
+}
+@media (forced-colors: active) {
+  .operator-shell .operator-header > select,
+  .operator-shell .settings-location select {
+    appearance: auto;
+    background-image: none;
   }
 }

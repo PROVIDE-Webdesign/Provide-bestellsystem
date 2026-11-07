@@ -133,7 +133,7 @@ export async function verifyViewerBrowser(page: Page, output: string, width: num
   await page.getByRole("button", { name: "Einstellungen", exact: true }).click();
   await page.getByText("Viewer · nur lesen", { exact: true }).waitFor();
   await page.getByRole("button", { name: "Bestellungen", exact: true }).click();
-  await page.getByLabel("Verbindung und Bestelleingang").click();
+  await page.getByText("Bestelleingang & Alarm", { exact: true }).click();
   await page.getByText("Nur Lesezugriff: keine Änderungen und keine Kundendaten.").waitFor();
   await page
     .getByText(
@@ -149,7 +149,7 @@ export async function verifyViewerBrowser(page: Page, output: string, width: num
       .count(),
     0,
   );
-  await page.getByLabel("Verbindung und Bestelleingang").click();
+  await page.getByText("Bestelleingang & Alarm", { exact: true }).click();
   const card = page.locator('button.operator-order-card[title="BS-00000421"]');
   await card.waitFor();
   await card.focus();

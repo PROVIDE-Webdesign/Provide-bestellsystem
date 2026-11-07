@@ -1,3 +1,4 @@
+html:has(.operator-root),
 body:has(.operator-root) {
   background: #f5f3ee;
   color: #141712;
@@ -291,6 +292,12 @@ main.operator-root {
   gap: 12px;
   height: calc(100dvh - 176px);
   min-height: 600px;
+}
+/* The labelled alarm control adds a header row on these desktop widths. */
+@media (min-width: 761px) and (max-width: 1600px) {
+  .operator-shell:not(.operator-management):has(.operator-alarm-controls) .operator-workspace {
+    height: calc(100dvh - 232px);
+  }
 }
 .operator-queue {
   background: #ffffffa8;

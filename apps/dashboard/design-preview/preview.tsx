@@ -209,7 +209,7 @@ createRoot(document.getElementById("root")!).render(
     <DashboardClient
       enabled
       menuEnabled
-      historyEnabled={false}
+      historyEnabled
       personnelEnabled={false}
       operationsEnabled
       alertsEnabled

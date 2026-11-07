@@ -71,7 +71,7 @@ export async function verifyUnifiedDashboardBrowser(browser: Browser, output: st
           "http://127.0.0.1:4321/?viewer" + (mode !== "owner-disabled" ? "&push" : ""),
         );
         await page.getByLabel("Restaurant wählen").waitFor();
-        await page.getByLabel("Verbindung und Bestelleingang").click();
+        await page.getByText("Bestelleingang & Alarm", { exact: true }).click();
         if (mode === "owner-push") {
           await page
             .getByText("Hintergrundalarm derzeit nicht verfügbar.", { exact: true })
