@@ -84,6 +84,19 @@ const statusLabels: Record<PublicOrderStatus["status"], string> = {
   cancelled: "Bestellung storniert",
 };
 
+function deliveryAddressMessage(code: string): string | undefined {
+  switch (code) {
+    case "delivery_address_incomplete":
+      return "Bitte ergänze Straße, Hausnummer, PLZ und Ort.";
+    case "delivery_address_ambiguous":
+      return "Die Lieferadresse ist nicht eindeutig. Prüfe Straße, Hausnummer, PLZ und Ort.";
+    case "delivery_address_unverified":
+      return "Die Lieferadresse konnte nicht bestätigt werden. Prüfe Straße, Hausnummer, PLZ und Ort.";
+    case "delivery_address_unavailable":
+      return "Die Adressprüfung ist gerade nicht erreichbar. Versuche es später erneut oder wähle Abholung.";
+  }
+}
+
 export default function Storefront(scope: StorefrontProps) {
   const [shopTab, setShopTab] = useState<ShopTab>("menu");
   function navigateShop(tab: ShopTab) {
@@ -423,12 +436,20 @@ export default function Storefront(scope: StorefrontProps) {
       "Warenkorb von der Website übernommen. Bitte Abholzeit und aktuelle Preise prüfen.",
     );
   }
-  const reviewSignature = JSON.stringify([cart, fulfillmentType, localTime, postalCode]);
+  const deliveryAddress = {
+    addressLine1,
+    addressLine2: null,
+    postalCode,
+    city,
+    countryCode: "DE" as const,
+  };
+  const reviewAddress = fulfillmentType === "delivery" ? deliveryAddress : null;
+  const reviewSignature = JSON.stringify([cart, fulfillmentType, localTime, reviewAddress]);
   const reviewIsAccepted = !!review?.accepted && review.signature === reviewSignature;
   async function reviewCart() {
     if (!catalog || !cart.length || reviewing) return;
-    if (fulfillmentType === "delivery" && !/^[0-9]{5}$/.test(postalCode)) {
-      setCartMessage("Bitte gib zuerst die fünfstellige Lieferpostleitzahl ein.");
+    if (reviewAddress && (!/^[0-9]{5}$/.test(postalCode) || !addressLine1.trim() || !city.trim())) {
+      setCartMessage("Bitte gib Straße, Hausnummer, fünfstellige PLZ und Ort ein.");
       return;
     }
     const requestedFor = locationTimeToInstant(localTime, catalog.location.timezone);
@@ -441,6 +462,8 @@ export default function Storefront(scope: StorefrontProps) {
     reviewRequest.current = controller;
     setReviewing(true);
     setReview(null);
+    setDeliveryQuote(null);
+    setQuoteAccepted(false);
     try {
       const response = await client.request("cart-quote", {
         method: "POST",
@@ -453,16 +476,26 @@ export default function Storefront(scope: StorefrontProps) {
           fulfillmentType,
           requestedFor,
           lines: cartSelectionLines(cart),
-          ...(fulfillmentType === "delivery" ? { postalCode } : {}),
+          ...(reviewAddress ? { postalCode, deliveryAddress: reviewAddress } : {}),
         }),
       });
+      if (!response.ok) {
+        const message = deliveryAddressMessage((await client.error(response)).code);
+        if (!controller.signal.aborted && message) {
+          setCartMessage(message);
+          return;
+        }
+        throw Error("Quote unavailable");
+      }
       const body = (await response.json()) as { data?: unknown };
       if (controller.signal.aborted) return;
       const quote = parseCartQuote(body.data);
-      if (!response.ok || !quote) throw Error("Quote unavailable");
+      if (!quote) throw Error("Quote unavailable");
       if (quote.status === "unavailable") {
         setCartMessage(
-          "Deine Auswahl, Wunschzeit oder Lieferung ist nicht mehr verfügbar. Bitte entferne betroffene Gerichte oder ändere deine Auswahl und prüfe erneut.",
+          quote.issues.some((issue) => issue.code === "delivery_unavailable")
+            ? "Für diese Bestellung ist aktuell keine Lieferung möglich. Prüfe Lieferadresse, Bestellzeit und Warenkorb oder wähle Abholung."
+            : "Deine Auswahl oder Wunschzeit ist nicht mehr verfügbar. Bitte ändere deine Auswahl und prüfe erneut.",
         );
         setRefresh((n) => n + 1);
         return;
@@ -475,7 +508,7 @@ export default function Storefront(scope: StorefrontProps) {
       setQuoteAccepted(false);
       setReview({
         quote,
-        signature: JSON.stringify([next, fulfillmentType, localTime, postalCode]),
+        signature: JSON.stringify([next, fulfillmentType, localTime, reviewAddress]),
         accepted: false,
       });
       setCartMessage(
@@ -1080,13 +1113,7 @@ export default function Storefront(scope: StorefrontProps) {
           privacyNoticeVersion: scope.privacyNoticeVersion,
           ...(fulfillmentType === "delivery"
             ? {
-                delivery: {
-                  addressLine1,
-                  addressLine2: null,
-                  postalCode,
-                  city,
-                  countryCode: "DE",
-                },
+                delivery: deliveryAddress,
                 expectedQuote: deliveryQuote,
               }
             : {}),
@@ -1099,19 +1126,22 @@ export default function Storefront(scope: StorefrontProps) {
         if (await checkExistingIntent(receiptController)) return;
         if (!currentProtection(receiptController) || controller.signal.aborted) return;
         setCheckoutState("error");
-        if (response.status === 409) setReview(null);
-        if (response.status === 409 && fulfillmentType === "delivery") {
+        const error = await client.error(response);
+        const addressMessage = deliveryAddressMessage(error.code);
+        if (response.status === 409 || addressMessage) setReview(null);
+        if ((response.status === 409 || addressMessage) && fulfillmentType === "delivery") {
           setDeliveryQuote(null);
           setQuoteAccepted(false);
         }
         const message =
-          response.status === 429
-            ? (await client.error(response)).message
+          addressMessage ??
+          (response.status === 429
+            ? error.message
             : response.status === 410
               ? "Der Bestellversuch ist abgelaufen. Prüfe zuerst den vorhandenen Versuch."
               : response.status === 409
                 ? "Die Bestellung konnte nicht angenommen werden. Bitte prüfe Speisekarte, Bestellzeit und gegebenenfalls die Lieferkosten erneut."
-                : "Der Checkout ist derzeit nicht verfügbar. Es wurde keine bestätigte Bestellung angezeigt.";
+                : "Der Checkout ist derzeit nicht verfügbar. Es wurde keine bestätigte Bestellung angezeigt.");
         if (!currentProtection(receiptController) || controller.signal.aborted) return;
         setCartMessage(message);
         return;
@@ -1452,6 +1482,7 @@ export default function Storefront(scope: StorefrontProps) {
                               name="fulfillment"
                               value={type}
                               checked={fulfillmentType === type}
+                              disabled={checkoutState === "submitting"}
                               onChange={() => {
                                 clearAnswer();
                                 invalidateSubmission();
@@ -1567,10 +1598,65 @@ export default function Storefront(scope: StorefrontProps) {
                     </>
                   )}
 
+                  {fulfillmentType === "delivery" && (
+                    <section aria-label="Liefergebiet und Lieferkosten">
+                      <label htmlFor="delivery-postal">Postleitzahl (Deutschland)</label>
+                      <input
+                        id="delivery-postal"
+                        inputMode="numeric"
+                        autoComplete="postal-code"
+                        maxLength={5}
+                        value={postalCode}
+                        disabled={checkoutState === "submitting"}
+                        onChange={(e) => {
+                          invalidateSubmission();
+                          setPostalCode(e.target.value);
+                        }}
+                      />
+                      <label htmlFor="delivery-address">Straße und Hausnummer</label>
+                      <input
+                        id="delivery-address"
+                        autoComplete="address-line1"
+                        maxLength={200}
+                        required
+                        value={addressLine1}
+                        disabled={checkoutState === "submitting"}
+                        onChange={(e) => {
+                          invalidateSubmission();
+                          setAddressLine1(e.target.value);
+                        }}
+                      />
+                      <label htmlFor="delivery-city">Ort</label>
+                      <input
+                        id="delivery-city"
+                        autoComplete="address-level2"
+                        maxLength={120}
+                        required
+                        value={city}
+                        disabled={checkoutState === "submitting"}
+                        onChange={(e) => {
+                          invalidateSubmission();
+                          setCity(e.target.value);
+                        }}
+                      />
+                      <p>Wir prüfen deine Adresse und die Lieferbedingungen dieses Standorts.</p>
+                      {deliveryQuote && (
+                        <div aria-live="polite">
+                          <p>Mindestbestellwert: {money(deliveryQuote.minimumAmountMinor)}</p>
+                          <p>Artikel: {money(deliveryQuote.subtotalAmountMinor)}</p>
+                          <p>Liefergebühr: {money(deliveryQuote.deliveryFeeAmountMinor)}</p>
+                          <p>
+                            <strong>Gesamt: {money(deliveryQuote.totalAmountMinor)}</strong> ·
+                            Zahlung bei Lieferung
+                          </p>
+                        </div>
+                      )}
+                    </section>
+                  )}
                   <section aria-label="Warenkorb prüfen und bestätigen">
                     <button
                       type="button"
-                      disabled={!cart.length || reviewing}
+                      disabled={!cart.length || reviewing || checkoutState === "submitting"}
                       onClick={() => void reviewCart()}
                     >
                       {reviewing ? "Wird serverseitig geprüft …" : "Warenkorb und Preise prüfen"}
@@ -1611,37 +1697,6 @@ export default function Storefront(scope: StorefrontProps) {
                       </>
                     )}
                   </section>
-                  {fulfillmentType === "delivery" && (
-                    <section aria-label="Liefergebiet und Lieferkosten">
-                      <label htmlFor="delivery-postal">Postleitzahl (Deutschland)</label>
-                      <input
-                        id="delivery-postal"
-                        inputMode="numeric"
-                        autoComplete="postal-code"
-                        maxLength={5}
-                        value={postalCode}
-                        onChange={(e) => {
-                          invalidateSubmission();
-                          setPostalCode(e.target.value);
-                        }}
-                      />
-                      <p>
-                        Wir prüfen vollständige Postleitzahlgebiete. Bitte kontrolliere Straße und
-                        Hausnummer selbst.
-                      </p>
-                      {deliveryQuote && (
-                        <div aria-live="polite">
-                          <p>Mindestbestellwert: {money(deliveryQuote.minimumAmountMinor)}</p>
-                          <p>Artikel: {money(deliveryQuote.subtotalAmountMinor)}</p>
-                          <p>Liefergebühr: {money(deliveryQuote.deliveryFeeAmountMinor)}</p>
-                          <p>
-                            <strong>Gesamt: {money(deliveryQuote.totalAmountMinor)}</strong> ·
-                            Zahlung bei Lieferung
-                          </p>
-                        </div>
-                      )}
-                    </section>
-                  )}
                   <form
                     className="checkout-form"
                     onSubmit={(event) => {
@@ -1665,34 +1720,6 @@ export default function Storefront(scope: StorefrontProps) {
                           </option>
                         </select>
                       </label>
-                    )}
-                    {fulfillmentType === "delivery" && (
-                      <>
-                        <label htmlFor="delivery-address">Straße und Hausnummer</label>
-                        <input
-                          id="delivery-address"
-                          autoComplete="address-line1"
-                          maxLength={200}
-                          required
-                          value={addressLine1}
-                          onChange={(e) => {
-                            invalidateSubmission(false);
-                            setAddressLine1(e.target.value);
-                          }}
-                        />
-                        <label htmlFor="delivery-city">Ort</label>
-                        <input
-                          id="delivery-city"
-                          autoComplete="address-level2"
-                          maxLength={120}
-                          required
-                          value={city}
-                          onChange={(e) => {
-                            invalidateSubmission(false);
-                            setCity(e.target.value);
-                          }}
-                        />
-                      </>
                     )}
                     <label htmlFor="contact-name">Name</label>
                     <input

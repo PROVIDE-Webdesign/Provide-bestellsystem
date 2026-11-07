@@ -74,6 +74,10 @@ function cookieVerifier(request: Request): string | null | undefined {
 }
 const errorCodes = new Set([
   "bad_request",
+  "delivery_address_incomplete",
+  "delivery_address_ambiguous",
+  "delivery_address_unverified",
+  "delivery_address_unavailable",
   "conflict",
   "forbidden",
   "not_found",
@@ -243,7 +247,7 @@ export async function handleCheckoutGateway(
         } catch {
           /* safe closed default */
         }
-        const status = [400, 403, 404, 409, 410, 413, 415, 429, 503].includes(response.status)
+        const status = [400, 403, 404, 409, 410, 413, 415, 422, 429, 503].includes(response.status)
           ? response.status
           : 503;
         const retry = response.headers.get("retry-after");

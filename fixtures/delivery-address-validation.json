@@ -1,0 +1,23 @@
+{
+  "result": {
+    "verdict": {
+      "addressComplete": true,
+      "validationGranularity": "PREMISE",
+      "geocodeGranularity": "PREMISE",
+      "possibleNextAction": "ACCEPT"
+    },
+    "address": {
+      "postalAddress": {
+        "regionCode": "DE",
+        "postalCode": "52062",
+        "locality": "Teststadt",
+        "addressLines": ["Testweg 10"]
+      },
+      "addressComponents": [
+        { "componentType": "route", "confirmationLevel": "CONFIRMED" },
+        { "componentType": "street_number", "confirmationLevel": "CONFIRMED" }
+      ]
+    },
+    "geocode": { "location": { "latitude": 50.75, "longitude": 6.08 } }
+  }
+}

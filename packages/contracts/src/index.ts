@@ -8,6 +8,10 @@ export function isAppEnvironment(value: string): value is AppEnvironment {
 
 export const apiErrorCodes = [
   "bad_request",
+  "delivery_address_incomplete",
+  "delivery_address_ambiguous",
+  "delivery_address_unverified",
+  "delivery_address_unavailable",
   "conflict",
   "forbidden",
   "internal_error",

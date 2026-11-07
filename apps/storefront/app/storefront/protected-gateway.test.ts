@@ -63,6 +63,48 @@ function upstream(data: unknown, status = 200, headers: HeadersInit = {}) {
 const network = () => "192.0.2.1";
 describe("O3 production gateway function units", () => {
   it.each([
+    [422, "delivery_address_ambiguous"],
+    [503, "delivery_address_unavailable"],
+  ] as const)(
+    "forwards safe delivery validation errors from the API (%i)",
+    async (status, code) => {
+      const resource = "cart-quote";
+      const body = {
+        menuId: "f4000000-0000-0000-0000-000000000001",
+        menuVersionId: "f5000000-0000-0000-0000-000000000001",
+        requestedFor: "2026-10-01T12:00:00Z",
+        lines: [{ menuItemId: "f6000000-0000-0000-0000-000000000001", quantity: 1 }],
+        fulfillmentType: "delivery",
+        postalCode: "52062",
+        deliveryAddress: {
+          addressLine1: "Testweg 10",
+          addressLine2: null,
+          postalCode: "52062",
+          city: "Teststadt",
+          countryCode: "DE",
+        },
+      };
+      const fetcher = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          Response.json({ error: { code, message: "Private provider detail" } }, { status }),
+        );
+      const response = await handleCheckoutGateway(
+        await request(resource, body),
+        { ...params, resource },
+        env,
+        fetcher,
+        network,
+      );
+      expect(response.status).toBe(status);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      await expect(response.json()).resolves.toEqual({ error: { code } });
+      const outbound = fetcher.mock.calls[0]?.[1]?.body;
+      if (typeof outbound !== "string") throw new Error("Expected signed JSON request");
+      expect(JSON.parse(outbound)).toEqual(body);
+    },
+  );
+  it.each([
     ["production", "live", 200],
     ["production", "test", 503],
     ["preview", "live", 503],

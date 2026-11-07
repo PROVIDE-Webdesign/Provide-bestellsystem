@@ -10,6 +10,12 @@ import {
 import { jsonError, jsonSuccess, readJsonBody, RequestBodyError } from "./http.js";
 import type { RequestContext } from "./context.js";
 import type { ApiLogger } from "./logger.js";
+import {
+  deliveryAddressIssueStatus,
+  requiresDeliveryAddressValidation,
+  verifyDeliveryAddress,
+  type DeliveryAddressEnvironment,
+} from "./delivery-address.js";
 
 export type CartQuoteReader = (
   connection: string,
@@ -50,7 +56,7 @@ export const postgresCartQuoteReader: CartQuoteReader = async (connectionString,
     await client.end();
   }
 };
-export interface CartQuoteEnvironment {
+export interface CartQuoteEnvironment extends DeliveryAddressEnvironment {
   readonly CART_QUOTE_ENABLED?: string;
   readonly HYPERDRIVE_CACHE_DISABLED?: string;
   readonly HYPERDRIVE?: { readonly connectionString: string };
@@ -101,6 +107,18 @@ export async function handleCartQuote(
   const command = parseCartQuoteRequest(body);
   if (!command)
     return jsonError("bad_request", "Cart data is not valid.", context.requestId, 400, cors);
+  if (command.fulfillmentType === "delivery" && requiresDeliveryAddressValidation(env)) {
+    if (env.DELIVERY_ORDERING_ENABLED !== "true") return unavailable();
+    const result = await verifyDeliveryAddress(env, command.deliveryAddress);
+    if (result.status !== "verified")
+      return jsonError(
+        result.status,
+        "Delivery address could not be verified.",
+        context.requestId,
+        deliveryAddressIssueStatus(result.status),
+        cors,
+      );
+  }
   try {
     const result = await reader(env.HYPERDRIVE.connectionString, scope, command);
     if (result === null)

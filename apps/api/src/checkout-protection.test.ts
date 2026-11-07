@@ -11,6 +11,7 @@ import type { StorefrontRoute } from "./storefront.js";
 import { postgresOnlineRepository } from "./online-payments-database.js";
 import { handleGuestPickupOrder } from "./checkout.js";
 import { createStatusAccessToken } from "./status-token.js";
+import google from "../../../fixtures/delivery-address-validation.json" with { type: "json" };
 const scope = { restaurantSlug: "storefront-restaurant-a", locationSlug: "storefront-a-mitte" };
 const env: CheckoutProtectionEnvironment = {
   APP_ENV: "test",
@@ -144,6 +145,74 @@ function setup() {
   return { repo, challenge, logger, writers, delegate, run };
 }
 describe("O3 actual dispatcher / protected handler units (repository doubles)", () => {
+  it.each(["delivery-orders", "online-orders"] as const)(
+    "verifies the submitted delivery address before dispatch on %s",
+    async (route) => {
+      const x = setup();
+      x.delegate.mockResolvedValue(new Response(null, { status: 204 }));
+      const delivery = {
+        addressLine1: "Testweg 10",
+        addressLine2: null,
+        postalCode: "52062",
+        city: "Teststadt",
+        countryCode: "DE",
+      };
+      const body = {
+        sessionId: session,
+        command: {
+          ...command,
+          ...(route === "online-orders" ? { fulfillmentType: "delivery" } : {}),
+          delivery,
+          expectedQuote: {
+            policyId: command.menuId,
+            currency: "EUR",
+            subtotalAmountMinor: 1250,
+            deliveryFeeAmountMinor: 350,
+            totalAmountMinor: 1600,
+            minimumAmountMinor: 1200,
+          },
+        },
+      };
+      const options = {
+        DELIVERY_ORDERING_ENABLED: "true",
+        DELIVERY_ADDRESS_VALIDATION_ENABLED: "true",
+        GOOGLE_ADDRESS_VALIDATION_API_KEY: "synthetic-geocoding-key",
+      };
+      const provider = vi
+        .fn()
+        .mockResolvedValueOnce(
+          Response.json({
+            result: {
+              ...google.result,
+              verdict: { ...google.result.verdict, possibleNextAction: "CONFIRM" },
+            },
+          }),
+        )
+        .mockResolvedValueOnce(new Response(null, { status: 503 }))
+        .mockResolvedValueOnce(Response.json(google));
+      vi.stubGlobal("fetch", provider);
+      try {
+        const ambiguous = await x.run(route, body, options);
+        expect(ambiguous.status).toBe(422);
+        expect(await ambiguous.json()).toMatchObject({
+          error: { code: "delivery_address_ambiguous" },
+        });
+        const unavailable = await x.run(route, body, options);
+        expect(unavailable.status).toBe(503);
+        expect(await unavailable.json()).toMatchObject({
+          error: { code: "delivery_address_unavailable" },
+        });
+        expect(x.delegate).not.toHaveBeenCalled();
+        expect(x.repo.submit).not.toHaveBeenCalled();
+        expect((await x.run(route, body, options)).status).toBe(204);
+        expect(x.delegate).toHaveBeenCalledTimes(1);
+        const forwarded = await x.delegate.mock.calls[0]![0].json();
+        expect(forwarded).toEqual(body.command);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    },
+  );
   it("O3-T24 prior gateway secrets require a bounded absolute deadline and expire independently of fresh signatures", async () => {
     const x = setup();
     const prior = "synthetic-prior-gateway-secret-at-least-32";

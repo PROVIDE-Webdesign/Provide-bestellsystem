@@ -5,7 +5,12 @@ import {
   parseOrderSelectionLines,
   type OrderSelectionLine,
 } from "./menu-selection.js";
-import { parseDeliveryQuote, type DeliveryQuote } from "./delivery.js";
+import {
+  parseDeliveryAddress,
+  parseDeliveryQuote,
+  type DeliveryAddress,
+  type DeliveryQuote,
+} from "./delivery.js";
 
 export interface CartQuoteRequest {
   readonly menuId: string;
@@ -14,6 +19,7 @@ export interface CartQuoteRequest {
   readonly requestedFor: string;
   readonly lines: readonly OrderSelectionLine[];
   readonly postalCode?: string;
+  readonly deliveryAddress?: DeliveryAddress;
 }
 export interface SelectionSnapshot {
   readonly taxComponents?: readonly TaxComponent[];
@@ -88,6 +94,7 @@ export function parseCartQuoteRequest(v: unknown): CartQuoteRequest | undefined 
           "requestedFor",
           "lines",
           "postalCode",
+          "deliveryAddress",
         ].includes(k),
     ) ||
     !id(s.menuId) ||
@@ -96,12 +103,15 @@ export function parseCartQuoteRequest(v: unknown): CartQuoteRequest | undefined 
     typeof s.requestedFor !== "string" ||
     !isExplicitInstant(s.requestedFor) ||
     (s.fulfillmentType === "pickup"
-      ? "postalCode" in s
+      ? "postalCode" in s || "deliveryAddress" in s
       : typeof s.postalCode !== "string" || !/^[0-9]{5}$/.test(s.postalCode))
   )
     return;
   const lines = parseOrderSelectionLines(s.lines);
   if (!lines) return;
+  const deliveryAddress = parseDeliveryAddress(s.deliveryAddress);
+  if ("deliveryAddress" in s && (!deliveryAddress || deliveryAddress.postalCode !== s.postalCode))
+    return;
   return {
     menuId: s.menuId,
     menuVersionId: s.menuVersionId,
@@ -109,6 +119,7 @@ export function parseCartQuoteRequest(v: unknown): CartQuoteRequest | undefined 
     requestedFor: s.requestedFor,
     lines,
     ...(s.fulfillmentType === "delivery" ? { postalCode: s.postalCode as string } : {}),
+    ...(deliveryAddress ? { deliveryAddress } : {}),
   };
 }
 export function parseSelectionSnapshot(v: unknown, gross: number): SelectionSnapshot | undefined {

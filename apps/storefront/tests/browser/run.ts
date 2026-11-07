@@ -64,6 +64,7 @@ const server = await createServer({
 });
 await server.listen();
 const engine = process.env.BROWSER_ENGINE ?? "chromium";
+const deliveryOnly = process.env.DELIVERY_ADDRESS_ONLY === "1";
 if (!["chromium", "firefox", "webkit"].includes(engine)) throw Error("Unsupported browser engine");
 const engines = { chromium, firefox, webkit };
 const selectedBrowser = engines[engine as "chromium" | "firefox" | "webkit"];
@@ -98,6 +99,7 @@ try {
       console.error("Browser runtime:", e.message);
     });
     let quoted = 0,
+      deliveryQuoted = 0,
       submitted = 0;
     const numbered = {
       orderId: "fa000000-0000-0000-0000-000000000421",
@@ -149,7 +151,48 @@ try {
         lines?: { menuItemId: string; quantity: number; variantId: string; optionIds: string[] }[];
       };
       if (resource === "cart-quote") {
-        quoted++;
+        const quoteInput = posted as {
+          fulfillmentType: string;
+          postalCode?: string;
+          deliveryAddress?: { addressLine1: string; postalCode: string; city: string };
+        };
+        const delivery = quoteInput.fulfillmentType === "delivery";
+        if (delivery) {
+          deliveryQuoted++;
+          assert.equal(quoteInput.deliveryAddress?.postalCode, quoteInput.postalCode);
+          assert.equal(quoteInput.deliveryAddress?.city, "Teststadt");
+          const line = quoteInput.deliveryAddress?.addressLine1;
+          if (
+            line === "Testweg 99" ||
+            line === "Testweg 100" ||
+            (line === "Testweg 10" && deliveryQuoted === 5)
+          ) {
+            await route.fulfill({
+              status: line === "Testweg 99" ? 422 : 503,
+              json: {
+                error: {
+                  code:
+                    line === "Testweg 99"
+                      ? "delivery_address_ambiguous"
+                      : "delivery_address_unavailable",
+                },
+              },
+            });
+            return;
+          }
+          if (quoteInput.postalCode === "52064") {
+            await route.fulfill({
+              json: {
+                data: {
+                  status: "unavailable",
+                  currentMenuVersionId: menu.versionId,
+                  issues: [{ code: "delivery_unavailable" }],
+                },
+              },
+            });
+            return;
+          }
+        } else quoted++;
         assert.equal(body.lines?.[0]?.variantId, configuration.variants[1]!.id);
         assert.deepEqual(body.lines[0].optionIds, [configuration.optionGroups[0]!.options[1]!.id]);
         await route.fulfill({
@@ -160,26 +203,39 @@ try {
               currency: "EUR",
               itemCount: 1,
               subtotalAmountMinor: 1500,
-              deliveryQuote: null,
-              taxSummary: {
-                schemaVersion: 1,
-                status: "complete",
-                subtotalAmountMinor: 1500,
-                discountAmountMinor: 0,
-                deliveryFeeAmountMinor: 0,
-                totalAmountMinor: 1500,
-                knownNetAmountMinor: 1402,
-                taxAmountMinor: 98,
-                undeclaredGrossAmountMinor: 0,
-                buckets: [
-                  {
-                    taxRateBasisPoints: 700,
-                    grossAmountMinor: 1500,
-                    netAmountMinor: 1402,
-                    taxAmountMinor: 98,
-                  },
-                ],
-              },
+              deliveryQuote: delivery
+                ? {
+                    policyId: menu.id,
+                    currency: "EUR",
+                    subtotalAmountMinor: 1500,
+                    deliveryFeeAmountMinor: 350,
+                    totalAmountMinor: 1850,
+                    minimumAmountMinor: 1200,
+                  }
+                : null,
+              ...(delivery
+                ? {}
+                : {
+                    taxSummary: {
+                      schemaVersion: 1,
+                      status: "complete",
+                      subtotalAmountMinor: 1500,
+                      discountAmountMinor: 0,
+                      deliveryFeeAmountMinor: 0,
+                      totalAmountMinor: 1500,
+                      knownNetAmountMinor: 1402,
+                      taxAmountMinor: 98,
+                      undeclaredGrossAmountMinor: 0,
+                      buckets: [
+                        {
+                          taxRateBasisPoints: 700,
+                          grossAmountMinor: 1500,
+                          netAmountMinor: 1402,
+                          taxAmountMinor: 98,
+                        },
+                      ],
+                    },
+                  }),
               lines: [
                 {
                   menuItemId: item.id,
@@ -249,12 +305,58 @@ try {
       true,
     );
     await page.getByLabel("Datum und Uhrzeit").fill("2026-10-02T12:00");
+    await page.getByRole("radio", { name: "Lieferung", exact: true }).check();
+    const reviewButton = page.getByRole("button", { name: "Warenkorb und Preise prüfen" });
+    const deliveryStreet = page.getByLabel("Straße und Hausnummer", { exact: true });
+    const deliveryPostal = page.getByLabel("Postleitzahl (Deutschland)", { exact: true });
+    await reviewButton.click();
+    await page.getByText("Bitte gib Straße, Hausnummer, fünfstellige PLZ und Ort ein.").waitFor();
+    assert.equal(deliveryQuoted, 0);
+    await deliveryPostal.fill("52062");
+    await page.getByLabel("Ort", { exact: true }).fill("Teststadt");
+    await deliveryStreet.fill("Testweg 99");
+    await reviewButton.click();
+    await page.getByText(/Die Lieferadresse ist nicht eindeutig/).waitFor();
+    await deliveryStreet.fill("Testweg 100");
+    await reviewButton.click();
+    await page.getByText(/Die Adressprüfung ist gerade nicht erreichbar/).waitFor();
+    await deliveryStreet.fill("Testweg 10");
+    await deliveryPostal.fill("52064");
+    await reviewButton.click();
+    await page.getByText(/Für diese Bestellung ist aktuell keine Lieferung möglich/).waitFor();
+    await deliveryPostal.fill("52062");
+    await reviewButton.click();
+    await page.getByText(/Mindestbestellwert: 12,00/).waitFor();
+    await page.getByRole("checkbox", { name: /Ich bestätige die angezeigten Gerichte/ }).check();
+    await reviewButton.click();
+    await page.getByText(/Die Adressprüfung ist gerade nicht erreichbar/).waitFor();
+    assert.equal(await page.getByText(/Mindestbestellwert: 12,00/).count(), 0);
+    await reviewButton.click();
+    await page.getByText(/Mindestbestellwert: 12,00/).waitFor();
+    await page.getByRole("checkbox", { name: /Ich bestätige die angezeigten Gerichte/ }).check();
+    await deliveryStreet.fill("Testweg 11");
+    assert.equal(
+      await page.getByRole("checkbox", { name: /Ich bestätige die angezeigten Gerichte/ }).count(),
+      0,
+    );
+    assert.equal(
+      await page.getByRole("button", { name: "Lieferbestellung absenden" }).isDisabled(),
+      true,
+    );
+    assert.equal(deliveryQuoted, 6);
+    await page.getByRole("radio", { name: "Abholung", exact: true }).check();
     await page.getByRole("button", { name: "Warenkorb und Preise prüfen" }).click();
     const confirmation = page.getByRole("checkbox", {
       name: "Ich bestätige die angezeigten Gerichte, Auswahl und aktuellen Preise.",
     });
     await confirmation.waitFor();
     assert.equal(await confirmation.isChecked(), false);
+    console.log(`Browser ${engine} delivery address and pickup ${viewport.width}px PASS`);
+    if (deliveryOnly) {
+      assert.deepEqual(errors, []);
+      await context.close();
+      continue;
+    }
     await page.getByText("Enthaltene Steuern und Summen", { exact: true }).click();
     await page.getByText("Enthaltene Steuer 7 %: 0,98 €", { exact: false }).waitFor();
     await page.screenshot({ path: output + `tax-${viewport.width}.png`, fullPage: true });
@@ -552,11 +654,13 @@ try {
     await context.close();
     console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);
   }
-  await verifyCheckoutProtectionBrowser(browser, output);
-  await verifyReceiptScopeBrowser(browser, output);
-  await verifyTwoRestaurantsBrowser(browser, output);
-  await verifyPaymentStatusPolling(browser);
-  await verifyUnifiedDashboardBrowser(browser, output);
+  if (!deliveryOnly) {
+    await verifyCheckoutProtectionBrowser(browser, output);
+    await verifyReceiptScopeBrowser(browser, output);
+    await verifyTwoRestaurantsBrowser(browser, output);
+    await verifyPaymentStatusPolling(browser);
+    await verifyUnifiedDashboardBrowser(browser, output);
+  }
 } finally {
   await browser.close();
   await server.close();

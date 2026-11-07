@@ -13,6 +13,12 @@ import type { RequestContext } from "./context.js";
 import type { ApiLogger } from "./logger.js";
 import { jsonError, jsonSuccess, readJsonBody, RequestBodyError } from "./http.js";
 import {
+  deliveryAddressIssueStatus,
+  requiresDeliveryAddressValidation,
+  verifyDeliveryAddress,
+  type DeliveryAddressEnvironment,
+} from "./delivery-address.js";
+import {
   createStatusAccessToken,
   hasValidStatusSecret,
   statusAvailableUntil,
@@ -37,7 +43,7 @@ export async function handleDelivery(
   request: Request,
   scope: StorefrontScope,
   quoteOnly: boolean,
-  env: CheckoutEnvironment & { DELIVERY_ORDERING_ENABLED?: string },
+  env: CheckoutEnvironment & DeliveryAddressEnvironment,
   repository: DeliveryRepository,
   context: RequestContext,
   logger: ApiLogger,
@@ -75,6 +81,11 @@ export async function handleDelivery(
     if (quoteOnly) {
       const command = parseDeliveryQuoteRequest(body);
       if (!command) return failure(400, "bad_request");
+      if (requiresDeliveryAddressValidation(env)) {
+        const result = await verifyDeliveryAddress(env, command.deliveryAddress);
+        if (result.status !== "verified")
+          return failure(deliveryAddressIssueStatus(result.status), result.status);
+      }
       const quote = parseDeliveryQuote(
         await repository.quote(env.HYPERDRIVE.connectionString, scope, command),
       );

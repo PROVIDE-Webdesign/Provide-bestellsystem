@@ -26,6 +26,7 @@ export interface DeliveryQuoteRequest {
   readonly requestedFor: string;
   readonly lines: GuestPickupOrderRequest["lines"];
   readonly postalCode: string;
+  readonly deliveryAddress?: DeliveryAddress;
 }
 export interface GuestDeliveryOrderRequest extends GuestPickupOrderRequest {
   readonly customer: GuestPickupOrderRequest["customer"] & { readonly phoneE164: string };
@@ -115,12 +116,20 @@ export function parseDeliveryQuoteRequest(value: unknown): DeliveryQuoteRequest 
   const s = record(value);
   if (
     !s ||
-    !exact(s, ["menuId", "menuVersionId", "requestedFor", "lines", "postalCode"]) ||
+    !exact(
+      s,
+      "deliveryAddress" in s
+        ? ["menuId", "menuVersionId", "requestedFor", "lines", "postalCode", "deliveryAddress"]
+        : ["menuId", "menuVersionId", "requestedFor", "lines", "postalCode"],
+    ) ||
     typeof s.postalCode !== "string" ||
     !/^[0-9]{5}$/.test(s.postalCode)
   )
     return undefined;
-  const { postalCode, ...order } = s;
+  const { postalCode, deliveryAddress: rawAddress, ...order } = s;
+  const deliveryAddress = parseDeliveryAddress(rawAddress);
+  if ("deliveryAddress" in s && (!deliveryAddress || deliveryAddress.postalCode !== postalCode))
+    return;
   // Reuse the exact menu/time/quantity rules of the established checkout contract.
   const parsed = parseGuestPickupOrderRequest({
     ...order,
@@ -135,6 +144,7 @@ export function parseDeliveryQuoteRequest(value: unknown): DeliveryQuoteRequest 
         requestedFor: parsed.requestedFor,
         lines: parsed.lines,
         postalCode,
+        ...(deliveryAddress ? { deliveryAddress } : {}),
       }
     : undefined;
 }

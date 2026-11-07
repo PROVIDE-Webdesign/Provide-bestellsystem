@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { handleCartQuote } from "./cart-quote.js";
 import { routeRequest } from "./router.js";
+import google from "../../../fixtures/delivery-address-validation.json" with { type: "json" };
 const scope = { restaurantSlug: "storefront-restaurant-a", locationSlug: "storefront-a-mitte" };
 const base =
   "https://api.test/v1/storefront/" +
@@ -42,6 +43,94 @@ const env = {
 };
 const context = { requestId: "synthetic-request" };
 describe("bounded cart review API", () => {
+  it("requires a matching address before pricing and keeps published zone rules authoritative", async () => {
+    const deliveryAddress = {
+      addressLine1: "Testweg 10",
+      addressLine2: null,
+      postalCode: "52062",
+      city: "Teststadt",
+      countryCode: "DE",
+    };
+    const deliveryRequest = { ...request, fulfillmentType: "delivery", postalCode: "52062" };
+    const deliveryQuote = {
+      policyId: request.menuId,
+      currency: "EUR",
+      subtotalAmountMinor: 1250,
+      deliveryFeeAmountMinor: 350,
+      totalAmountMinor: 1600,
+      minimumAmountMinor: 1200,
+    };
+    const reader = vi
+      .fn()
+      .mockResolvedValueOnce({ ...quote, deliveryQuote })
+      .mockResolvedValueOnce({
+        status: "unavailable",
+        currentMenuVersionId: request.menuVersionId,
+        issues: [{ code: "delivery_unavailable" }],
+      });
+    const provider = vi.fn().mockImplementation(() => Promise.resolve(Response.json(google)));
+    vi.stubGlobal("fetch", provider);
+    const invoke = (body: unknown) =>
+      handleCartQuote(
+        new Request(base, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        }),
+        scope,
+        {
+          ...env,
+          APP_ENV: "preview",
+          DELIVERY_ORDERING_ENABLED: "true",
+          GOOGLE_ADDRESS_VALIDATION_API_KEY: "synthetic-geocoding-key",
+        },
+        reader,
+        context,
+        { error: vi.fn() },
+        new Headers(),
+      );
+    try {
+      expect((await invoke(deliveryRequest)).status).toBe(422);
+      expect(
+        (await invoke({ ...deliveryRequest, postalCode: "52064", deliveryAddress })).status,
+      ).toBe(400);
+      expect(provider).not.toHaveBeenCalled();
+      expect(reader).not.toHaveBeenCalled();
+      const complete = { ...deliveryRequest, deliveryAddress };
+      const success = await invoke(complete);
+      expect(success.status).toBe(200);
+      const response = await success.json();
+      expect(response).toMatchObject({ data: { deliveryQuote } });
+      expect(JSON.stringify(response)).not.toContain("Testweg");
+      const outsideAddress = { ...deliveryAddress, postalCode: "52064" };
+      provider.mockResolvedValueOnce(
+        Response.json({
+          result: {
+            ...google.result,
+            address: {
+              ...google.result.address,
+              postalAddress: { ...google.result.address.postalAddress, postalCode: "52064" },
+            },
+          },
+        }),
+      );
+      const outside = await invoke({
+        ...complete,
+        postalCode: "52064",
+        deliveryAddress: outsideAddress,
+      });
+      expect(reader).toHaveBeenLastCalledWith(
+        "synthetic",
+        scope,
+        expect.objectContaining({ postalCode: "52064" }),
+      );
+      expect(await outside.json()).toMatchObject({
+        data: { status: "unavailable", issues: [{ code: "delivery_unavailable" }] },
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
   it("routes POST only", () => {
     expect(routeRequest(new Request(base, { method: "POST" }))?.name).toBe("cart-quote");
     expect(routeRequest(new Request(base))).toBeUndefined();

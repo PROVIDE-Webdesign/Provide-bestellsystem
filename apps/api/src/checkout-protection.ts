@@ -16,6 +16,7 @@ import {
   verifyCheckoutRequest,
   parseGuestPickupOrderRequest,
   parseGuestDeliveryOrderRequest,
+  parseDeliveryAddress,
   parseOnlineOrderRequest,
   parseGuestPickupOrderConfirmation,
   parseGuestDeliveryOrderConfirmation,
@@ -44,12 +45,24 @@ import {
   verifyStatusAccessToken,
 } from "./status-token.js";
 import { checkoutChallengeConfig, type CheckoutChallengeVerifier } from "./checkout-challenge.js";
+import {
+  deliveryAddressIssueStatus,
+  requiresDeliveryAddressValidation,
+  verifyDeliveryAddress,
+  type DeliveryAddressEnvironment,
+} from "./delivery-address.js";
 import type {
   CheckoutProtectionRepository,
   CheckoutBudget,
 } from "./checkout-protection-database.js";
 
-export interface CheckoutProtectionEnvironment extends OnlineEnvironment {
+export interface CheckoutProtectionEnvironment
+  extends
+    OnlineEnvironment,
+    Pick<
+      DeliveryAddressEnvironment,
+      "DELIVERY_ADDRESS_VALIDATION_ENABLED" | "GOOGLE_ADDRESS_VALIDATION_API_KEY"
+    > {
   ORDER_STATUS_TOKEN_SECRET_PREVIOUS?: string;
   CHECKOUT_PROTECTION_ENABLED?: string;
   CHECKOUT_GATEWAY_SECRET?: string;
@@ -433,6 +446,17 @@ export async function handleProtectedStorefront(
           known?.outcome === "expired" ? 410 : 403,
           known?.outcome === "expired" ? "checkout_session_expired" : "forbidden",
         );
+      const command = record(publicCommand)!;
+      if (
+        (route.name === "delivery-orders" ||
+          (route.name === "online-orders" && command.fulfillmentType === "delivery")) &&
+        requiresDeliveryAddressValidation(env)
+      ) {
+        if (env.DELIVERY_ORDERING_ENABLED !== "true") return fail(503);
+        const result = await verifyDeliveryAddress(env, parseDeliveryAddress(command.delivery));
+        if (result.status !== "verified")
+          return fail(deliveryAddressIssueStatus(result.status), result.status);
+      }
       const submit = (
         retention: number,
         account: string | null = null,
