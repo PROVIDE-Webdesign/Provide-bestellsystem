@@ -68,14 +68,12 @@ describe("restaurant Web Push", () => {
 
   it("does not follow provider redirects or forward credentials to their target", async () => {
     for (const status of [301, 302, 307, 308]) {
-      const provider = vi
-        .fn<typeof fetch>()
-        .mockResolvedValue(
-          new Response(null, {
-            status,
-            headers: { location: "https://unexpected.example.invalid/" },
-          }),
-        );
+      const provider = vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(null, {
+          status,
+          headers: { location: "https://unexpected.example.invalid/" },
+        }),
+      );
       await expect(sendOrderPush(delivery, config, provider)).resolves.toBe("retry");
       expect(provider).toHaveBeenCalledTimes(1);
       expect(provider.mock.calls[0]?.[0]).toBe(endpoint);
