@@ -21,6 +21,42 @@ for (const [name, type] of [
   await context.addInitScript(
     ({ publicKey }) => {
       Object.defineProperty(navigator, "standalone", { value: true });
+      window.__orderTonePlays = 0;
+      class TestAudioContext {
+        state = "suspended";
+        currentTime = 0;
+        destination = {};
+        async resume() {
+          this.state = "running";
+        }
+        async close() {
+          this.state = "closed";
+        }
+        createOscillator() {
+          return {
+            frequency: {},
+            connect() {},
+            disconnect() {},
+            start() {
+              window.__orderTonePlays++;
+            },
+            stop() {
+              queueMicrotask(() => this.onended?.());
+            },
+          };
+        }
+        createGain() {
+          return {
+            gain: { setValueAtTime() {}, linearRampToValueAtTime() {} },
+            connect() {},
+            disconnect() {},
+          };
+        }
+      }
+      Object.defineProperty(window, "AudioContext", {
+        value: TestAudioContext,
+        configurable: true,
+      });
       Object.defineProperty(window, "Notification", {
         value: { permission: "granted" },
         configurable: true,
@@ -166,7 +202,8 @@ for (const [name, type] of [
   assert.equal(await page.getByRole("button", { name: off, exact: true }).count(), 0);
   assert.deepEqual([...active], ["A", "B"]);
   fail = false;
-  await page.getByRole("button", { name: "Status erneut prüfen" }).click();
+  // Reconnect triggers a fresh status read without racing the retry button's re-render.
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
   await button(on);
   await page.getByRole("button", { name: on, exact: true }).click();
   await button(off);
@@ -194,12 +231,37 @@ for (const [name, type] of [
   active.delete("B");
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await button(off);
+  const plays = () => page.evaluate(() => window.__orderTonePlays);
+  const soundOn = page.getByRole("button", { name: "Ton an", exact: true });
+  const soundOff = page.getByRole("button", { name: "Ton aus", exact: true });
+  await page.getByRole("button", { name: "Ton aktivieren und testen", exact: true }).click();
+  await page.getByText("Ton aktiviert.", { exact: true }).waitFor();
+  assert.equal(await plays(), 1, "explicit activation plays one test tone");
+  await page.locator("summary").click();
+  await open();
+  await page.getByText("Ton aktiviert.", { exact: true }).waitFor();
+  await page.getByRole("combobox").selectOption("A");
+  await open();
+  await page.getByText("Ton aktiviert.", { exact: true }).waitFor();
+  assert.equal(await plays(), 1, "switching locations does not replay the test tone");
+  await page.reload();
+  await soundOn.waitFor();
+  assert.equal(await plays(), 0, "saved preference does not play a tone on reload");
+  await open();
+  await page.getByText("Ton aktiviert.", { exact: true }).waitFor();
+  assert.equal(await plays(), 0, "gesture restores playback without a test tone");
+  await page.getByRole("button", { name: "Ton stummschalten", exact: true }).click();
+  await page.reload();
+  await soundOff.waitFor();
+  await open();
+  await page.getByText("Ton stumm.", { exact: true }).waitFor();
+  assert.equal(await plays(), 0, "muted preference stays muted");
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify({
       browser: name,
       passed: true,
-      scenarios: 10,
+      scenarios: 15,
       statusCalls,
       subscribeCalls,
       removeCalls,

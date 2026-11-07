@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { OrderInbox } from "../../app/components/OrderInbox";
+import { OrderSoundProvider } from "../../app/components/OrderSoundProvider";
 import "../../app/styles.css";
 import "../../app/components/order-inbox-control.css";
 const scopes = {
@@ -43,4 +44,8 @@ function Fixture() {
     </>
   );
 }
-createRoot(document.getElementById("root")!).render(<Fixture />);
+createRoot(document.getElementById("root")!).render(
+  <OrderSoundProvider>
+    <Fixture />
+  </OrderSoundProvider>,
+);

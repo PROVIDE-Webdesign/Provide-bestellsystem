@@ -12,6 +12,7 @@ import { MfaPanel } from "./MfaPanel.js";
 import { OperatorIcon } from "./OperatorVisuals.js";
 import { OrderBoard } from "./OrderBoard.js";
 import { unsubscribeOrderPushDevice } from "./OrderPush.js";
+import { OrderSoundProvider } from "./OrderSoundProvider.js";
 
 import { readSelectedScope, rememberSelectedScope } from "../../lib/selected-scope.js";
 
@@ -29,7 +30,15 @@ const roleLabels = {
   viewer: "Viewer · nur lesen",
 };
 
-export function DashboardClient({
+export function DashboardClient(props: Parameters<typeof DashboardContent>[0]) {
+  return (
+    <OrderSoundProvider>
+      <DashboardContent {...props} />
+    </OrderSoundProvider>
+  );
+}
+
+function DashboardContent({
   enabled,
   menuEnabled = false,
   operationsEnabled = false,

@@ -11,7 +11,8 @@ import {
   type OrderLiveState,
   type OrderLiveSubscriber,
 } from "../../lib/order-live.js";
-import { acceptanceRemaining, createAlarmTracker, createOrderTone } from "../../lib/order-alarm.js";
+import { acceptanceRemaining, createAlarmTracker } from "../../lib/order-alarm.js";
+import { useOrderSound } from "./OrderSoundProvider.js";
 
 interface Props {
   readonly compact?: boolean;
@@ -49,13 +50,21 @@ export function OrderInbox({
   const [live, setLive] = useState<OrderLiveState>("fallback");
   const [snapshot, setSnapshot] = useState<DashboardAcceptance>();
   const [stale, setStale] = useState(true);
-  const [sound, setSound] = useState(false);
-  const [soundError, setSoundError] = useState("");
-  const [soundBusy, setSoundBusy] = useState(false);
-  const soundOperation = useRef(0);
+  const {
+    preferred: sound,
+    ready: soundReady,
+    error: soundError,
+    busy: soundBusy,
+    toggle: toggleSound,
+    canPlay,
+    play,
+  } = useOrderSound();
+  const soundStatus = sound
+    ? soundReady
+      ? "Ton aktiviert."
+      : "Ton gespeichert. Zum Freigeben einmal ins Dashboard tippen."
+    : "Ton stumm.";
   const [serverNow, setServerNow] = useState(0);
-  const tone = useRef<ReturnType<typeof createOrderTone> | undefined>(undefined);
-  const enabled = useRef(false);
   const callbacks = useRef({ onInvalidate, onDenied });
   callbacks.current = { onInvalidate, onDenied };
   useEffect(() => {
@@ -68,6 +77,7 @@ export function OrderInbox({
     let stopLive = () => {};
     let latest: DashboardAcceptance | undefined;
     let receivedAt = 0;
+    let observed = false;
     const alarm = createAlarmTracker();
     const clock = () => {
       if (!latest) return;
@@ -75,19 +85,10 @@ export function OrderInbox({
       const expired = performance.now() - receivedAt > 30_000;
       setServerNow(now);
       setStale(expired);
-      if (
-        alarm(
-          latest,
-          now,
-          enabled.current && !expired && !blocked && document.visibilityState !== "hidden",
-        ) &&
-        tone.current
-      )
-        void tone.current.play().catch(() => {
-          enabled.current = false;
-          setSound(false);
-          setSoundError("Ton blockiert. Bitte erneut bewusst aktivieren.");
-        });
+      const audible =
+        observed && canPlay() && !expired && !blocked && document.visibilityState !== "hidden";
+      if (alarm(latest, now, audible)) play();
+      observed = true;
     };
     const refresh = async () => {
       if (disposed || blocked || document.visibilityState === "hidden") return;
@@ -114,8 +115,6 @@ export function OrderInbox({
             latest = undefined;
             setSnapshot(undefined);
             setStale(true);
-            enabled.current = false;
-            setSound(false);
             callbacks.current.onDenied();
             return;
           }
@@ -169,8 +168,6 @@ export function OrderInbox({
     window.addEventListener("online", resume);
     return () => {
       disposed = true;
-      soundOperation.current++;
-      enabled.current = false;
       controller?.abort();
       stopLive();
       clearInterval(poll);
@@ -178,40 +175,9 @@ export function OrderInbox({
       if (timer !== undefined) clearTimeout(timer);
       document.removeEventListener("visibilitychange", resume);
       window.removeEventListener("online", resume);
-      if (tone.current) void tone.current.close().catch(() => {});
-      tone.current = undefined;
     };
-  }, [restaurantId, locationId, liveEnabled, alertsEnabled, subscribeLive]);
+  }, [restaurantId, locationId, liveEnabled, alertsEnabled, subscribeLive, canPlay, play]);
 
-  async function toggleSound() {
-    if (soundBusy) return;
-    if (sound) {
-      enabled.current = false;
-      setSound(false);
-      return;
-    }
-    const operation = ++soundOperation.current;
-    setSoundBusy(true);
-    try {
-      tone.current ??= createOrderTone();
-      const current = tone.current;
-      await current.enable();
-      if (operation !== soundOperation.current) return;
-      await current.play();
-      if (operation !== soundOperation.current) return;
-      enabled.current = true;
-      setSound(true);
-      setSoundError("");
-    } catch {
-      if (operation === soundOperation.current) {
-        enabled.current = false;
-        setSound(false);
-        setSoundError("Ton konnte nicht aktiviert werden. Sichtbare Hinweise bleiben aktiv.");
-      }
-    } finally {
-      if (operation === soundOperation.current) setSoundBusy(false);
-    }
-  }
   const content = (
     <section className="order-inbox" aria-label="Bestelleingang und Alarm">
       <p role="status">
@@ -233,12 +199,13 @@ export function OrderInbox({
             className="secondary"
             disabled={soundBusy}
             aria-pressed={sound}
-            onClick={() => void toggleSound()}
+            data-order-sound-toggle
+            onClick={toggleSound}
           >
             {sound ? "Ton stummschalten" : "Ton aktivieren und testen"}
           </button>
           <p>
-            {sound ? "Ton aktiviert" : "Ton stumm"}. {soundError}
+            {soundStatus} {soundError}
           </p>
           {pushEnabled && !readOnly && (
             <OrderPush
@@ -299,8 +266,16 @@ export function OrderInbox({
               type="button"
               disabled={soundBusy || !alertsEnabled}
               aria-pressed={sound}
-              onClick={() => void toggleSound()}
-              title={soundError || (sound ? "Ton stummschalten" : "Ton aktivieren und testen")}
+              data-order-sound-toggle
+              onClick={toggleSound}
+              title={
+                soundError ||
+                (sound && !soundReady
+                  ? soundStatus
+                  : sound
+                    ? "Ton stummschalten"
+                    : "Ton aktivieren und testen")
+              }
             >
               <OperatorIcon name="sound" />
               {sound ? "Ton an" : "Ton aus"}

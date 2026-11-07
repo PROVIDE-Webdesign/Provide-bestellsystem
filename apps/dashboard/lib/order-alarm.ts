@@ -24,6 +24,7 @@ export function createAlarmTracker() {
 }
 export interface OrderTone {
   enable(): Promise<void>;
+  isRunning(): boolean;
   play(): Promise<void>;
   close(): Promise<void>;
 }
@@ -77,6 +78,7 @@ export function createOrderTone(): OrderTone {
       await boundedAudioOperation(context.resume());
       if (context.state !== "running") throw Error("Sound unavailable");
     },
+    isRunning: () => context?.state === "running",
     async play() {
       if (!context || context.state !== "running") throw Error("Sound unavailable");
       const oscillator = context.createOscillator(),
