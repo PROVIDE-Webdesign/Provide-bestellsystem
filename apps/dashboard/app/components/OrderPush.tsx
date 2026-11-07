@@ -109,6 +109,8 @@ export function OrderPush({ restaurantId, locationId }: Scope) {
     } else {
       void (async () => {
         const existing = await dashboardRegistration();
+        // Refresh installed push code even when this device is already subscribed.
+        void existing?.update().catch(() => {});
         let subscription = await existing?.pushManager.getSubscription();
         const data = await pushRequest(
           { restaurantId, locationId },

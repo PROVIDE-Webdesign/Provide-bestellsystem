@@ -1,3 +1,11 @@
+self.addEventListener("install", (event) => {
+  event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(clients.claim());
+});
+
 self.addEventListener("push", (event) => {
   let eventId;
   try {
@@ -10,6 +18,7 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification("Neue Bestellung", {
       body: "Öffne das PROVIDE Dashboard und prüfe den Bestelleingang.",
       icon: "/dashboard-icon-192.png",
+      silent: false,
       ...(eventId ? { tag: eventId } : {}),
     }),
   );
