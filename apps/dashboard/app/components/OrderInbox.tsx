@@ -17,6 +17,7 @@ interface Props {
   readonly compact?: boolean;
   readonly restaurantId: string;
   readonly locationId: string;
+  readonly locationName?: string;
   readonly liveEnabled: boolean;
   readonly alertsEnabled: boolean;
   readonly pushEnabled?: boolean;
@@ -29,6 +30,7 @@ interface Props {
 export function OrderInbox({
   restaurantId,
   locationId,
+  locationName,
   compact = false,
   liveEnabled,
   alertsEnabled,
@@ -39,6 +41,7 @@ export function OrderInbox({
   onOpen,
   subscribeLive = subscribeDashboardOrderLive,
 }: Props) {
+  const [pushRefresh, setPushRefresh] = useState(0);
   const [header, setHeader] = useState<HTMLElement | null>(null);
   useEffect(() => {
     setHeader(document.getElementById(`operator-inbox-${restaurantId}`));
@@ -238,7 +241,12 @@ export function OrderInbox({
             {sound ? "Ton aktiviert" : "Ton stumm"}. {soundError}
           </p>
           {pushEnabled && !readOnly && (
-            <OrderPush restaurantId={restaurantId} locationId={locationId} />
+            <OrderPush
+              restaurantId={restaurantId}
+              locationId={locationId}
+              {...(locationName ? { locationName } : {})}
+              refreshKey={pushRefresh}
+            />
           )}
           {stale ? (
             <p role="alert" className="warning">
@@ -297,7 +305,12 @@ export function OrderInbox({
               <OperatorIcon name="sound" />
               {sound ? "Ton an" : "Ton aus"}
             </button>
-            <details className="operator-alarm-menu">
+            <details
+              className="operator-alarm-menu"
+              onToggle={(event) => {
+                if (event.currentTarget.open) setPushRefresh((value) => value + 1);
+              }}
+            >
               <summary>
                 <OperatorIcon name="clipboard" />
                 <span>Bestelleingang &amp; Alarm</span>

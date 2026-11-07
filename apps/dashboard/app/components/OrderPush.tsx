@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Scope = { restaurantId: string; locationId: string };
 type PushState = { active: boolean; publicKey: string };
@@ -89,13 +89,51 @@ export async function unsubscribeOrderPushDevice() {
   await (await registration?.pushManager.getSubscription())?.unsubscribe();
 }
 
-export function OrderPush({ restaurantId, locationId }: Scope) {
+export function OrderPush({
+  restaurantId,
+  locationId,
+  locationName,
+  refreshKey = 0,
+}: Scope & {
+  locationName?: string;
+  refreshKey?: number;
+}) {
   const [status, setStatus] = useState<DeviceState>();
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [revision, setRevision] = useState(0);
+  const generation = useRef(0);
+  const changing = useRef(false);
 
   useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState !== "hidden" && !changing.current)
+        setRevision((value) => value + 1);
+    };
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    window.addEventListener("provide-order-push-changed", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+      window.removeEventListener("provide-order-push-changed", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
+
+  useEffect(() => {
+    generation.current++;
+    return () => {
+      generation.current++;
+    };
+  }, [restaurantId, locationId]);
+
+  useEffect(() => {
+    if (changing.current) return;
     let disposed = false;
+    setStatus(undefined);
+    setNote("");
     if (onIphoneOrIpad() && !isHomeScreenApp()) {
       setNote(
         "Auf iPhone oder iPad das Dashboard in Safari über „Teilen“ zum Home-Bildschirm hinzufügen und von dort öffnen.",
@@ -108,10 +146,12 @@ export function OrderPush({ restaurantId, locationId }: Scope) {
       );
     } else {
       void (async () => {
-        const existing = await dashboardRegistration();
-        // Refresh installed push code even when this device is already subscribed.
-        void existing?.update().catch(() => {});
-        let subscription = await existing?.pushManager.getSubscription();
+        const registration = await prepareDashboardRegistration();
+        if (disposed) return;
+        // Refresh installed push code without replacing its device subscription.
+        void registration.update().catch(() => {});
+        let subscription = await registration.pushManager.getSubscription();
+        if (disposed) return;
         const data = await pushRequest(
           { restaurantId, locationId },
           {
@@ -120,7 +160,6 @@ export function OrderPush({ restaurantId, locationId }: Scope) {
           },
         );
         if (disposed) return;
-        const registration = existing ?? (await prepareDashboardRegistration());
         const key = applicationKey(data.publicKey);
         const previousKey = subscription?.options.applicationServerKey;
         if (
@@ -140,28 +179,31 @@ export function OrderPush({ restaurantId, locationId }: Scope) {
             subscription: subscription ?? undefined,
           });
       })().catch(() => {
-        if (!disposed) setNote("Hintergrundalarm derzeit nicht verfügbar.");
+        if (!disposed)
+          setNote("Hintergrundalarm konnte nicht geprüft werden. Bitte erneut prüfen.");
       });
     }
     return () => {
       disposed = true;
     };
-  }, [restaurantId, locationId]);
+  }, [restaurantId, locationId, refreshKey, revision]);
 
   async function toggle() {
-    if (busy || !status) return;
+    if (changing.current || !status) return;
+    changing.current = true;
+    const operation = generation.current;
     setBusy(true);
     setNote("");
     const scope = { restaurantId, locationId };
+    let saved = false;
     try {
       if (status.active && status.subscription) {
-        await pushRequest(scope, { action: "remove", endpoint: status.subscription.endpoint });
-        const unsubscribed = await status.subscription.unsubscribe().catch(() => false);
-        setStatus({
-          ...status,
-          active: false,
-          subscription: unsubscribed ? undefined : status.subscription,
+        await pushRequest(scope, {
+          action: "remove_scope",
+          endpoint: status.subscription.endpoint,
         });
+        saved = true;
+        if (operation === generation.current) setStatus({ ...status, active: false });
         return;
       }
       // Call subscribe directly from the tap so iOS can show its permission prompt.
@@ -179,26 +221,47 @@ export function OrderPush({ restaurantId, locationId }: Scope) {
         auth: keys?.auth,
       });
       if (!data.active) throw new Error("Subscription unavailable");
-      setStatus({ ...status, ...data, subscription });
+      saved = true;
+      if (operation === generation.current) setStatus({ ...status, ...data, subscription });
     } catch {
+      if (operation !== generation.current) return;
       setNote(
         Notification.permission === "denied"
           ? "Mitteilungen sind blockiert. Erlaube sie in den Einstellungen des Geräts oder Browsers."
           : "Der Hintergrundalarm konnte nicht geändert werden. Bitte versuche es erneut.",
       );
     } finally {
-      setBusy(false);
+      changing.current = false;
+      if (operation === generation.current) setBusy(false);
+      // Read the saved registration back instead of relying on the button's local state.
+      if (saved) window.dispatchEvent(new Event("provide-order-push-changed"));
     }
   }
 
   return (
     <div>
+      {locationName && (
+        <p>
+          <strong>Hintergrundalarm · {locationName}</strong>
+        </p>
+      )}
       <p role="status">
         {note ||
-          (status?.active
-            ? "Hintergrundalarm auf diesem Gerät für diesen Standort aktiv. Der Ton folgt den Mitteilungseinstellungen."
-            : "Hintergrundalarm auf diesem Gerät für diesen Standort aus. Pro Gerät ist ein Standort möglich.")}
+          (!status
+            ? "Gespeicherter Hintergrundalarm wird geprüft …"
+            : status.active
+              ? "Hintergrundalarm für diesen Standort aktiv. Bleibt auch nach dem Schließen aktiv. Der Ton folgt den Mitteilungseinstellungen."
+              : "Für diesen Standort ist der Hintergrundalarm nicht aktiviert. Andere Standorte können auf diesem Gerät separat aktiviert bleiben.")}
       </p>
+      {!status && note && supported() && (
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => setRevision((value) => value + 1)}
+        >
+          Status erneut prüfen
+        </button>
+      )}
       {status && (
         <button
           type="button"

@@ -13,6 +13,8 @@ import { OperatorIcon } from "./OperatorVisuals.js";
 import { OrderBoard } from "./OrderBoard.js";
 import { unsubscribeOrderPushDevice } from "./OrderPush.js";
 
+import { readSelectedScope, rememberSelectedScope } from "../../lib/selected-scope.js";
+
 type ViewState =
   | { readonly name: "loading" }
   | { readonly name: "signed_out" }
@@ -73,6 +75,15 @@ export function DashboardClient({
       const value = (await response.json()) as { data?: unknown };
       const context = parseDashboardAccessContext(value.data);
       if (!context) throw new Error("Dashboard response invalid");
+      try {
+        const saved = readSelectedScope(context, window.localStorage);
+        if (saved) {
+          setRestaurant(saved.restaurantId);
+          setLocation(saved.locationId);
+        }
+      } catch {
+        /* Device storage can be blocked. */
+      }
       setState({ name: "ready", context });
     } catch {
       setState({ name: "unavailable" });
@@ -84,6 +95,11 @@ export function DashboardClient({
   }, [load]);
 
   async function signOut() {
+    try {
+      rememberSelectedScope(undefined, window.localStorage);
+    } catch {
+      /* Storage blocked. */
+    }
     if (pushEnabled) void unsubscribeOrderPushDevice().catch(() => {});
     const supabase = createDashboardBrowserClient();
     if (supabase) await supabase.auth.signOut();
@@ -145,8 +161,18 @@ export function DashboardClient({
           onChange={(event) => {
             if (!canLeave()) return;
             setUnsaved(false);
+            const selected = allowed.find((item) => item.restaurantId === event.target.value);
+            const firstLocation = selected?.locations[0]?.id ?? "";
             setRestaurant(event.target.value);
-            setLocation("");
+            setLocation(firstLocation);
+            try {
+              rememberSelectedScope(
+                { restaurantId: event.target.value, locationId: firstLocation },
+                window.localStorage,
+              );
+            } catch {
+              /* Storage blocked. */
+            }
           }}
         >
           {allowed.map((item) => (
@@ -218,7 +244,17 @@ export function DashboardClient({
                 role={membership.role}
                 locations={membership.locations}
                 {...(selectedLocation ? { initialLocationId: selectedLocation.id } : {})}
-                onLocationChange={setLocation}
+                onLocationChange={(id) => {
+                  setLocation(id);
+                  try {
+                    rememberSelectedScope(
+                      { restaurantId: membership.restaurantId, locationId: id },
+                      window.localStorage,
+                    );
+                  } catch {
+                    /* Storage blocked. */
+                  }
+                }}
               />
             </div>
             {section === "Speisekarte" && menuEnabled && canManage && (

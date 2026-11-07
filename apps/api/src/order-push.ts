@@ -48,7 +48,7 @@ export function validPushEndpoint(value: unknown): value is string {
 }
 
 type Command = {
-  action: "status" | "subscribe" | "remove";
+  action: "status" | "subscribe" | "remove" | "remove_scope";
   endpoint: string;
   p256dh?: string;
   auth?: string;
@@ -60,7 +60,7 @@ export function parsePushCommand(value: unknown): Command | undefined {
   if (Object.keys(body).some((key) => !["action", "endpoint", "p256dh", "auth"].includes(key)))
     return undefined;
   const { action, endpoint, p256dh, auth } = body;
-  if (action === "status" || action === "remove") {
+  if (action === "status" || action === "remove" || action === "remove_scope") {
     if (p256dh !== undefined || auth !== undefined) return undefined;
     if (action === "status" && endpoint === undefined) return { action, endpoint: "" };
     if (validPushEndpoint(endpoint)) return { action, endpoint };
@@ -183,7 +183,13 @@ export async function handleOrderPush(
     if (result?.outcome === "forbidden")
       return jsonError("forbidden", "Access is not permitted.", context.requestId, 403, cors);
     if (result?.outcome === "conflict")
-      return jsonError("conflict", "Device limit reached.", context.requestId, 409, cors);
+      return jsonError(
+        "conflict",
+        "This push command conflicts with the saved device settings.",
+        context.requestId,
+        409,
+        cors,
+      );
     if (result?.outcome !== "allowed" || typeof result.active !== "boolean") return unavailable();
     return jsonSuccess(
       { active: result.active, publicKey: config.publicKey },

@@ -1,6 +1,6 @@
 begin;
 set local search_path=extensions,public;
-select plan(31);
+select plan(39);
 \ir fixtures/storefront.fixture.inc
 \ir fixtures/delivery.fixture.inc
 
@@ -16,6 +16,7 @@ select plan(31);
 \set restaurant_b f2000000-0000-0000-0000-000000000002
 \set location_a f3000000-0000-0000-0000-000000000001
 \set location_b f3000000-0000-0000-0000-000000000002
+\set second_location_a f3000000-0000-0000-0000-000000000099
 \set endpoint_a https://fcm.googleapis.com/fcm/send/order-push-a
 \set endpoint_b https://fcm.googleapis.com/fcm/send/order-push-b
 
@@ -29,6 +30,10 @@ insert into auth.sessions(id,user_id,created_at,updated_at,aal,factor_id) values
  (:'session_kitchen',:'kitchen_a',clock_timestamp(),clock_timestamp(),'aal1',null);
 select 'B'||repeat('a',86) as p256dh,repeat('b',22) as auth_key \gset
 
+insert into public.locations(id,restaurant_id,slug,display_name,status,timezone,address_line_1,postal_code,city,country_code)
+select :'second_location_a',restaurant_id,'push-second-location','Second push location',
+  status,timezone,address_line_1,postal_code,city,country_code from public.locations where id=:'location_a';
+
 select ok(not has_table_privilege('authenticated','private.order_push_subscriptions','select'),'browser cannot read subscription secrets');
 select ok(not has_table_privilege('service_role','private.order_push_subscriptions','select'),'runtime has function-only access');
 select ok(not has_function_privilege('authenticated','private.claim_order_push(integer)','execute'),'browser cannot lease push deliveries');
@@ -39,6 +44,14 @@ select is(private.manage_order_push(:'manager_unassigned',:'session_manager','aa
 select is(private.manage_order_push(:'owner_a',:'session_a','aal2','subscribe',:'restaurant_a',:'location_a',:'endpoint_a',:'p256dh',:'auth_key')->>'active','true','register authorized device');
 select is(private.manage_order_push(:'owner_b',:'session_b','aal2','subscribe',:'restaurant_b',:'location_b',:'endpoint_b',:'p256dh',:'auth_key')->>'active','true','register separate tenant device');
 select is(private.manage_order_push(:'owner_a',:'session_a','aal2','status',:'restaurant_a',:'location_a',:'endpoint_a',null,null)->>'active','true','status confirms persisted device');
+select is(private.manage_order_push(:'owner_a',:'session_a','aal2','subscribe',:'restaurant_a',:'second_location_a',:'endpoint_a',:'p256dh',:'auth_key')->>'active','true','same device registers a second authorized location');
+select is(private.manage_order_push(:'owner_a',:'session_a','aal2','status',:'restaurant_a',:'location_a',:'endpoint_a',null,null)->>'active','true','first location stays active');
+select is(private.manage_order_push(:'owner_a',:'session_a','aal2','remove',:'restaurant_a',:'second_location_a',:'endpoint_a',null,null)->>'outcome','conflict','old dashboard cannot unsubscribe a multi-location device');
+select is(private.manage_order_push(:'owner_b',:'session_b','aal2','remove_scope',:'restaurant_a',:'location_a',:'endpoint_a',null,null)->>'outcome','allowed','foreign scope removal is an idempotent no-op');
+select is(private.manage_order_push(:'owner_a',:'session_a','aal2','remove_scope',:'restaurant_a',:'second_location_a',:'endpoint_a',null,null)->>'active','false','explicit removal only affects the selected location');
+select is(private.manage_order_push(:'owner_a',:'session_a','aal2','status',:'restaurant_a',:'second_location_a',:'endpoint_a',null,null)->>'active','false','removed location stays off');
+select is(private.manage_order_push(:'owner_a',:'session_a','aal2','status',:'restaurant_a',:'location_a',:'endpoint_a',null,null)->>'active','true','removing second location leaves first active');
+select is(private.manage_order_push(:'owner_a',:'session_a','aal2','subscribe',:'restaurant_a',:'second_location_a',:'endpoint_a',:'p256dh',:'auth_key')->>'active','true','second location can be enabled again');
 reset role;
 
 insert into public.restaurant_feature_flags(restaurant_id,feature_key,enabled)

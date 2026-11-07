@@ -36,6 +36,11 @@ describe("restaurant Web Push", () => {
 
   it("validates action and key shape", () => {
     expect(parsePushCommand({ action: "status" })).toEqual({ action: "status", endpoint: "" });
+    expect(parsePushCommand({ action: "remove_scope", endpoint })).toEqual({
+      action: "remove_scope",
+      endpoint,
+    });
+    expect(parsePushCommand({ action: "remove_scope" })).toBeUndefined();
     expect(parsePushCommand({ action: "remove", endpoint, extra: true })).toBeUndefined();
     expect(
       parsePushCommand({ action: "subscribe", endpoint, p256dh: "bad", auth: delivery.auth }),

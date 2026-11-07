@@ -7,7 +7,9 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "noEmit": true,
-    "paths": { "@/*": ["./*"] },
+    "paths": {
+      "@/*": ["./*"]
+    },
     "types": ["vinext/types", "node"]
   },
   "include": [
@@ -18,7 +20,9 @@
     "next.config.ts",
     "proxy.ts",
     "vite.config.ts",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "tests/**/*.ts",
+    "tests/**/*.tsx"
   ],
   "exclude": ["dist", "node_modules"]
 }

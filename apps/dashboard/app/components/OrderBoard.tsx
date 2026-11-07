@@ -468,6 +468,7 @@ export function OrderBoard({
           key={`${restaurantId}:${locationId}`}
           restaurantId={restaurantId}
           locationId={locationId}
+          locationName={locations.find((item) => item.id === locationId)?.displayName ?? "Standort"}
           liveEnabled={liveEnabled}
           alertsEnabled={alertsEnabled}
           pushEnabled={pushEnabled}
