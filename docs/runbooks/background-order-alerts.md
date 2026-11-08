@@ -11,11 +11,11 @@ Teil des Durchlaufs.
   Wenn das Restaurant die Abbuchung anstößt, endet der Annahmealarm. Der Bestellstatus wechselt nach
   Stripe-Bestätigung auf „Angenommen“. Die konfigurierte Annahmefrist anderer Bestellungen gilt
   weiter.
-- Pro Browserinstallation können berechtigte Standorte unabhängig für Hintergrundalarme aktiviert werden.
-  Ein Standortwechsel oder das Schließen der Ansicht ändert die gespeicherten Zuordnungen nicht.
-  Beim Ausschalten bleibt das Browserabonnement für die anderen Standorte bestehen. Rolle, Standort
-  und gültige Dashboard-Sitzung werden bei der Anmeldung des Geräts und vor dem Versand geprüft. Die
-  Push-Nachricht auf dem Sperrbildschirm enthält weder Bestellnummer noch Gastdaten.
+- Pro Browserinstallation können berechtigte Standorte unabhängig für Hintergrundalarme aktiviert
+  werden. Ein Standortwechsel oder das Schließen der Ansicht ändert die gespeicherten Zuordnungen
+  nicht. Beim Ausschalten bleibt das Browserabonnement für die anderen Standorte bestehen. Rolle,
+  Standort und gültige Dashboard-Sitzung werden bei der Anmeldung des Geräts und vor dem Versand
+  geprüft. Die Push-Nachricht auf dem Sperrbildschirm enthält weder Bestellnummer noch Gastdaten.
 - Der API-Worker kann sofort nach erfolgreichem Checkout oder Zahlungsabgleich senden. Der
   bestehende Minutentakt übernimmt ausstehende Versuche. Abgelaufene oder erledigte Bestellungen
   werden nicht neu versendet. Der Vordergrundton bleibt ein separater Schalter.
@@ -42,8 +42,8 @@ Teil des Durchlaufs.
    Abbuchung aus und der offene Eingang wird geschlossen. Nach Abschluss im frischen Gast-Tab „Meine
    Bestellungen“ öffnen und den Endstatus derselben Bestellung abgleichen.
 
-Für die Mehrstandort-Änderung zuerst die Migration `order_push_per_location` anwenden, danach
-API und zuletzt Dashboard bereitstellen. Vorhandene Standortzuordnungen bleiben erhalten.
+Für die Mehrstandort-Änderung zuerst die Migration `order_push_per_location` anwenden, danach API
+und zuletzt Dashboard bereitstellen. Vorhandene Standortzuordnungen bleiben erhalten.
 
 Bei einem Rollback zuerst die Push-Schalter beider Worker deaktivieren. Die beiden privaten Tabellen
 und die SQL-Korrektur können dabei bestehen bleiben. Eine VAPID-Schlüsselrotation erfordert erneutes
