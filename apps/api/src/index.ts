@@ -1,4 +1,3 @@
-import { dispatchSupportPartialRefunds } from "./support-partial-refunds.js";
 import { dispatchDomainWebhooks, type DomainWebhookEnvironment } from "./domain-webhooks.js";
 import { handleCartHandoff, cleanupCartHandoffs } from "./cart-handoff.js";
 
@@ -93,7 +92,6 @@ interface Env
     OrderPushEnvironment,
     DomainWebhookEnvironment {
   readonly SUPPORT_CASES_ENABLED?: string;
-  readonly SUPPORT_TEST_REFUNDS_ENABLED?: string;
   readonly SUPPORT_RECONCILIATION_RESTAURANT_ID?: string;
   readonly SUPPORT_MONITOR_PING_URL?: string;
   readonly ACCOUNT_RECOVERY_ENABLED?: string;
@@ -363,7 +361,6 @@ export function createApiWorker(
         route.name === "dashboardOrderAlerts" ||
         route.name === "dashboardOrder" ||
         route.name === "dashboardOrderStatus" ||
-        route.name === "dashboardRefundRetry" ||
         route.name === "dashboardOrderCommunication"
       ) {
         return handleDashboardOrders(
@@ -450,7 +447,6 @@ export function createApiWorker(
       context.waitUntil(dispatchDomainWebhooks(env, logger));
       context.waitUntil(reconcileSupportSources(env, logger));
       context.waitUntil(pingSupportMonitor(env, logger));
-      context.waitUntil(dispatchSupportPartialRefunds(env, logger));
       context.waitUntil(
         dispatchOrderNotifications(env, notificationRepository, notificationAdapter, logger),
       );

@@ -48,11 +48,6 @@ export interface DashboardOrdersReader {
     scope: { restaurantId: string; locationId: string; orderId: string },
     command: OrderCommunicationCommand,
   ): Promise<unknown>;
-  retryRefund?(
-    connectionString: string,
-    identity: DashboardIdentity,
-    scope: { restaurantId: string; locationId: string; orderId: string },
-  ): Promise<unknown>;
   list(
     connectionString: string,
     identity: DashboardIdentity,
@@ -272,16 +267,6 @@ export async function handleDashboardOrders(
     }
 
     let body: unknown;
-    if (route.name === "dashboardRefundRetry") {
-      const payload = await readJsonBody(request, 1024);
-      if (!record(payload) || Object.keys(record(payload)!).length !== 0 || !reader.retryRefund)
-        return jsonError("bad_request", "Invalid refund command.", context.requestId, 400, cors);
-      const result = record(await reader.retryRefund(connectionString, identity, scope));
-      const mapped = errorResponse(result?.outcome, context, cors);
-      if (mapped) return mapped;
-      if (result?.outcome !== "allowed") throw new Error("Invalid refund response");
-      return jsonSuccess({ retryRequested: true }, context.requestId, 200, cors);
-    }
     try {
       body = await readJsonBody(request, 1024);
     } catch (error) {

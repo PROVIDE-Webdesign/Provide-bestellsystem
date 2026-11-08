@@ -11,10 +11,11 @@ export async function POST(request: Request) {
   if (session.status !== "authenticated")
     return dashboardRouteFailure(session.status === "unauthorized" ? 401 : 503);
   try {
-    const command = await readSupportBody(request);
-    if (command.action === "partial_refund" && process.env.SUPPORT_TEST_REFUNDS_ENABLED !== "true")
-      return dashboardRouteFailure(503);
-    return await fetchSupport(session.accessToken, process.env.DASHBOARD_API_BASE_URL, command);
+    return await fetchSupport(
+      session.accessToken,
+      process.env.DASHBOARD_API_BASE_URL,
+      await readSupportBody(request),
+    );
   } catch {
     return dashboardRouteFailure(400);
   }

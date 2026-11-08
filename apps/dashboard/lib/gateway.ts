@@ -1,9 +1,6 @@
 import {
   parseSupportCommand,
   parseSupportState,
-  parseSupportRefundCommand,
-  parseSupportRefundState,
-  type SupportRefundCommand,
   type SupportCommand,
   parseProvideAdminCommand,
   parseProvideAdminState,
@@ -54,22 +51,19 @@ function safeApiBase(value: string | undefined): URL | undefined {
   }
 }
 
-export async function readSupportBody(
-  request: Request,
-): Promise<SupportCommand | SupportRefundCommand> {
-  const body = await boundedJson(request, 4096);
-  const q = parseSupportCommand(body) ?? parseSupportRefundCommand(body);
+export async function readSupportBody(request: Request): Promise<SupportCommand> {
+  const q = parseSupportCommand(await boundedJson(request, 4096));
   if (!q) throw Error("Invalid support request");
   return q;
 }
 export async function fetchSupport(
   token: string,
   apiBase: string | undefined,
-  q: SupportCommand | SupportRefundCommand,
+  q: SupportCommand,
   fetcher: typeof fetch = fetch,
 ): Promise<Response> {
   const base = safeApiBase(apiBase),
-    command = parseSupportCommand(q) ?? parseSupportRefundCommand(q);
+    command = parseSupportCommand(q);
   if (!base || !command || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token))
     return operationalFailure(400);
   try {
@@ -88,10 +82,6 @@ export async function fetchSupport(
           : 503,
       );
     const envelope = (await boundedJson(response, 512 * 1024)) as { data?: unknown };
-    if (command.action === "partial_refund") {
-      const refund = parseSupportRefundState(envelope.data, command);
-      return refund ? Response.json({ data: refund }, { headers }) : operationalFailure(503);
-    }
     const data = parseSupportState(envelope.data);
     if (!data || data.restaurantId !== q.restaurantId || data.locationId !== q.locationId)
       return operationalFailure(503);
@@ -512,28 +502,6 @@ export function transitionDashboardOrder(
     "POST",
     parsed,
     parseDashboardOrderStatusResult,
-    fetcher,
-  );
-}
-
-export function retryDashboardRefund(
-  accessToken: string,
-  apiBaseUrl: string | undefined,
-  scope: { restaurantId: string; locationId: string; orderId: string },
-  fetcher: typeof fetch = fetch,
-) {
-  if (![scope.restaurantId, scope.locationId, scope.orderId].every((v) => uuidPattern.test(v)))
-    return Promise.resolve(operationalFailure(400));
-  return operationalRequest(
-    accessToken,
-    apiBaseUrl,
-    `/v1/dashboard/restaurants/${scope.restaurantId}/locations/${scope.locationId}/orders/${scope.orderId}/refund-retry`,
-    "POST",
-    {},
-    (v: unknown) =>
-      v !== null && typeof v === "object" && "retryRequested" in v && v.retryRequested === true
-        ? { retryRequested: true }
-        : undefined,
     fetcher,
   );
 }

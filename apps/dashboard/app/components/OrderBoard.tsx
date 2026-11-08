@@ -286,34 +286,6 @@ export function OrderBoard({
     }
   }
 
-  async function retryRefund() {
-    if (role === "viewer" || !detail || updating) return;
-    setUpdating(true);
-    setMessage("");
-    try {
-      const r = await fetch(
-        `/api/orders/${detail.orderId}/refund-retry?${new URLSearchParams({ restaurantId, locationId })}`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: "{}",
-        },
-      );
-      if (r.status === 401 || r.status === 403) {
-        clearDenied();
-        return;
-      }
-      if (!r.ok) throw new Error("Refund retry failed");
-      await loadDetail(detail.orderId);
-    } catch {
-      setMessage(
-        "Die Erstattung konnte nicht erneut angefordert werden. Bitte aktualisiere den Zahlungsstatus.",
-      );
-    } finally {
-      setUpdating(false);
-    }
-  }
-
   async function communicate(action: "confirm_time" | "dispatch") {
     if (role === "viewer" || !detail || updating || !detail.communication) return;
     const instant = locationTimeToInstant(confirmedTime, detail.communication.timezone);
@@ -859,9 +831,7 @@ export function OrderBoard({
                   </p>
                 )}
                 {role !== "viewer" && detail.paymentState === "refund_failed" && (
-                  <button type="button" disabled={updating} onClick={() => void retryRefund()}>
-                    Vollerstattung nach Prüfung erneut anfordern
-                  </button>
+                  <p>Bitte kläre die Erstattung an der Kasse.</p>
                 )}
                 {role !== "viewer" && detail.delivery && (
                   <address>

@@ -1,16 +1,6 @@
 import type { DomainWebhookEnvironment } from "./domain-webhooks.js";
-import {
-  requestSupportPartialRefund,
-  type SupportRefundEnvironment,
-} from "./support-partial-refunds.js";
 import { Client } from "pg";
-import {
-  parseSupportCommand,
-  parseSupportState,
-  parseSupportRefundCommand,
-  parseSupportRefundState,
-  type SupportCommand,
-} from "@provide/contracts";
+import { parseSupportCommand, parseSupportState, type SupportCommand } from "@provide/contracts";
 import { lockAccountSession } from "./account-session.js";
 import {
   readBearerToken,
@@ -66,7 +56,7 @@ export const postgresSupport: SupportRepository = async (connectionString, ident
 };
 export async function handleSupport(
   request: Request,
-  env: SupportEnvironment & SupportRefundEnvironment,
+  env: SupportEnvironment,
   verifier: DashboardTokenVerifier,
   repository: SupportRepository,
   context: RequestContext,
@@ -96,28 +86,14 @@ export async function handleSupport(
       : fail(503, "service_unavailable");
   }
   if (identity.aal !== "aal2" || !identity.sessionId) return fail(403, "forbidden");
-  let body: unknown;
+  let command: SupportCommand | undefined;
   try {
-    body = await readJsonBody(request, 4096);
+    command = parseSupportCommand(await readJsonBody(request, 4096));
   } catch (error) {
     return fail(error instanceof RequestBodyError ? error.status : 400, "bad_request");
   }
-  const refund = parseSupportRefundCommand(body);
-  const command = parseSupportCommand(body);
-  if (!refund && !command) return fail(400, "bad_request");
+  if (!command) return fail(400, "bad_request");
   try {
-    if (refund) {
-      const r = await requestSupportPartialRefund(env, identity, refund);
-      if (r?.outcome === "forbidden") return fail(403, "forbidden");
-      if (r?.outcome === "not_found") return fail(404, "not_found");
-      if (r?.outcome === "invalid") return fail(400, "bad_request");
-      if (r?.outcome === "conflict") return fail(409, "conflict");
-      const data = r?.outcome === "allowed" ? parseSupportRefundState(r.data, refund) : undefined;
-      return data
-        ? jsonSuccess(data, context.requestId, 200, cors)
-        : fail(503, "service_unavailable");
-    }
-    if (!command) return fail(400, "bad_request");
     const r = (await repository(env.HYPERDRIVE.connectionString, identity, command)) as {
       outcome?: unknown;
       data?: unknown;

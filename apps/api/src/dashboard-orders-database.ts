@@ -81,15 +81,6 @@ export const postgresDashboardOrdersReader: DashboardOrdersReader = {
       identity,
     );
   },
-  retryRefund(connectionString, identity, scope) {
-    return query(
-      connectionString,
-      false,
-      "select private.retry_online_refund($1,$2,$3,$4,$5) as data",
-      [identity.userId, identity.aal, scope.restaurantId, scope.locationId, scope.orderId],
-      identity,
-    );
-  },
   list(connectionString, identity, scope, filters) {
     return query(
       connectionString,

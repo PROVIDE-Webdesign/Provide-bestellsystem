@@ -8,11 +8,7 @@ export type DashboardOrderRoute =
       readonly orderId?: undefined;
     }
   | {
-      readonly name:
-        | "dashboardOrder"
-        | "dashboardOrderStatus"
-        | "dashboardRefundRetry"
-        | "dashboardOrderCommunication";
+      readonly name: "dashboardOrder" | "dashboardOrderStatus" | "dashboardOrderCommunication";
       readonly restaurantId: string;
       readonly locationId: string;
       readonly orderId: string;
@@ -73,7 +69,7 @@ function matchPath(request: Request): MatchedRoute | undefined {
   if (alerts?.[1] && alerts[2])
     return { name: "dashboardOrderAlerts", restaurantId: alerts[1], locationId: alerts[2] };
   const dashboardOrder =
-    /^\/v1\/dashboard\/restaurants\/([^/]+)\/locations\/([^/]+)\/orders(?:\/([^/]+)(\/status|\/refund-retry|\/communication)?)?$/.exec(
+    /^\/v1\/dashboard\/restaurants\/([^/]+)\/locations\/([^/]+)\/orders(?:\/([^/]+)(\/status|\/communication)?)?$/.exec(
       path,
     );
   if (dashboardOrder) {
@@ -84,11 +80,9 @@ function matchPath(request: Request): MatchedRoute | undefined {
         name:
           statusSuffix === "/communication"
             ? "dashboardOrderCommunication"
-            : statusSuffix === "/refund-retry"
-              ? "dashboardRefundRetry"
-              : statusSuffix
-                ? "dashboardOrderStatus"
-                : "dashboardOrder",
+            : statusSuffix
+              ? "dashboardOrderStatus"
+              : "dashboardOrder",
         restaurantId,
         locationId,
         orderId,
@@ -156,11 +150,7 @@ export function routeRequest(request: Request): MatchedRoute | undefined {
     match.name === "delivery-orders"
   )
     return request.method === "POST" ? match : undefined;
-  if (
-    match.name === "dashboardOrderStatus" ||
-    match.name === "dashboardRefundRetry" ||
-    match.name === "dashboardOrderCommunication"
-  )
+  if (match.name === "dashboardOrderStatus" || match.name === "dashboardOrderCommunication")
     return request.method === "POST" ? match : undefined;
   return request.method === "GET" ? match : undefined;
 }

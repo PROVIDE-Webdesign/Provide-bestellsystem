@@ -292,7 +292,18 @@ export async function verifyOnlineIntegration(
       )
     )?.refund_state,
   ).toBe("failed");
-  expect((await dashboardPost(confirmation.orderId, "refund-retry", {})).status).toBe(200);
+  expect((await dashboardPost(confirmation.orderId, "refund-retry", {})).status).toBe(404);
+  const recovery = await admin.query<{ outcome: string }>(
+    "select private.retry_online_refund($1,$2,$3,$4,$5)->>'outcome' as outcome",
+    [
+      "f1000000-0000-0000-0000-000000000001",
+      "aal2",
+      "f2000000-0000-0000-0000-000000000001",
+      "f3000000-0000-0000-0000-000000000001",
+      confirmation.orderId,
+    ],
+  );
+  expect(recovery.rows[0]?.outcome).toBe("allowed");
   refundStatus = "succeeded";
   await run(confirmation.orderId);
   expect(
