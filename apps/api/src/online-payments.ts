@@ -175,13 +175,13 @@ export async function verifyPaymentToken(
 }
 export function onlineState(j: OnlineJob): PaymentState {
   if (j.last_error === "manual_review") return "review";
-  if (j.refund_state === "succeeded") return "refunded";
+  if (j.refund_state === "succeeded" || j.payment_status === "refunded") return "refunded";
   if (j.refund_state === "failed") return "refund_failed";
   if (["requested", "pending"].includes(j.refund_state)) return "refund_pending";
   if (j.close_requested && !j.provider_terminal) return "cancelling";
   if (j.payment_status === "authorized")
     return j.capture_requested_at ? "capture_pending" : "authorized";
-  if (j.payment_status === "captured") return "paid";
+  if (j.payment_status === "captured" || j.payment_status === "partially_refunded") return "paid";
   if (["failed", "cancelled", "expired"].includes(j.payment_status)) return "expired";
   return j.last_error || Date.parse(j.deadline) <= Date.now() ? "checking" : "open";
 }

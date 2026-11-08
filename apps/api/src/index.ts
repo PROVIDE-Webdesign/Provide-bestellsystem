@@ -1,3 +1,4 @@
+import { dispatchSupportPartialRefunds } from "./support-partial-refunds.js";
 import { dispatchDomainWebhooks, type DomainWebhookEnvironment } from "./domain-webhooks.js";
 import { handleCartHandoff, cleanupCartHandoffs } from "./cart-handoff.js";
 
@@ -14,7 +15,13 @@ import {
   turnstileCheckoutChallenge,
   type CheckoutChallengeVerifier,
 } from "./checkout-challenge.js";
-import { handleSupport, postgresSupport, type SupportRepository } from "./support.js";
+import {
+  handleSupport,
+  postgresSupport,
+  reconcileSupportSources,
+  pingSupportMonitor,
+  type SupportRepository,
+} from "./support.js";
 import { handleAccountRecovery } from "./account-recovery.js";
 import {
   handleProvideAdmin,
@@ -86,6 +93,9 @@ interface Env
     OrderPushEnvironment,
     DomainWebhookEnvironment {
   readonly SUPPORT_CASES_ENABLED?: string;
+  readonly SUPPORT_TEST_REFUNDS_ENABLED?: string;
+  readonly SUPPORT_RECONCILIATION_RESTAURANT_ID?: string;
+  readonly SUPPORT_MONITOR_PING_URL?: string;
   readonly ACCOUNT_RECOVERY_ENABLED?: string;
   readonly ACCOUNT_RECOVERY_ORIGIN?: string;
   readonly DASHBOARD_PERSONNEL_ENABLED?: string;
@@ -438,6 +448,9 @@ export function createApiWorker(
       );
       context.waitUntil(dispatchEmailNotifications(env, emailRepository, emailAdapter, logger));
       context.waitUntil(dispatchDomainWebhooks(env, logger));
+      context.waitUntil(reconcileSupportSources(env, logger));
+      context.waitUntil(pingSupportMonitor(env, logger));
+      context.waitUntil(dispatchSupportPartialRefunds(env, logger));
       context.waitUntil(
         dispatchOrderNotifications(env, notificationRepository, notificationAdapter, logger),
       );

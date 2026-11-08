@@ -1,6 +1,9 @@
 import {
   parseSupportCommand,
   parseSupportState,
+  parseSupportRefundCommand,
+  parseSupportRefundState,
+  type SupportRefundCommand,
   type SupportCommand,
   parseProvideAdminCommand,
   parseProvideAdminState,
@@ -51,19 +54,22 @@ function safeApiBase(value: string | undefined): URL | undefined {
   }
 }
 
-export async function readSupportBody(request: Request): Promise<SupportCommand> {
-  const q = parseSupportCommand(await boundedJson(request, 4096));
+export async function readSupportBody(
+  request: Request,
+): Promise<SupportCommand | SupportRefundCommand> {
+  const body = await boundedJson(request, 4096);
+  const q = parseSupportCommand(body) ?? parseSupportRefundCommand(body);
   if (!q) throw Error("Invalid support request");
   return q;
 }
 export async function fetchSupport(
   token: string,
   apiBase: string | undefined,
-  q: SupportCommand,
+  q: SupportCommand | SupportRefundCommand,
   fetcher: typeof fetch = fetch,
 ): Promise<Response> {
   const base = safeApiBase(apiBase),
-    command = parseSupportCommand(q);
+    command = parseSupportCommand(q) ?? parseSupportRefundCommand(q);
   if (!base || !command || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token))
     return operationalFailure(400);
   try {
@@ -82,6 +88,10 @@ export async function fetchSupport(
           : 503,
       );
     const envelope = (await boundedJson(response, 512 * 1024)) as { data?: unknown };
+    if (command.action === "partial_refund") {
+      const refund = parseSupportRefundState(envelope.data, command);
+      return refund ? Response.json({ data: refund }, { headers }) : operationalFailure(503);
+    }
     const data = parseSupportState(envelope.data);
     if (!data || data.restaurantId !== q.restaurantId || data.locationId !== q.locationId)
       return operationalFailure(503);

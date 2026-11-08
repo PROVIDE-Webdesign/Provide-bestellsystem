@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import raw from "../../../fixtures/support.json" with { type: "json" };
-import { handleSupport } from "./support.js";
+import { handleSupport, pingSupportMonitor } from "./support.js";
 import { routeRequest } from "./router.js";
 const env = {
   SUPPORT_CASES_ENABLED: "true",
@@ -114,4 +114,19 @@ describe("O1 support API boundary", () => {
       expect((await run(request({ ...command, action }), repo)).status).toBe(400);
     expect(repo).not.toHaveBeenCalled();
   });
+});
+
+it("fails the configured healthcheck without sending job data if its probe is unavailable", async () => {
+  const logger = { error: vi.fn() };
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 200 }));
+  const endpoint = "https://hc-ping.com/f1000000-0000-0000-0000-000000000001";
+  await pingSupportMonitor({ SUPPORT_MONITOR_PING_URL: endpoint }, logger, fetcher);
+  expect(fetcher).toHaveBeenCalledWith(endpoint + "/fail", {
+    method: "POST",
+    redirect: "manual",
+    signal: fetcher.mock.calls[0]?.[1]?.signal,
+  });
+  expect(fetcher.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+  await pingSupportMonitor({ SUPPORT_MONITOR_PING_URL: "https://invalid.test" }, logger, fetcher);
+  expect(fetcher).toHaveBeenCalledTimes(1);
 });

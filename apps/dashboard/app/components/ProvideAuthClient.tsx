@@ -5,7 +5,13 @@ import { LoginForm } from "./LoginForm.js";
 import { MfaPanel } from "./MfaPanel.js";
 import { ProvideAdmin } from "./ProvideAdmin.js";
 import { SupportCases } from "./SupportCases.js";
-export function ProvideAuthClient({ support = false }: { support?: boolean }) {
+export function ProvideAuthClient({
+  support = false,
+  testRefunds = false,
+}: {
+  support?: boolean;
+  testRefunds?: boolean;
+}) {
   const [nonce, setNonce] = useState(0),
     [state, setState] = useState<"checking" | "login" | "mfa" | "ready">("checking");
   useEffect(() => {
@@ -59,7 +65,7 @@ export function ProvideAuthClient({ support = false }: { support?: boolean }) {
       >
         Abmelden
       </button>
-      {support ? <SupportCases /> : <ProvideAdmin />}
+      {support ? <SupportCases testRefunds={testRefunds} /> : <ProvideAdmin />}
     </>
   );
 }

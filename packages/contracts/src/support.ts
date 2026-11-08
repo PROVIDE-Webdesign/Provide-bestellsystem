@@ -231,7 +231,7 @@ export type SupportState = Scope & {
     caseId: string;
     action: "create" | "observe" | "claim" | "assign" | "status" | "priority" | "deadline";
     provenance: "human" | "system_observed";
-    actorUserId: string;
+    actorUserId: string | null;
     reason: SupportReason;
     revision: number;
     at: string;
@@ -424,7 +424,7 @@ export function parseSupportState(value: unknown): SupportState | undefined {
         "deadline",
       ]) ||
       !member(a.provenance, ["human", "system_observed"]) ||
-      !uuid(a.actorUserId) ||
+      (!uuid(a.actorUserId) && !(a.actorUserId === null && a.provenance === "system_observed")) ||
       !member(a.reason, supportReasons) ||
       !Number.isSafeInteger(a.revision) ||
       Number(a.revision) < 1 ||
@@ -437,4 +437,66 @@ export function parseSupportState(value: unknown): SupportState | undefined {
       return undefined;
   }
   return s as SupportState;
+}
+
+export const supportRefundReasons = ["customer_request", "missing_item", "service_issue"] as const;
+export interface SupportRefundCommand {
+  action: "partial_refund";
+  restaurantId: string;
+  locationId: string;
+  caseId: string;
+  requestId: string;
+  amountMinor: number;
+  reason: (typeof supportRefundReasons)[number];
+}
+
+export function parseSupportRefundCommand(value: unknown): SupportRefundCommand | undefined {
+  const q = obj(value);
+  if (
+    !q ||
+    !keys(q, [
+      "action",
+      "restaurantId",
+      "locationId",
+      "caseId",
+      "requestId",
+      "amountMinor",
+      "reason",
+    ]) ||
+    q.action !== "partial_refund" ||
+    !uuid(q.restaurantId) ||
+    !uuid(q.locationId) ||
+    !uuid(q.caseId) ||
+    !uuid(q.requestId) ||
+    !Number.isSafeInteger(q.amountMinor) ||
+    Number(q.amountMinor) < 1 ||
+    Number(q.amountMinor) > 99999999 ||
+    !member(q.reason, supportRefundReasons)
+  )
+    return undefined;
+  return q as unknown as SupportRefundCommand;
+}
+
+export interface SupportRefundState {
+  requestId: string;
+  amountMinor: number;
+  reason: SupportRefundCommand["reason"];
+  state: "queued" | "pending" | "succeeded" | "failed" | "review";
+}
+
+export function parseSupportRefundState(
+  value: unknown,
+  request: SupportRefundCommand,
+): SupportRefundState | undefined {
+  const q = obj(value);
+  if (
+    !q ||
+    !keys(q, ["requestId", "amountMinor", "reason", "state"]) ||
+    q.requestId !== request.requestId ||
+    q.amountMinor !== request.amountMinor ||
+    q.reason !== request.reason ||
+    !member(q.state, ["queued", "pending", "succeeded", "failed", "review"])
+  )
+    return undefined;
+  return q as unknown as SupportRefundState;
 }

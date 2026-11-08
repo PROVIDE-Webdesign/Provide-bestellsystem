@@ -1,4 +1,5 @@
 "use client";
+import { SupportRefundForm } from "./SupportRefundForm.js";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   parseSupportCommand,
@@ -45,7 +46,7 @@ const text = (form: FormData, key: string) => {
   return typeof value === "string" ? value.trim() : "";
 };
 type Update = Extract<SupportCommand, { action: "update" }>;
-export function SupportCases() {
+export function SupportCases({ testRefunds = false }: { testRefunds?: boolean } = {}) {
   const [restaurantId, setRestaurant] = useState(""),
     [locationId, setLocation] = useState("");
   const [data, setData] = useState<SupportState | null>(null),
@@ -482,6 +483,12 @@ export function SupportCases() {
                   <button>Fallaktion speichern</button>
                 </form>
               )}
+              {testRefunds &&
+                data.canManage &&
+                selected.orderId &&
+                selected.state !== "resolved" && (
+                  <SupportRefundForm key={selected.caseId} {...scope} caseId={selected.caseId} />
+                )}
               <h3>Letzte 30 Fallnachweise</h3>
               <ul>
                 {data.audit.map((a) => (

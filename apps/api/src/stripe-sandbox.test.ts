@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { stripeSandboxProvider, CheckoutCreationRejected } from "./stripe-sandbox.js";
+import {
+  stripeSandboxProvider,
+  stripeTestPartialRefund,
+  CheckoutCreationRejected,
+} from "./stripe-sandbox.js";
 const config = {
   key: "sk_test_synthetic",
   account: "acct_synthetic",
@@ -370,5 +374,68 @@ describe("checkout creation error certainty", () => {
     await expect(stripeSandboxProvider.session(config, job)).rejects.not.toBeInstanceOf(
       CheckoutCreationRejected,
     );
+  });
+});
+
+describe("support test partial refund", () => {
+  const action = {
+    id: "fa000000-0000-0000-0000-000000000002",
+    jobId: job.id,
+    merchantAccount: "acct_merchant",
+    intent: "pi_synthetic",
+    providerRefund: null,
+    amount: 450,
+    capturedAmount: 2950,
+  };
+  it("sends the exact approved amount on the verified test account with a stable request key", async () => {
+    const seen: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init: RequestInit) => {
+        const headers = new Headers(init.headers);
+        const meta = { provide_job: action.jobId, provide_support_refund: action.id };
+        if (url.endsWith("/account"))
+          return Promise.resolve(response({ id: headers.get("stripe-account") ?? config.account }));
+        expect(headers.get("stripe-account")).toBe(action.merchantAccount);
+        if (url.endsWith("/payment_intents/pi_synthetic"))
+          return Promise.resolve(
+            response({
+              id: action.intent,
+              livemode: false,
+              status: "succeeded",
+              currency: "eur",
+              amount_received: 2950,
+              metadata: meta,
+            }),
+          );
+        expect(url.endsWith("/refunds")).toBe(true);
+        expect(init.body).toBe(
+          new URLSearchParams({
+            payment_intent: action.intent,
+            amount: "450",
+            "metadata[provide_job]": action.jobId,
+            "metadata[provide_support_refund]": action.id,
+          }).toString(),
+        );
+        seen.push(headers.get("idempotency-key") ?? "");
+        return Promise.resolve(
+          response({
+            id: "re_synthetic",
+            livemode: false,
+            status: "succeeded",
+            payment_intent: action.intent,
+            amount: 450,
+            currency: "eur",
+            metadata: meta,
+          }),
+        );
+      }),
+    );
+    await expect(stripeTestPartialRefund(config, action)).resolves.toEqual({
+      id: "re_synthetic",
+      status: "succeeded",
+    });
+    await stripeTestPartialRefund(config, action);
+    expect(seen).toEqual(Array(2).fill("provide-support-refund:" + action.id));
   });
 });

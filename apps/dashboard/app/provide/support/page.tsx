@@ -11,7 +11,10 @@ export default function SupportPage() {
         <a href="/provide">Plattformverwaltung öffnen</a>
       </header>
       {enabled ? (
-        <ProvideAuthClient support />
+        <ProvideAuthClient
+          support
+          testRefunds={process.env.SUPPORT_TEST_REFUNDS_ENABLED === "true"}
+        />
       ) : (
         <section className="panel">
           <h2>Zugang derzeit geschlossen</h2>

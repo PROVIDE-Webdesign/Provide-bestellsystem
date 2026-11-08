@@ -50,11 +50,11 @@ async function query<T>(connectionString: string, sql: string, values: string[])
 
 const postgresDomainWebhooks: DomainWebhookRepository = {
   claim: (c, restaurant, activation, lease) =>
-    query(c, "select to_jsonb(e) as data from private.domain_webhook_claim($1,$2,$3) e", [
-      restaurant,
-      activation,
-      lease,
-    ]),
+    query(
+      c,
+      "select to_jsonb(e) as data from private.claim_domain_webhooks_with_activations($1,$2,$3) e",
+      [restaurant, activation, lease],
+    ),
   finish: async (c, id, lease, outcome) =>
     (
       await query<string>(c, "select private.domain_webhook_finish($1,$2,$3) as data", [
