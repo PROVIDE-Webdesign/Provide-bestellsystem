@@ -1,3 +1,4 @@
+import { dispatchDomainWebhooks, type DomainWebhookEnvironment } from "./domain-webhooks.js";
 import { handleCartHandoff, cleanupCartHandoffs } from "./cart-handoff.js";
 
 import {
@@ -78,7 +79,12 @@ interface HyperdriveBinding {
   readonly connectionString: string;
 }
 
-interface Env extends OnlineEnvironment, CheckoutProtectionEnvironment, OrderPushEnvironment {
+interface Env
+  extends
+    OnlineEnvironment,
+    CheckoutProtectionEnvironment,
+    OrderPushEnvironment,
+    DomainWebhookEnvironment {
   readonly SUPPORT_CASES_ENABLED?: string;
   readonly ACCOUNT_RECOVERY_ENABLED?: string;
   readonly ACCOUNT_RECOVERY_ORIGIN?: string;
@@ -426,11 +432,12 @@ export function createApiWorker(
       context.waitUntil(dispatchGuestPurge(env, logger, guestPurge));
       context.waitUntil(dispatchAcceptanceAlerts(env, dashboardOrdersReader, logger));
       context.waitUntil(
-        dispatchOnlinePayments(env, onlineRepository, onlineProvider).finally(() =>
-          dispatchOrderPush(env, logger, true),
-        ),
+        dispatchOnlinePayments(env, onlineRepository, onlineProvider)
+          .catch(() => logger.error(createRequestContext(), "online_payment_dispatch_failed"))
+          .finally(() => dispatchOrderPush(env, logger, true)),
       );
       context.waitUntil(dispatchEmailNotifications(env, emailRepository, emailAdapter, logger));
+      context.waitUntil(dispatchDomainWebhooks(env, logger));
       context.waitUntil(
         dispatchOrderNotifications(env, notificationRepository, notificationAdapter, logger),
       );

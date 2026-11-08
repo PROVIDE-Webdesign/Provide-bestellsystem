@@ -179,6 +179,25 @@ describe("transactional email worker", () => {
     expect(s.adapter.send).toHaveBeenCalledTimes(1);
     expect(s.repo.finish).toHaveBeenCalledTimes(1);
   });
+  it("continues other mail jobs when a completion write fails", async () => {
+    const s = setup();
+    vi.mocked(s.repo.claim).mockResolvedValue([
+      job,
+      { ...job, deliveryId: "fa100000-0000-0000-0000-000000000004" },
+    ]);
+    vi.mocked(s.repo.finish)
+      .mockRejectedValueOnce(new Error(job.email))
+      .mockResolvedValueOnce("dead_letter");
+    await dispatchEmailNotifications(env, s.repo, s.adapter, s.logger);
+    expect(s.adapter.send).toHaveBeenCalledTimes(2);
+    expect(s.logger.error).toHaveBeenNthCalledWith(
+      1,
+      expect.any(Object),
+      "email_completion_failed",
+    );
+    expect(s.logger.error).toHaveBeenNthCalledWith(2, expect.any(Object), "email_dead_letter");
+    expect(JSON.stringify(s.logger.error.mock.calls)).not.toContain(job.email);
+  });
   it("escapes HTML, uses confirmed time and omits full delivery addresses", () => {
     const m = renderEmailNotification(
       { ...job, templateKey: "order_submitted", restaurantName: "<script>x</script>" },

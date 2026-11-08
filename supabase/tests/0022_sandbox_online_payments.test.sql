@@ -42,11 +42,24 @@ select is(private.transition_dashboard_order_status('f1000000-0000-0000-0000-000
  'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',(:'confirmation'::jsonb->>'orderId')::uuid,'submitted','rejected')->>'outcome','updated','paid order can be rejected');
 select private.claim_online_payment_job('acct_synthetic',(:'confirmation'::jsonb->>'orderId')::uuid,'fc100000-0000-0000-0000-000000000004') as refund_job \gset
 select is(:'refund_job'::jsonb->>'refund_state','requested','rejection durably requests full refund');
+select ok(not has_function_privilege('authenticated','private.reserve_online_refund_attempt(uuid,uuid,integer)','execute'),'browser cannot reserve a refund');
+select throws_ok(format('select private.reserve_online_refund_attempt(%L,%L,0)',:'job'::jsonb->>'id','fc100000-0000-0000-0000-000000000002'),
+ 'P0001','refund attempt lease invalid','another worker cannot authorize a refund send');
+select ok(private.reserve_online_refund_attempt((:'job'::jsonb->>'id')::uuid,'fc100000-0000-0000-0000-000000000004',0),'persist attempt before first external refund');
+select ok(private.reserve_online_refund_attempt((:'job'::jsonb->>'id')::uuid,'fc100000-0000-0000-0000-000000000004',0),'same generation can safely replay within the provider window');
+reset role;
+update public.online_payment_jobs set refund_attempt_started_at=statement_timestamp()-interval '21 hours'
+ where id=(:'job'::jsonb->>'id')::uuid;
+set local role service_role;
+select is(private.reserve_online_refund_attempt((:'job'::jsonb->>'id')::uuid,'fc100000-0000-0000-0000-000000000004',0),false,'uncertain old generation is held for review');
+
 select private.sync_online_payment((:'job'::jsonb->>'id')::uuid,'fc100000-0000-0000-0000-000000000004','refund_failed','pi_one','re_one',repeat('b',64));
 select is(private.retry_online_refund('f1000000-0000-0000-0000-000000000003','aal1','f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',(:'confirmation'::jsonb->>'orderId')::uuid)->>'outcome','forbidden','kitchen cannot retry refunds');
 select is(private.retry_online_refund('f1000000-0000-0000-0000-000000000001','aal2','f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',(:'confirmation'::jsonb->>'orderId')::uuid)->>'outcome','allowed','owner can explicitly retry failed refund');
 select private.claim_online_payment_job('acct_synthetic',(:'confirmation'::jsonb->>'orderId')::uuid,'fc100000-0000-0000-0000-000000000005') as retry_job \gset
 select is((:'retry_job'::jsonb->>'refund_sequence')::integer,1,'new refund command has a new stable generation');
+select ok(private.reserve_online_refund_attempt((:'job'::jsonb->>'id')::uuid,'fc100000-0000-0000-0000-000000000005',1),'explicit retry of a confirmed failed refund starts a fresh window');
+
 select private.sync_online_payment((:'job'::jsonb->>'id')::uuid,'fc100000-0000-0000-0000-000000000005','refunded','pi_one','re_two',repeat('c',64));
 select is(private.read_public_guest_order_status('storefront-restaurant-a','storefront-a-mitte',(:'confirmation'::jsonb->>'orderId')::uuid)->>'paymentState','refunded','successful full refund is displayed');
 reset role;

@@ -224,14 +224,19 @@ export async function dispatchEmailNotifications(
       } catch {
         completion = { outcome: "unknown", code: "adapter_request_failed" };
       }
-      const outcome = await repository.finish(
-        env.HYPERDRIVE.connectionString,
-        job.deliveryId,
-        job.lockToken,
-        completion,
-        now().toISOString(),
-      );
-      if (outcome === "conflict") logger.error(context, "email_completion_conflict");
+      try {
+        const outcome = await repository.finish(
+          env.HYPERDRIVE.connectionString,
+          job.deliveryId,
+          job.lockToken,
+          completion,
+          now().toISOString(),
+        );
+        if (outcome === "conflict") logger.error(context, "email_completion_conflict");
+        if (outcome === "dead_letter") logger.error(context, "email_dead_letter");
+      } catch {
+        logger.error(context, "email_completion_failed");
+      }
     }
   } catch {
     logger.error(context, "email_dispatch_failed");

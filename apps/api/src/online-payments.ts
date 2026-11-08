@@ -288,6 +288,10 @@ export async function processOnlinePayment(
         latest.close_requested ||
         ["cancelled", "rejected"].includes(latest.order_status))
     ) {
+      if (!j.refund_id && !(await repo.reserveRefund(connection, j.id, lease, j.refund_sequence))) {
+        await repo.fail(connection, j.id, lease, true);
+        return;
+      }
       const refund = await provider.refund(
         merchantConfig,
         session.intent!,

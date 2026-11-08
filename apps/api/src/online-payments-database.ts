@@ -55,6 +55,7 @@ export interface OnlineRepository {
     mode?: OnlinePaymentMode,
   ): Promise<OnlineJob | null>;
   bind(connection: string, job: string, lease: string, session: string): Promise<void>;
+  reserveRefund(connection: string, job: string, lease: string, sequence: number): Promise<boolean>;
   sync(
     connection: string,
     job: string,
@@ -173,6 +174,8 @@ export const postgresOnlineRepository: OnlineRepository = {
     ]),
   bind: (c, j, l, s) =>
     query(c, "select private.bind_online_payment_session($1,$2,$3) as data", [j, l, s]),
+  reserveRefund: (c, j, l, sequence) =>
+    query(c, "select private.reserve_online_refund_attempt($1,$2,$3) as data", [j, l, sequence]),
   sync: (c, j, l, s, i, r, d) =>
     query(c, "select private.sync_online_payment($1,$2,$3,$4,$5,$6) as data", [j, l, s, i, r, d]),
   fail: (c, j, l, m) =>

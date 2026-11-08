@@ -109,6 +109,35 @@ describe("order notification dispatch", () => {
     expect(logger.error).not.toHaveBeenCalled();
   });
 
+  it("does not start another SMS after the claim lease expires", async () => {
+    const { repository, adapter, logger, claim, send, finish } = dependencies();
+    const second = { ...job, deliveryId: "fa000000-0000-0000-0000-000000000004" };
+    claim.mockResolvedValue([job, second]);
+    let clock = Date.parse("2026-09-15T16:00:00.000Z");
+    send.mockImplementation(() => {
+      clock += 5 * 60 * 1000;
+      return Promise.resolve({ outcome: "accepted" });
+    });
+    await dispatchOrderNotifications(env, repository, adapter, logger, () => new Date(clock));
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(finish).toHaveBeenCalledTimes(1);
+  });
+
+  it("continues other SMS jobs when a completion write fails", async () => {
+    const { repository, adapter, logger, claim, send, finish } = dependencies();
+    claim.mockResolvedValue([job, { ...job, deliveryId: "fa000000-0000-0000-0000-000000000004" }]);
+    finish.mockRejectedValueOnce(new Error(job.phoneE164)).mockResolvedValueOnce("dead_letter");
+    await dispatchOrderNotifications(env, repository, adapter, logger);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(logger.error).toHaveBeenNthCalledWith(
+      1,
+      expect.any(Object),
+      "notification_completion_failed",
+    );
+    expect(logger.error).toHaveBeenNthCalledWith(2, expect.any(Object), "notification_dead_letter");
+    expect(JSON.stringify(logger.error.mock.calls)).not.toContain(job.phoneE164);
+  });
+
   it("passes bounded adapter failures to the retry state machine", async () => {
     const { repository, adapter, logger, finish } = dependencies({
       outcome: "temporary_failure",

@@ -46,6 +46,7 @@ describe("online payment boundaries", () => {
       resume: vi.fn(),
       claim: vi.fn(),
       bind: vi.fn(),
+      reserveRefund: vi.fn().mockResolvedValue(true),
       sync: vi.fn(),
       fail: vi.fn(),
       rejectCreation: vi.fn(),
@@ -203,6 +204,7 @@ describe("online payment boundaries", () => {
       resume: vi.fn().mockResolvedValue(true),
       claim: vi.fn().mockResolvedValue(job),
       bind: vi.fn(),
+      reserveRefund: vi.fn().mockResolvedValue(true),
       sync,
       fail: vi.fn(),
       rejectCreation: vi.fn(),
@@ -253,6 +255,7 @@ describe("connected restaurant reconciliation", () => {
     resume: vi.fn(),
     claim: vi.fn().mockResolvedValue(job),
     bind: vi.fn(),
+    reserveRefund: vi.fn().mockResolvedValue(true),
     sync: vi.fn(),
     fail: vi.fn(),
     rejectCreation: vi.fn(),
@@ -355,6 +358,46 @@ describe("connected restaurant reconciliation", () => {
       expect(repo.fail).not.toHaveBeenCalled();
     },
   );
+  it("stops a new refund when an earlier uncertain attempt is outside the replay window", async () => {
+    const job: OnlineJob = {
+      ...jobFor("acct_restaurantA"),
+      close_requested: "cancelled",
+      order_status: "cancelled",
+      refund_sequence: 2,
+    };
+    const repo = repository(job);
+    repo.reserveRefund.mockResolvedValue(false);
+    const provider = {
+      session: vi.fn().mockResolvedValue({
+        id: job.session_id,
+        status: "complete",
+        paid: true,
+        intent: "pi_connected",
+        url: null,
+      }),
+      expire: vi.fn(),
+      refund: vi.fn(),
+    };
+    await processOnlinePayment("synthetic", config, repo, provider, id);
+    expect(repo.reserveRefund).toHaveBeenCalledWith("synthetic", id, expect.any(String), 2);
+    expect(provider.refund).not.toHaveBeenCalled();
+    expect(repo.fail).toHaveBeenCalledWith("synthetic", id, expect.any(String), true);
+    expect(repo.sync).not.toHaveBeenCalled();
+
+    const known = repository({ ...job, refund_id: "re_previous" });
+    provider.refund.mockResolvedValue({ id: "re_previous", status: "succeeded" });
+    await processOnlinePayment("synthetic", config, known, provider, id);
+    expect(known.reserveRefund).not.toHaveBeenCalled();
+    expect(provider.refund).toHaveBeenCalledWith(
+      { ...config, merchantAccount: job.account_id },
+      "pi_connected",
+      id,
+      "re_previous",
+      2500,
+      2,
+    );
+  });
+
   it.each([null, "rejected"])("finishes a conclusive creation rejection (%s)", async (close) => {
     const job = {
       ...jobFor("acct_restaurantA"),

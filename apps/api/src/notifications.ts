@@ -159,23 +159,31 @@ export async function dispatchOrderNotifications(
   }
 
   try {
+    const claimedAt = now().getTime();
     const jobs = await repository.claim(
       environment.HYPERDRIVE.connectionString,
       crypto.randomUUID(),
       25,
-      now().toISOString(),
+      new Date(claimedAt).toISOString(),
     );
     for (const job of jobs) {
-      const status = await processJob(
-        environment as NotificationEnvironment & {
-          HYPERDRIVE: { connectionString: string };
-        },
-        job,
-        repository,
-        adapter,
-        now,
-      );
-      if (status === "conflict") logger.error(context, "notification_completion_conflict");
+      // The database reclaims the batch after five minutes. Do not start a stale send.
+      if (now().getTime() - claimedAt >= 5 * 60 * 1000) break;
+      try {
+        const status = await processJob(
+          environment as NotificationEnvironment & {
+            HYPERDRIVE: { connectionString: string };
+          },
+          job,
+          repository,
+          adapter,
+          now,
+        );
+        if (status === "conflict") logger.error(context, "notification_completion_conflict");
+        if (status === "dead_letter") logger.error(context, "notification_dead_letter");
+      } catch {
+        logger.error(context, "notification_completion_failed");
+      }
     }
   } catch {
     logger.error(context, "notification_dispatch_failed");
