@@ -142,7 +142,7 @@ export async function verifyOrderLiveBrowser(page: Page, output: string, width: 
     .getByRole("button", { name: /BS-00000448/ })
     .waitFor();
   await page.getByRole("button", { name: "Ton aktivieren und testen", exact: true }).click();
-  await page.getByRole("button", { name: "Ton stummschalten", exact: true }).waitFor();
+  await page.getByText("Ton aktiviert.", { exact: true }).waitFor();
   assert.equal(await tones(), 1, "Explicit activation includes one test tone");
   await page.waitForLoadState("networkidle");
   const before = reads;
@@ -161,7 +161,7 @@ export async function verifyOrderLiveBrowser(page: Page, output: string, width: 
     .first()
     .waitFor();
   await page.waitForLoadState("networkidle");
-  assert.ok((await tones()) >= 2, "An opted-in overdue inbox repeats its alarm");
+  await page.waitForFunction(() => Number(sessionStorage.getItem("synthetic-tone-starts")) >= 2);
   await page.getByRole("button", { name: "Ton stummschalten", exact: true }).click();
   const muted = await tones();
   await page.screenshot({ path: output + `order-live-alarm-${width}.png`, fullPage: true });

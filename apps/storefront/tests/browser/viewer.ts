@@ -172,9 +172,13 @@ export async function verifyViewerBrowser(page: Page, output: string, width: num
     .waitFor();
   await noActions();
   const before = reads;
-  const refreshed = page.waitForResponse(
-    (response) => new URL(response.url()).pathname === "/api/orders" && response.status() === 200,
-  );
+  const refreshed = page.waitForResponse(async (response) => {
+    if (new URL(response.url()).pathname !== "/api/orders" || response.status() !== 200) {
+      return false;
+    }
+    const result = (await response.json()) as { data: { orders: { status: string }[] } };
+    return result.data.orders[0]?.status === "preparing";
+  });
   status = "preparing";
   await page.evaluate(() =>
     window.dispatchEvent(
@@ -187,10 +191,7 @@ export async function verifyViewerBrowser(page: Page, output: string, width: num
     .locator('button.operator-order-card[title="BS-00000421"]')
     .filter({ hasText: "In Zubereitung" })
     .waitFor();
-  const refreshedData = (await (await refreshed).json()) as {
-    data: { orders: { status: string }[] };
-  };
-  assert.equal(refreshedData.data.orders[0]?.status, "preparing");
+  await refreshed;
   assert.ok(reads > before);
   await noActions();
   denied = true;
