@@ -184,8 +184,10 @@ select private.submit_public_guest_pickup_order('storefront-restaurant-a','store
   'email-preview-old-0001','{"contact_name":"Synthetic","email":"preview.test@gmail.com"}','preview-v1',30) as old_preview \gset
 reset role;
 -- Fixture inserts share one transaction timestamp. Give the historical order its own earlier timestamp.
+alter table public.orders disable trigger orders_protect_snapshot;
 update public.orders set created_at=transaction_timestamp()-interval '1 minute'
 where id=(:'old_preview'::jsonb->>'orderId')::uuid;
+alter table public.orders enable trigger orders_protect_snapshot;
 select transaction_timestamp() as mail_preview_cutoff \gset
 set local role service_role;
 select private.submit_public_guest_pickup_order('storefront-restaurant-a','storefront-a-mitte',
