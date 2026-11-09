@@ -13,6 +13,7 @@ export interface OnlineJob {
   acceptance_deadline?: string | null;
   refund_id: string | null;
   refund_state: string;
+  refund_at_till?: boolean;
   refund_sequence: number;
   close_requested: string | null;
   provider_terminal: boolean;

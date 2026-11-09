@@ -358,6 +358,40 @@ describe("connected restaurant reconciliation", () => {
       expect(repo.fail).not.toHaveBeenCalled();
     },
   );
+  it("leaves a restaurant cancellation of an accepted payment to the till", async () => {
+    const job: OnlineJob = { ...jobFor("acct_restaurantA"), payment_status: "captured" };
+    const repo = repository(job);
+    repo.read.mockResolvedValue({
+      ...job,
+      order_status: "cancelled",
+      close_requested: "cancelled",
+      refund_at_till: true,
+    });
+    const provider = {
+      session: vi.fn().mockResolvedValue({
+        id: job.session_id,
+        status: "complete",
+        paid: true,
+        intent: "pi_connected",
+        url: null,
+      }),
+      expire: vi.fn(),
+      refund: vi.fn(),
+    };
+    await processOnlinePayment("synthetic", config, repo, provider, id);
+    expect(repo.reserveRefund).not.toHaveBeenCalled();
+    expect(provider.refund).not.toHaveBeenCalled();
+    expect(repo.sync).toHaveBeenCalledWith(
+      "synthetic",
+      id,
+      expect.any(String),
+      "paid",
+      "pi_connected",
+      null,
+      expect.any(String),
+    );
+  });
+
   it("stops a new refund when an earlier uncertain attempt is outside the replay window", async () => {
     const job: OnlineJob = {
       ...jobFor("acct_restaurantA"),

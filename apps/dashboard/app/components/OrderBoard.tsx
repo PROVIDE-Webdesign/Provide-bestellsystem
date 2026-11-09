@@ -830,9 +830,11 @@ export function OrderBoard({
                     Zahlung: <strong>{paymentStateLabels[detail.paymentState]}</strong>
                   </p>
                 )}
-                {role !== "viewer" && detail.paymentState === "refund_failed" && (
-                  <p>Bitte kläre die Erstattung an der Kasse.</p>
-                )}
+                {role !== "viewer" &&
+                  (detail.paymentState === "refund_failed" ||
+                    (detail.status === "cancelled" && detail.paymentState === "paid")) && (
+                    <p>Bitte kläre die Erstattung an der Kasse.</p>
+                  )}
                 {role !== "viewer" && detail.delivery && (
                   <address>
                     {detail.delivery.recipientName}

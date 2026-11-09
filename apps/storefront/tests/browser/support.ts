@@ -82,11 +82,9 @@ export async function verifySupportBrowser(caller: Page, output: string, width: 
     });
   });
   await page.goto("http://127.0.0.1:4321/?support=1");
-  assert.ok(
-    await page
-      .getByText("Synthetischer O1-Browserprüflauf · keine echten Fälle", { exact: true })
-      .isVisible(),
-  );
+  await page
+    .getByText("Synthetischer O1-Browserprüflauf · keine echten Fälle", { exact: true })
+    .waitFor({ state: "visible" });
   assert.equal(calls, 0, "no background scan or arbitrary scope fetch");
   await page.getByLabel("Mandanten-ID", { exact: true }).fill(raw.restaurantId);
   await page.getByLabel("Standort-ID", { exact: true }).fill(raw.locationId);

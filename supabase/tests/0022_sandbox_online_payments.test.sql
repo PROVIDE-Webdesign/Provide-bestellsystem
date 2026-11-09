@@ -69,6 +69,22 @@ set local role service_role;
 select private.receive_online_payment_event('acct_synthetic','evt_one','refund.updated','re_two',repeat('d',64),'2026-09-20T00:00:00Z');
 select lives_ok($$select private.receive_online_payment_event('acct_synthetic','evt_one','refund.updated','re_two',repeat('d',64),'2026-09-20T00:00:00Z')$$,'duplicate webhook is harmless');
 select throws_ok($$select private.receive_online_payment_event('acct_synthetic','evt_one','refund.updated','re_two',repeat('e',64),'2026-09-20T00:00:00Z')$$,'P0001','conflicting payment event','changed duplicate rejected');
+select pg_temp.submit('online-till-order') as till_order \gset
+select private.claim_online_payment_job('acct_synthetic',(:'till_order'::jsonb->>'orderId')::uuid,'fc100000-0000-0000-0000-000000000031') as till_job \gset
+select private.bind_online_payment_session((:'till_job'::jsonb->>'id')::uuid,'fc100000-0000-0000-0000-000000000031','cs_test_till');
+select private.sync_online_payment((:'till_job'::jsonb->>'id')::uuid,'fc100000-0000-0000-0000-000000000031','paid','pi_till',null,repeat('a',64));
+select is(private.transition_dashboard_order_with_reason('f1000000-0000-0000-0000-000000000001','aal2',
+ 'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',(:'till_order'::jsonb->>'orderId')::uuid,'submitted','accepted',null)->>'outcome','updated','captured order can be accepted');
+select is(private.transition_dashboard_order_with_reason('f1000000-0000-0000-0000-000000000001','aal2',
+ 'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',(:'till_order'::jsonb->>'orderId')::uuid,'accepted','cancelled','unavailable')->>'outcome','updated','restaurant can cancel an accepted order');
+select is(private.read_online_payment_job('acct_synthetic',(:'till_order'::jsonb->>'orderId')::uuid)->>'refund_at_till','true','restaurant cancellation is assigned to the till');
+select is(private.read_online_payment_job('acct_synthetic',(:'till_order'::jsonb->>'orderId')::uuid)->>'refund_state','none','restaurant cancellation does not queue an automatic refund');
+select private.receive_platform_online_payment_event('acct_testplatform','acct_synthetic','evt_TillReplay','payment_intent.succeeded','pi_till',repeat('c',64),statement_timestamp(),true,'test');
+select ok(private.claim_online_payment_job('acct_synthetic',(:'till_order'::jsonb->>'orderId')::uuid,'fc100000-0000-0000-0000-000000000032') is not null,'a repeated provider event can still reconcile payment');
+select ok(not private.reserve_online_refund_attempt((:'till_job'::jsonb->>'id')::uuid,'fc100000-0000-0000-0000-000000000032',0),'database refuses an automatic refund for a restaurant cancellation');
+select private.sync_online_payment((:'till_job'::jsonb->>'id')::uuid,'fc100000-0000-0000-0000-000000000032','paid','pi_till',null,repeat('d',64));
+select is(private.read_online_payment_job('acct_synthetic',(:'till_order'::jsonb->>'orderId')::uuid)->>'refund_state','none','repeated provider event leaves the refund at the till');
+
 select pg_temp.submit('online-expire-order',7) as exp_confirmation \gset
 select private.transition_dashboard_order_status('f1000000-0000-0000-0000-000000000001','aal2',
  'f2000000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001',(:'exp_confirmation'::jsonb->>'orderId')::uuid,'submitted','cancelled') as requested \gset

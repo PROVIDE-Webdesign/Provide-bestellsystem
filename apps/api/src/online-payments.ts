@@ -284,6 +284,7 @@ export async function processOnlinePayment(
       refundId = j.refund_id;
     if (
       session.paid &&
+      !latest.refund_at_till &&
       (latest.refund_state !== "none" ||
         latest.close_requested ||
         ["cancelled", "rejected"].includes(latest.order_status))
