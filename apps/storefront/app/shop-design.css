@@ -731,3 +731,93 @@ html {
     overflow-wrap: anywhere;
   }
 }
+
+.shop-hero:not(.asian-hero) {
+  height: auto;
+  min-height: 72px;
+  padding: clamp(16px, 4cqw, 30px);
+}
+.shop-hero:not(.asian-hero) h1 {
+  margin: 0;
+}
+.shop-service--pickup {
+  grid-template-columns: 1fr 1fr;
+}
+.shop-pickup-mode {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.shop-service--pickup button {
+  border-right: 0;
+  border-left: 1px solid var(--line);
+}
+.shop-categories {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.shop-categories button {
+  flex: 0 1 auto;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.shop-search {
+  display: block;
+  margin: 14px 3cqw 0;
+}
+.shop-shell .shop-search input,
+.shop-shell #requested-time {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.shop-dish--compact {
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+.shop-dish--compact .dish-copy {
+  padding: 12px 14px;
+}
+.shop-dish--compact .dish-bottom {
+  padding-top: 8px;
+}
+.shop-shell .shop-plus {
+  position: relative;
+}
+.shop-plus-count {
+  position: absolute;
+  inset: -6px -4px auto auto;
+  min-width: 21px;
+  padding: 2px 4px;
+  border-radius: 12px;
+  background: #f5e5d5;
+  color: #231710;
+  font-size: 12px;
+  line-height: 1.25;
+}
+.shop-preview-notice {
+  padding: 10px 12px;
+  border-left: 3px solid var(--copper);
+  background: #2a221d;
+}
+.pickup-time-choices {
+  margin: 10px 0;
+}
+.shop-shell .pickup-time-choices button {
+  width: auto;
+  margin: 0 6px 6px 0;
+}
+.shop-shell .pickup-time-choices button[aria-pressed="true"] {
+  background: #75492f;
+}
+@media (max-width: 600px) {
+  .shop-hero:not(.asian-hero) h1 {
+    font-size: clamp(23px, 6cqw, 31px);
+  }
+  .shop-dish--compact .shop-plus {
+    margin-right: 3px;
+  }
+}

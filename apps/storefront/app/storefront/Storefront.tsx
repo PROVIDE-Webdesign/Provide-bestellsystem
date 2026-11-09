@@ -1,5 +1,7 @@
 "use client";
 import { buildImportedCart } from "./cart-import";
+import { PickupTimeChoices } from "./PickupTimeChoices";
+import type { PickupWindow } from "./pickup-window";
 import { CheckoutPrivacyNotice } from "./CheckoutPrivacyNotice";
 import { TaxBreakdown } from "./TaxBreakdown";
 import { ShopHeader, ShopMenu, ShopNavigation, type ShopTab } from "./ShopMenu";
@@ -14,7 +16,7 @@ import {
   parseCartHandoffSelection,
 } from "@provide/contracts";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   orderReference,
   parseCartQuote,
@@ -67,6 +69,7 @@ interface StorefrontProps extends StorefrontScope {
   readonly checkoutProtectionEnabled?: boolean;
   readonly checkoutTurnstileSiteKey?: string;
   readonly privacyNoticeVersion: string;
+  readonly pickupWindow?: PickupWindow;
 }
 
 const terminalStatuses: readonly PublicOrderStatus["status"][] = [
@@ -99,10 +102,34 @@ function deliveryAddressMessage(code: string): string | undefined {
 
 export default function Storefront(scope: StorefrontProps) {
   const [shopTab, setShopTab] = useState<ShopTab>("menu");
+  const menuScroll = useRef(0);
+  const focusTimeAfterNavigation = useRef(false);
+  const requestedTimeInput = useRef<HTMLInputElement>(null);
+  const focusAbholzeit = useCallback(() => {
+    const input = requestedTimeInput.current;
+    input?.focus({ preventScroll: true });
+    input?.closest("aside")?.scrollIntoView({ block: "start" });
+  }, []);
   function navigateShop(tab: ShopTab) {
+    if (tab === shopTab) return;
+    if (shopTab === "menu") menuScroll.current = window.scrollY;
     setShopTab(tab);
-    window.scrollTo({ top: 0, behavior: "instant" });
   }
+  function openTimes() {
+    if (shopTab === "cart") focusAbholzeit();
+    else {
+      focusTimeAfterNavigation.current = true;
+      navigateShop("cart");
+    }
+  }
+  useLayoutEffect(() => {
+    if (shopTab === "cart" && focusTimeAfterNavigation.current) {
+      focusTimeAfterNavigation.current = false;
+      focusAbholzeit();
+    } else {
+      window.scrollTo({ top: shopTab === "menu" ? menuScroll.current : 0, behavior: "instant" });
+    }
+  }, [focusAbholzeit, shopTab]);
   const [websiteImport, setWebsiteImport] = useState<unknown>(null);
   useEffect(() => {
     const pointer = `provide:website-cart-pending:${scope.restaurantSlug}:${scope.locationSlug}`;
@@ -272,6 +299,8 @@ export default function Storefront(scope: StorefrontProps) {
   } | null>(null);
   const [reviewing, setReviewing] = useState(false);
   const reviewRequest = useRef<AbortController | null>(null);
+  const lastReviewAttempt = useRef("");
+  const [reviewNotice, setReviewNotice] = useState("");
   const cartCreatedAt = useRef(Date.now());
   const [cartRestored, setCartRestored] = useState<string | null>(null);
   const [cartMessage, setCartMessage] = useState("");
@@ -436,31 +465,29 @@ export default function Storefront(scope: StorefrontProps) {
       "Warenkorb von der Website übernommen. Bitte Abholzeit und aktuelle Preise prüfen.",
     );
   }
-  const deliveryAddress = {
-    addressLine1,
-    addressLine2: null,
-    postalCode,
-    city,
-    countryCode: "DE" as const,
-  };
+  const deliveryAddress = useMemo(
+    () => ({ addressLine1, addressLine2: null, postalCode, city, countryCode: "DE" as const }),
+    [addressLine1, postalCode, city],
+  );
   const reviewAddress = fulfillmentType === "delivery" ? deliveryAddress : null;
   const reviewSignature = JSON.stringify([cart, fulfillmentType, localTime, reviewAddress]);
   const reviewIsAccepted = !!review?.accepted && review.signature === reviewSignature;
-  async function reviewCart() {
-    if (!catalog || !cart.length || reviewing) return;
+  const reviewCart = useCallback(async () => {
+    if (!catalog || !cart.length || reviewRequest.current) return;
     if (reviewAddress && (!/^[0-9]{5}$/.test(postalCode) || !addressLine1.trim() || !city.trim())) {
-      setCartMessage("Bitte gib Straße, Hausnummer, fünfstellige PLZ und Ort ein.");
+      setReviewNotice("Bitte gib Straße, Hausnummer, fünfstellige PLZ und Ort ein.");
       return;
     }
     const requestedFor = locationTimeToInstant(localTime, catalog.location.timezone);
     if (!requestedFor) {
-      setCartMessage("Bitte wähle zuerst einen gültigen Bestellzeitpunkt.");
+      setReviewNotice("Bitte wähle zuerst einen gültigen Bestellzeitpunkt.");
       return;
     }
     const controller = new AbortController();
-    reviewRequest.current?.abort();
+    lastReviewAttempt.current = reviewSignature;
     reviewRequest.current = controller;
     setReviewing(true);
+    setReviewNotice("");
     setReview(null);
     setDeliveryQuote(null);
     setQuoteAccepted(false);
@@ -482,7 +509,7 @@ export default function Storefront(scope: StorefrontProps) {
       if (!response.ok) {
         const message = deliveryAddressMessage((await client.error(response)).code);
         if (!controller.signal.aborted && message) {
-          setCartMessage(message);
+          setReviewNotice(message);
           return;
         }
         throw Error("Quote unavailable");
@@ -492,12 +519,12 @@ export default function Storefront(scope: StorefrontProps) {
       const quote = parseCartQuote(body.data);
       if (!quote) throw Error("Quote unavailable");
       if (quote.status === "unavailable") {
-        setCartMessage(
+        setReviewNotice(
           quote.issues.some((issue) => issue.code === "delivery_unavailable")
             ? "Für diese Bestellung ist aktuell keine Lieferung möglich. Prüfe Lieferadresse, Bestellzeit und Warenkorb oder wähle Abholung."
             : "Deine Auswahl oder Wunschzeit ist nicht mehr verfügbar. Bitte ändere deine Auswahl und prüfe erneut.",
         );
-        setRefresh((n) => n + 1);
+        if (!scope.pickupWindow) setRefresh((n) => n + 1);
         return;
       }
       if (!cartQuoteMatchesSelection(cart, quote))
@@ -511,21 +538,63 @@ export default function Storefront(scope: StorefrontProps) {
         signature: JSON.stringify([next, fulfillmentType, localTime, reviewAddress]),
         accepted: false,
       });
-      setCartMessage(
+      setReviewNotice(
         quote.status === "changed"
           ? "Die Speisekarte hat sich geändert. Prüfe die neuen Positionen und Preise und bestätige sie bewusst."
           : "Preise und Auswahl sind serverseitig geprüft. Bitte bestätige die Übersicht.",
       );
     } catch {
       if (!controller.signal.aborted)
-        setCartMessage("Die Warenkorbprüfung ist gerade nicht verfügbar. Bitte erneut versuchen.");
+        setReviewNotice("Die Warenkorbprüfung ist gerade nicht verfügbar. Bitte erneut versuchen.");
     } finally {
       if (reviewRequest.current === controller) {
         setReviewing(false);
         reviewRequest.current = null;
       }
     }
-  }
+  }, [
+    catalog,
+    cart,
+    client,
+    fulfillmentType,
+    localTime,
+    postalCode,
+    reviewAddress,
+    reviewSignature,
+    scope.pickupWindow,
+  ]);
+
+  useEffect(() => {
+    if (
+      !scope.pickupWindow ||
+      shopTab !== "cart" ||
+      fulfillmentType !== "pickup" ||
+      !catalog ||
+      !cart.length ||
+      !locationTimeToInstant(localTime, catalog.location.timezone) ||
+      checkoutState === "submitting" ||
+      intent ||
+      needsReceipt ||
+      review?.signature === reviewSignature ||
+      lastReviewAttempt.current === reviewSignature
+    )
+      return;
+    const timer = setTimeout(() => void reviewCart(), 350);
+    return () => clearTimeout(timer);
+  }, [
+    catalog,
+    cart.length,
+    checkoutState,
+    fulfillmentType,
+    intent,
+    localTime,
+    needsReceipt,
+    review?.signature,
+    reviewCart,
+    reviewSignature,
+    scope.pickupWindow,
+    shopTab,
+  ]);
 
   async function openPayment() {
     if (!paymentAction || openingPayment) return;
@@ -567,6 +636,8 @@ export default function Storefront(scope: StorefrontProps) {
       reviewRequest.current?.abort();
       reviewRequest.current = null;
       setReviewing(false);
+      lastReviewAttempt.current = "";
+      setReviewNotice("");
       setReview(null);
       setDeliveryQuote(null);
       setQuoteAccepted(false);
@@ -580,6 +651,13 @@ export default function Storefront(scope: StorefrontProps) {
     availabilityRequest.current = null;
     setAnswer("");
     setChecking(false);
+  }
+
+  function changeLocalTime(value: string) {
+    if (value === localTime) return;
+    clearAnswer();
+    invalidateSubmission();
+    setLocalTime(value);
   }
 
   const statusKey = orderStatusStorageKey(scope);
@@ -1178,7 +1256,9 @@ export default function Storefront(scope: StorefrontProps) {
           disabled={checkoutState === "submitting"}
           catalog={catalog}
           fulfillment={fulfillmentType}
-          onTimes={() => navigateShop("cart")}
+          onTimes={openTimes}
+          pickupOnly={!!scope.pickupWindow}
+          {...(localTime ? { timeLabel: localTime.slice(11, 16) + " Uhr" } : {})}
           onFulfillment={(type) => {
             clearAnswer();
             invalidateSubmission();
@@ -1431,6 +1511,8 @@ export default function Storefront(scope: StorefrontProps) {
               <div id="menu" tabIndex={-1} hidden={shopTab !== "menu"}>
                 <ShopMenu
                   catalog={catalog}
+                  cart={cart}
+                  shortPickupLabel={!!scope.pickupWindow}
                   disabled={checkoutState === "submitting"}
                   onAdd={(menu, item, selection) => {
                     const next = addCartItem(cart, menu, item, selection);
@@ -1463,6 +1545,18 @@ export default function Storefront(scope: StorefrontProps) {
                   {catalog.location.address.line1}, {catalog.location.address.postalCode}{" "}
                   {catalog.location.address.city}
                 </address>
+                {!scope.production && (
+                  <p className="shop-preview-notice" role="status">
+                    Interne Vorschau ·{" "}
+                    <span>
+                      {protectionConfigured
+                        ? scope.pickupWindow
+                          ? "Abholtest ohne Livezahlung."
+                          : "Testbestellungen."
+                        : "Der sichere Checkout ist noch nicht freigeschaltet."}
+                    </span>
+                  </p>
+                )}
                 <aside className="availability-panel" aria-labelledby="availability-title">
                   <p className="eyebrow">DEIN WUNSCHTERMIN</p>
                   <h2 id="availability-title">Wann passt es dir?</h2>
@@ -1472,45 +1566,65 @@ export default function Storefront(scope: StorefrontProps) {
                       void checkAvailability();
                     }}
                   >
-                    <fieldset>
-                      <legend>Bestellart</legend>
-                      <div className="fulfillment-options">
-                        {(["pickup", "delivery"] as const).map((type) => (
-                          <label key={type}>
-                            <input
-                              type="radio"
-                              name="fulfillment"
-                              value={type}
-                              checked={fulfillmentType === type}
-                              disabled={checkoutState === "submitting"}
-                              onChange={() => {
-                                clearAnswer();
-                                invalidateSubmission();
-                                setFulfillmentType(type);
-                              }}
-                            />
-                            {type === "pickup" ? "Abholung" : "Lieferung"}
-                          </label>
-                        ))}
-                      </div>
-                    </fieldset>
-                    <label htmlFor="requested-time">Datum und Uhrzeit</label>
+                    {!scope.pickupWindow && (
+                      <fieldset>
+                        <legend>Bestellart</legend>
+                        <div className="fulfillment-options">
+                          {(["pickup", "delivery"] as const).map((type) => (
+                            <label key={type}>
+                              <input
+                                type="radio"
+                                name="fulfillment"
+                                value={type}
+                                checked={fulfillmentType === type}
+                                disabled={checkoutState === "submitting"}
+                                onChange={() => {
+                                  clearAnswer();
+                                  invalidateSubmission();
+                                  setFulfillmentType(type);
+                                }}
+                              />
+                              {type === "pickup" ? "Abholung" : "Lieferung"}
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
+                    )}
+                    {scope.pickupWindow && (
+                      <>
+                        <p>
+                          Abholung von {scope.pickupWindow.opens} bis {scope.pickupWindow.closes}{" "}
+                          Uhr · mindestens {scope.pickupWindow.leadMinutes} Minuten Vorlauf.
+                        </p>
+                        {shopTab === "cart" && (
+                          <PickupTimeChoices
+                            key={base + ":" + totalQuantity}
+                            base={base}
+                            timezone={catalog.location.timezone}
+                            window={scope.pickupWindow}
+                            itemCount={totalQuantity}
+                            localTime={localTime}
+                            onSelect={changeLocalTime}
+                          />
+                        )}
+                      </>
+                    )}
+                    <label htmlFor="requested-time">
+                      {scope.pickupWindow ? "Wunschzeit auswählen" : "Datum und Uhrzeit"}
+                    </label>
                     <input
+                      ref={requestedTimeInput}
                       id="requested-time"
                       type="datetime-local"
                       required
                       value={localTime}
-                      onChange={(event) => {
-                        clearAnswer();
-                        invalidateSubmission();
-                        setLocalTime(event.target.value);
-                      }}
+                      onChange={(event) => changeLocalTime(event.target.value)}
                       aria-describedby="timezone-note"
                     />
                     <p id="timezone-note" className="field-hint">
-                      Ortszeit des Restaurants: {catalog.location.timezone}
+                      Ortszeit des Restaurants
                     </p>
-                    {totalQuantity === 0 ? (
+                    {totalQuantity === 0 && !scope.pickupWindow && (
                       <>
                         <label htmlFor="item-count">Anzahl der Gerichte</label>
                         <input
@@ -1527,12 +1641,12 @@ export default function Storefront(scope: StorefrontProps) {
                           }}
                         />
                       </>
-                    ) : (
-                      <p>Geprüfte Warenkorbmenge: {totalQuantity}</p>
                     )}
-                    <button type="submit" disabled={checking}>
-                      {checking ? "Wird geprüft …" : "Verfügbarkeit prüfen"}
-                    </button>
+                    {(!scope.pickupWindow || !totalQuantity) && (
+                      <button type="submit" disabled={checking}>
+                        {checking ? "Wird geprüft …" : "Verfügbarkeit prüfen"}
+                      </button>
+                    )}
                     <p className="answer" role="status" aria-live="polite">
                       {answer}
                     </p>
@@ -1654,13 +1768,21 @@ export default function Storefront(scope: StorefrontProps) {
                     </section>
                   )}
                   <section aria-label="Warenkorb prüfen und bestätigen">
-                    <button
-                      type="button"
-                      disabled={!cart.length || reviewing || checkoutState === "submitting"}
-                      onClick={() => void reviewCart()}
-                    >
-                      {reviewing ? "Wird serverseitig geprüft …" : "Warenkorb und Preise prüfen"}
-                    </button>
+                    {(!scope.pickupWindow || (localTime && reviewNotice && !review)) && (
+                      <button
+                        type="button"
+                        disabled={!cart.length || reviewing || checkoutState === "submitting"}
+                        onClick={() => void reviewCart()}
+                      >
+                        {reviewing ? "Wird serverseitig geprüft …" : "Warenkorb und Preise prüfen"}
+                      </button>
+                    )}
+                    {scope.pickupWindow && !!cart.length && !localTime && (
+                      <p>Wähle eine Abholzeit, um Warenkorb und Preise zu prüfen.</p>
+                    )}
+                    <p className="answer" role="status">
+                      {reviewing ? "Preise und Verfügbarkeit werden geprüft …" : reviewNotice}
+                    </p>
                     {review && review.signature === reviewSignature && (
                       <>
                         <p>
@@ -1794,7 +1916,7 @@ export default function Storefront(scope: StorefrontProps) {
                         : "Ich habe den Datenschutzhinweis für den Test-Checkout gesehen."}
                     </label>
                     <section aria-label="Bestellversuch">
-                      {!protectionConfigured && (
+                      {scope.production && !protectionConfigured && (
                         <p role="status">Der sichere Checkout ist noch nicht freigeschaltet.</p>
                       )}
                       {client.needsReceipt && (
@@ -1891,6 +2013,9 @@ export default function Storefront(scope: StorefrontProps) {
             quantity={totalQuantity}
             total={money(cartTotalAmountMinor(cart), cart[0]?.currency ?? "EUR")}
             hasOrder={savedOrders.length > 0 || !!confirmation}
+            {...(scope.pickupWindow && totalQuantity > 0 && !localTime
+              ? { onPickupTime: focusAbholzeit }
+              : {})}
           />
         </>
       )}

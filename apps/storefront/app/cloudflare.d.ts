@@ -5,6 +5,7 @@ declare module "cloudflare:workers" {
     readonly PUBLIC_LIVE_ONLINE_PAYMENT_ENABLED?: string;
     readonly PUBLIC_LIVE_CHECKOUT_PRIVACY_URL?: string;
     readonly ASIAN_KITCHEN_DEMO_ENABLED?: string;
+    readonly PUBLIC_PICKUP_PREVIEW_SCHEDULE?: string;
     readonly PUBLIC_API_URL?: string;
     readonly CHECKOUT_PROTECTION_ENABLED?: string;
     readonly PUBLIC_CHECKOUT_TURNSTILE_SITE_KEY?: string;

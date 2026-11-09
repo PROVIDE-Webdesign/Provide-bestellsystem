@@ -1,3 +1,4 @@
+import { pickupPreviewWindow } from "../../../storefront/pickup-window";
 import Storefront from "../../../storefront/Storefront";
 import { isCheckoutTestHostname } from "@provide/contracts";
 import { env } from "cloudflare:workers";
@@ -22,6 +23,13 @@ export default async function Page({
 }) {
   const scope = await params;
   const production = env.APP_ENV === "production";
+  const pickupWindow = production
+    ? undefined
+    : pickupPreviewWindow(
+        env.PUBLIC_PICKUP_PREVIEW_SCHEDULE,
+        scope.restaurantSlug,
+        scope.locationSlug,
+      );
   const noticeVersion = env.PUBLIC_CHECKOUT_PRIVACY_NOTICE_VERSION ?? "unconfigured";
   const privacyUrl =
     production && /^live-[A-Za-z0-9_-]+$/.test(noticeVersion)
@@ -39,6 +47,7 @@ export default async function Page({
           : env.PUBLIC_ONLINE_PAYMENT_ENABLED === "true"
       }
       privacyNoticeVersion={noticeVersion}
+      {...(pickupWindow ? { pickupWindow } : {})}
       {...(privacyUrl ? { livePrivacyUrl: privacyUrl } : {})}
     />
   );

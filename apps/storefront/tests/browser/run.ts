@@ -1,3 +1,4 @@
+import { verifyAshPickupUx } from "./ash-pickup-ux.ts";
 import { menuTool, openMenuPublish } from "./menu-navigation.ts";
 import { verifyUnifiedDashboardBrowser } from "./unified-dashboard.ts";
 import { openMenu, openCart, openOrders } from "./shop-navigation.ts";
@@ -59,21 +60,28 @@ const server = await createServer({
     host: "127.0.0.1",
     port: 4321,
     strictPort: true,
+    watch: null,
+    hmr: false,
     fs: { allow: [fileURLToPath(new URL("../../../../", import.meta.url))] },
   },
 });
 await server.listen();
 const engine = process.env.BROWSER_ENGINE ?? "chromium";
+const ashPickupOnly = process.env.ASH_PICKUP_ONLY === "1";
 const deliveryOnly = process.env.DELIVERY_ADDRESS_ONLY === "1";
 if (!["chromium", "firefox", "webkit"].includes(engine)) throw Error("Unsupported browser engine");
 const engines = { chromium, firefox, webkit };
 const selectedBrowser = engines[engine as "chromium" | "firefox" | "webkit"];
 const browser = await selectedBrowser.launch({ headless: true });
 try {
-  for (const viewport of [
-    { width: 1440, height: 1000 },
-    { width: 390, height: 844 },
-  ]) {
+  if (ashPickupOnly) await verifyAshPickupUx(browser, output);
+  const viewports = ashPickupOnly
+    ? []
+    : [
+        { width: 1440, height: 1000 },
+        { width: 390, height: 844 },
+      ];
+  for (const viewport of viewports) {
     const context = await browser.newContext({ viewport });
     const page = await context.newPage();
     // Synthetic fixture access expires on Oct 4; keep its observation date
@@ -299,7 +307,10 @@ try {
     await page.reload();
     await openCart(page);
     await page.getByRole("heading", { name: "1 Gerichte" }).waitFor();
-    await page.getByText(item.name, { exact: true }).waitFor();
+    await page
+      .getByRole("complementary", { name: "1 Gerichte" })
+      .getByText(item.name, { exact: true })
+      .waitFor();
     assert.equal(
       await page.getByRole("button", { name: "Abholbestellung absenden" }).isDisabled(),
       true,
@@ -654,7 +665,7 @@ try {
     await context.close();
     console.log(`Browser ${engine} menu/cart ${viewport.width}px PASS`);
   }
-  if (!deliveryOnly) {
+  if (!deliveryOnly && !ashPickupOnly) {
     await verifyCheckoutProtectionBrowser(browser, output);
     await verifyReceiptScopeBrowser(browser, output);
     await verifyTwoRestaurantsBrowser(browser, output);

@@ -28,6 +28,8 @@ const dashboard = new URLSearchParams(location.search).has("dashboard");
 const board = new URLSearchParams(location.search).has("board");
 const live = new URLSearchParams(location.search).has("live");
 const viewer = new URLSearchParams(location.search).has("viewer");
+const ashPickup = new URLSearchParams(location.search).has("ash-pickup");
+const ashPickupWindow = { opens: "12:00", closes: "22:30", leadMinutes: 30, stepMinutes: 15 };
 const checkoutMode = new URLSearchParams(location.search).get("checkout");
 /** Native browser regression changes props on the SAME production component. */
 function StorefrontHarness() {
@@ -50,6 +52,7 @@ function StorefrontHarness() {
       restaurantSlug={scope.restaurant}
       locationSlug={scope.location}
       privacyNoticeVersion="preview-v1"
+      {...(ashPickup ? { pickupWindow: ashPickupWindow } : {})}
     />
   ) : (
     <p>Storefront geschlossen</p>

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PublicCatalog, OrderSelectionLine, FulfillmentType } from "@provide/contracts";
 import { favoritesKey, parseFavorites } from "./favorites";
+import type { CartLine } from "./cart";
 import { ItemPicker } from "./ItemPicker";
 
 type Menu = PublicCatalog["menus"][number];
@@ -55,6 +56,16 @@ const asianPhotos: Record<string, string> = {
 };
 // Editorial selection for the existing Asian Kitchen demo, not sales statistics.
 const asianPopular = ["Gyoza", "Crispy Duck", "Beef Teriyaki", "Miso Lachs"];
+function fallbackPhoto(name: string) {
+  if (/chicken teriyaki/i.test(name)) return "chicken";
+  if (/veggie bowl/i.test(name)) return "veggie";
+  if (/salmon bowl/i.test(name)) return "salmon";
+}
+
+function asianPhoto(name: string, asian: boolean) {
+  return asian ? asianPhotos[name.replace(/^TEST\s+/i, "")] : undefined;
+}
+
 export function FoodPhoto({
   name,
   small = false,
@@ -64,20 +75,14 @@ export function FoodPhoto({
   small?: boolean;
   asian?: boolean;
 }) {
-  const photo = asian ? asianPhotos[name.replace(/^TEST\s+/i, "")] : undefined;
+  const photo = asianPhoto(name, asian);
   if (photo)
     return (
       <span className={`food-photo ${small ? "food-small" : ""}`} aria-hidden="true">
         <img className="catalog-photo" src={`/shop-design/${photo}.webp`} alt="" loading="lazy" />
       </span>
     );
-  const match = /chicken teriyaki/i.test(name)
-    ? "chicken"
-    : /veggie bowl/i.test(name)
-      ? "veggie"
-      : /salmon bowl/i.test(name)
-        ? "salmon"
-        : undefined;
+  const match = fallbackPhoto(name);
   return (
     <span
       className={`food-photo ${small ? "food-small" : ""} ${match ?? "food-empty"}`}
@@ -93,12 +98,16 @@ export function ShopHeader({
   fulfillment,
   onFulfillment,
   onTimes,
+  pickupOnly = false,
+  timeLabel,
   disabled = false,
 }: {
   catalog: PublicCatalog;
   fulfillment: FulfillmentType;
   onFulfillment: (type: FulfillmentType) => void;
   onTimes: () => void;
+  pickupOnly?: boolean;
+  timeLabel?: string;
   disabled?: boolean;
 }) {
   const asian =
@@ -110,27 +119,36 @@ export function ShopHeader({
         {asian && <img className="hero-art" src="/shop-design/reference-b.png" alt="" />}
         <h1 className={asian ? "sr-only" : ""}>{catalog.restaurant.name}</h1>
       </header>
-      <div className="shop-service">
-        <button disabled={disabled} className="service-state" onClick={onTimes}>
-          <span className="service-dot" />
-          Bestellzeiten
-        </button>
+      <div className={pickupOnly ? "shop-service shop-service--pickup" : "shop-service"}>
+        {pickupOnly ? (
+          <span className="shop-pickup-mode">
+            <ShopIcon name="bag" />
+            Abholung
+          </span>
+        ) : (
+          <button disabled={disabled} className="service-state" onClick={onTimes}>
+            <span className="service-dot" />
+            Bestellzeiten
+          </button>
+        )}
         <button disabled={disabled} onClick={onTimes}>
           <ShopIcon name="clock" />
-          <span>Zeit wählen</span>
+          <span>{timeLabel || "Zeit wählen"}</span>
         </button>
-        <label>
-          <ShopIcon name="bag" />
-          <select
-            disabled={disabled}
-            aria-label="Bestellart wählen"
-            value={fulfillment}
-            onChange={(e) => onFulfillment(e.target.value as FulfillmentType)}
-          >
-            <option value="pickup">Abholung</option>
-            <option value="delivery">Lieferung</option>
-          </select>
-        </label>
+        {!pickupOnly && (
+          <label>
+            <ShopIcon name="bag" />
+            <select
+              disabled={disabled}
+              aria-label="Bestellart wählen"
+              value={fulfillment}
+              onChange={(e) => onFulfillment(e.target.value as FulfillmentType)}
+            >
+              <option value="pickup">Abholung</option>
+              <option value="delivery">Lieferung</option>
+            </select>
+          </label>
+        )}
       </div>
     </>
   );
@@ -139,6 +157,8 @@ export function ShopHeader({
 export function ShopMenu({
   catalog,
   onAdd,
+  cart,
+  shortPickupLabel = false,
   disabled = false,
 }: {
   catalog: PublicCatalog;
@@ -147,6 +167,8 @@ export function ShopMenu({
     item: Item,
     selection: Pick<OrderSelectionLine, "variantId" | "optionIds">,
   ) => void;
+  cart: readonly CartLine[];
+  shortPickupLabel?: boolean;
   disabled?: boolean;
 }) {
   const asian = catalog.restaurant.slug === "storefront-restaurant-a";
@@ -159,7 +181,9 @@ export function ShopMenu({
     ids: [],
   });
   const favorites = favoriteState.key === key ? favoriteState.ids : [];
-  const [category, setCategory] = useState("Beliebt");
+  const [selectedCategory, setCategory] = useState("");
+  const [search, setSearch] = useState("");
+  const categoryKey = key ? key + ":category" : undefined;
   const [picked, setPicked] = useState<Entry | null>(null);
   const modal = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLElement | null>(null);
@@ -171,9 +195,14 @@ export function ShopMenu({
       /* optional */
     }
     setFavorites({ key, ids });
-    setCategory("Beliebt");
+    try {
+      setCategory(categoryKey ? (sessionStorage.getItem(categoryKey) ?? "") : "");
+    } catch {
+      setCategory("");
+    }
+    setSearch("");
     setPicked(null);
-  }, [key]);
+  }, [key, categoryKey]);
   useEffect(() => {
     if (picked) modal.current?.showModal();
   }, [picked]);
@@ -182,23 +211,36 @@ export function ShopMenu({
       section.items.map((item) => ({ menu, item, category: section.name })),
     ),
   );
-  const categories = [
-    "Beliebt",
-    ...new Set(
-      catalog.menus
-        .flatMap((menu) => menu.sections.map((section) => section.name))
-        .filter((name) => name !== "Beliebt"),
-    ),
-  ];
-  const configuredPopular = entries.filter((e) =>
-    /^(beliebt|beliebte gerichte)$/i.test(e.category),
-  );
+  const isPopular = (name: string) => /^(beliebt|beliebte gerichte)$/i.test(name);
+  const configuredPopular = entries.filter((entry) => isPopular(entry.category));
   const popular = configuredPopular.length
     ? configuredPopular
     : asian
-      ? entries.filter((e) => asianPopular.includes(e.item.name.replace(/^TEST\s+/i, "")))
+      ? entries.filter((entry) => asianPopular.includes(entry.item.name.replace(/^TEST\s+/i, "")))
       : [];
-  const visible = category === "Beliebt" ? popular : entries.filter((e) => e.category === category);
+  const categories = [
+    ...(popular.length ? ["Beliebt"] : []),
+    ...new Set(entries.map((entry) => entry.category).filter((name) => !isPopular(name))),
+  ];
+  const category = categories.includes(selectedCategory) ? selectedCategory : categories[0];
+  const searchText = search.trim().toLocaleLowerCase("de-DE");
+  const showSearch = entries.length >= 12;
+  const searching = showSearch && !!searchText;
+  const visible = searching
+    ? entries.filter((entry) => entry.item.name.toLocaleLowerCase("de-DE").includes(searchText))
+    : category === "Beliebt"
+      ? popular
+      : entries.filter((entry) => entry.category === category);
+
+  function selectCategory(name: string) {
+    setCategory(name);
+    setSearch("");
+    try {
+      if (categoryKey) sessionStorage.setItem(categoryKey, name);
+    } catch {
+      /* the current view retains the selection */
+    }
+  }
   const saved = entries.filter(
     (e, index) =>
       favorites.includes(e.item.id) &&
@@ -241,17 +283,31 @@ export function ShopMenu({
       <ShopIcon name="heart" filled={favorites.includes(entry.item.id)} />
     </button>
   );
-  const plus = (entry: Entry) => (
-    <button
-      type="button"
-      className="shop-plus"
-      disabled={disabled || entry.item.availability !== "available"}
-      aria-label={`${entry.item.name} hinzufügen`}
-      onClick={() => add(entry)}
-    >
-      <ShopIcon name="plus" />
-    </button>
-  );
+  function plus(entry: Entry) {
+    const quantity = cart.reduce(
+      (count, line) =>
+        count +
+        (line.menuId === entry.menu.id && line.menuItemId === entry.item.id ? line.quantity : 0),
+      0,
+    );
+    return (
+      <button
+        type="button"
+        className="shop-plus"
+        disabled={disabled || entry.item.availability !== "available"}
+        aria-label={`${entry.item.name} hinzufügen`}
+        aria-description={quantity > 0 ? `${quantity} im Warenkorb` : undefined}
+        onClick={() => add(entry)}
+      >
+        <ShopIcon name="plus" />
+        {quantity > 0 && (
+          <span className="shop-plus-count" aria-hidden="true">
+            {quantity}
+          </span>
+        )}
+      </button>
+    );
+  }
   return (
     <>
       {saved.length > 0 && (
@@ -270,72 +326,95 @@ export function ShopMenu({
           </ul>
         </section>
       )}
-      <nav className="shop-categories" aria-label="Speisekategorien">
-        {categories.map((name) => (
-          <button
-            type="button"
-            key={name}
-            aria-pressed={category === name}
-            onClick={() => setCategory(name)}
-          >
-            {name}
-          </button>
-        ))}
-      </nav>
-      <section className="shop-menu" aria-label={category}>
+      {showSearch && (
+        <label className="shop-search">
+          <span className="sr-only">Gericht suchen</span>
+          <input
+            type="search"
+            placeholder="Gericht suchen"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </label>
+      )}
+      {categories.length > 0 && (
+        <nav className="shop-categories" aria-label="Speisekategorien">
+          {categories.map((name) => (
+            <button
+              type="button"
+              key={name}
+              aria-pressed={!searching && category === name}
+              onClick={() => selectCategory(name)}
+            >
+              {shortPickupLabel && /^TEST Abholkarte\b/i.test(name) ? "Abholkarte" : name}
+            </button>
+          ))}
+        </nav>
+      )}
+      <section
+        className="shop-menu"
+        aria-label={searching ? "Suchergebnisse" : (category ?? "Speisekarte")}
+      >
         {visible.length === 0 && (
           <div className="shop-empty">
-            <h2>
-              {category === "Beliebt"
-                ? "Hier findest du bald die beliebtesten Gerichte"
-                : "Noch keine Gerichte"}
-            </h2>
-            <p>Entdecke die Speisekarte über die Kategorien.</p>
-            {categories[1] && (
-              <button onClick={() => setCategory(categories[1]!)}>Speisekarte entdecken</button>
+            <h2>{searching ? "Kein Gericht gefunden" : "Noch keine Gerichte"}</h2>
+            {searching && (
+              <button type="button" onClick={() => setSearch("")}>
+                Suche zurücksetzen
+              </button>
             )}
           </div>
         )}
         <ul>
-          {visible.map((entry) => (
-            <li className="shop-dish" key={entry.menu.id + entry.item.id}>
-              <button
-                className="dish-photo-button"
-                type="button"
-                aria-label={`Details zu ${entry.item.name}`}
-                onClick={() => {
-                  trigger.current = document.activeElement as HTMLElement;
-                  setPicked(entry);
-                }}
+          {visible.map((entry) => {
+            const hasPhoto = !!(
+              asianPhoto(entry.item.name, asian) || fallbackPhoto(entry.item.name)
+            );
+            return (
+              <li
+                className={hasPhoto ? "shop-dish" : "shop-dish shop-dish--compact"}
+                key={entry.menu.id + entry.item.id}
               >
-                <FoodPhoto name={entry.item.name} asian={asian} />
-              </button>
-              <div className="dish-copy">
-                <h2>
+                {hasPhoto && (
                   <button
+                    className="dish-photo-button"
                     type="button"
+                    aria-label={`Details zu ${entry.item.name}`}
                     onClick={() => {
                       trigger.current = document.activeElement as HTMLElement;
                       setPicked(entry);
                     }}
                   >
-                    {entry.item.name}
+                    <FoodPhoto name={entry.item.name} asian={asian} />
                   </button>
-                </h2>
-                <p>{entry.item.description}</p>
-                <div className="dish-bottom">
-                  <span className="dish-price">{money(entry)}</span>
-                  {heart(entry)}
-                  {plus(entry)}
-                </div>
-                {entry.item.availability !== "available" && (
-                  <span className="stock-state">
-                    {entry.item.availability === "sold_out" ? "Ausverkauft" : "Nicht verfügbar"}
-                  </span>
                 )}
-              </div>
-            </li>
-          ))}
+                <div className="dish-copy">
+                  <h2>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        trigger.current = document.activeElement as HTMLElement;
+                        setPicked(entry);
+                      }}
+                    >
+                      {entry.item.name}
+                    </button>
+                  </h2>
+                  <p>{entry.item.description}</p>
+                  <div className="dish-bottom">
+                    <span className="dish-price">{money(entry)}</span>
+                    {heart(entry)}
+                    {plus(entry)}
+                  </div>
+                  {entry.item.availability !== "available" && (
+                    <span className="stock-state">
+                      {entry.item.availability === "sold_out" ? "Ausverkauft" : "Nicht verfügbar"}
+                    </span>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </section>
       {picked && (
@@ -376,24 +455,33 @@ export function ShopNavigation({
   quantity,
   total,
   hasOrder,
+  onPickupTime,
 }: {
   tab: ShopTab;
   onTab: (tab: ShopTab) => void;
   quantity: number;
   total: string;
   hasOrder: boolean;
+  onPickupTime?: () => void;
 }) {
   return (
     <div className="shop-dock">
-      <div className="basket-wrap">
-        <button className="basket-button" onClick={() => onTab("cart")}>
-          <ShopIcon name="cart" />
-          <span>
-            Warenkorb · {quantity} Artikel · {total}
-          </span>
-          <ShopIcon name="arrow" />
-        </button>
-      </div>
+      {(tab !== "cart" || onPickupTime) && (
+        <div className="basket-wrap">
+          <button
+            className="basket-button"
+            onClick={tab === "cart" ? onPickupTime : () => onTab("cart")}
+          >
+            <ShopIcon name={tab === "cart" ? "clock" : "cart"} />
+            <span>
+              {tab === "cart"
+                ? "Weiter zur Abholzeit"
+                : `Warenkorb · ${quantity} Artikel · ${total}`}
+            </span>
+            <ShopIcon name="arrow" />
+          </button>
+        </div>
+      )}
       <nav className="shop-bottom-nav" aria-label="Shopnavigation">
         <button aria-current={tab === "menu" ? "page" : undefined} onClick={() => onTab("menu")}>
           <ShopIcon name="menu" />
