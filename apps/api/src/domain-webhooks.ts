@@ -9,6 +9,7 @@ export interface DomainWebhookEnvironment {
   DOMAIN_WEBHOOK_SIGNING_SECRET?: string;
   DOMAIN_WEBHOOK_RESTAURANT_ID?: string;
   DOMAIN_WEBHOOK_ACTIVE_SINCE?: string;
+  DOMAIN_WEBHOOK_RECEIVER?: Pick<Fetcher, "fetch">;
   HYPERDRIVE?: { connectionString: string };
   HYPERDRIVE_CACHE_DISABLED?: string;
 }
@@ -254,6 +255,8 @@ export async function dispatchDomainWebhooks(
     logger.error(context, "domain_webhook_dispatch_unavailable");
     return;
   }
+  const receiver = env.DOMAIN_WEBHOOK_RECEIVER;
+  const transport = receiver ? receiver.fetch.bind(receiver) : fetcher;
   try {
     const key = await crypto.subtle.importKey(
       "raw",
@@ -279,7 +282,7 @@ export async function dispatchDomainWebhooks(
       let outcome: Outcome = "invalid_event";
       if (events?.every((event) => event.restaurantId === config.restaurant)) {
         for (const event of events) {
-          outcome = await deliver(config.url, key, event, fetcher);
+          outcome = await deliver(config.url, key, event, transport);
           if (outcome !== "accepted") break;
         }
       }

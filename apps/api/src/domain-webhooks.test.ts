@@ -132,6 +132,25 @@ describe("domain webhook dispatch", () => {
     expect(keys).toEqual([id, id, transitionId]);
   });
 
+  it("uses the configured receiver binding for signed calls", async () => {
+    const repository = {
+      claim: vi.fn().mockResolvedValue([row]),
+      finish: vi.fn().mockResolvedValue("published"),
+    };
+    const fetcher = vi.fn<typeof fetch>();
+    const boundFetch = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
+    await dispatchDomainWebhooks(
+      { ...env, DOMAIN_WEBHOOK_RECEIVER: { fetch: boundFetch } },
+      { error: vi.fn() },
+      repository,
+      fetcher,
+    );
+
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(boundFetch).toHaveBeenCalledTimes(2);
+    expect(repository.finish).toHaveBeenCalledWith("synthetic", id, expect.any(String), "accepted");
+  });
+
   it("does not send a foreign event and never claims while disabled", async () => {
     const repository = {
       claim: vi.fn().mockResolvedValue([{ ...row, restaurant_id: location }]),
