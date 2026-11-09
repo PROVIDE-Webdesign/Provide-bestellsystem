@@ -1,3 +1,4 @@
+import { connect } from "node:tls";
 import nodemailer from "nodemailer";
 import type { EmailAdapter, EmailPreviewScope } from "./email-notifications.js";
 
@@ -32,7 +33,30 @@ export function createGmailPreviewAdapter(env: GmailPreviewEnvironment): EmailAd
     port: 465,
     secure: true,
     auth: { user: recipient, pass: password },
-    tls: { minVersion: "TLSv1.2" },
+    // Pass the hostname to the Workers TLS proxy instead of resolving it to an IP in Nodemailer.
+    getSocket(_options, callback) {
+      const socket = connect({
+        host: "smtp.gmail.com",
+        servername: "smtp.gmail.com",
+        port: 465,
+        rejectUnauthorized: true,
+        minVersion: "TLSv1.2",
+      });
+      const timeout = setTimeout(
+        () => socket.destroy(new Error("SMTP connection timed out")),
+        8_000,
+      );
+      function onError(error: Error) {
+        clearTimeout(timeout);
+        callback(error, null);
+      }
+      socket.once("error", onError);
+      socket.once("secureConnect", () => {
+        clearTimeout(timeout);
+        socket.removeListener("error", onError);
+        callback(null, { connection: socket, secured: true });
+      });
+    },
     connectionTimeout: 8_000,
     greetingTimeout: 8_000,
     socketTimeout: 12_000,
