@@ -35,11 +35,16 @@ async function query(
   }
 }
 export const postgresEmailRepository: EmailRepository = {
-  async claim(connection, lock, limit, now) {
+  async claim(connection, lock, limit, now, previewScope) {
+    const values = previewScope
+      ? [lock, limit, now, previewScope.createdSince, previewScope.recipient]
+      : [lock, limit, now];
     return (await query(
       connection,
-      "select private.attach_order_number(private.claim_email_deliveries($1::uuid,$2::integer,$3::timestamptz)) as data",
-      [lock, limit, now],
+      previewScope
+        ? "select private.attach_order_number(private.claim_email_deliveries($1::uuid,$2::integer,$3::timestamptz,$4::timestamptz,$5::text)) as data"
+        : "select private.attach_order_number(private.claim_email_deliveries($1::uuid,$2::integer,$3::timestamptz)) as data",
+      values,
       async (data, client) => {
         if (!Array.isArray(data) || data.length > limit || data.length > 25)
           throw new Error("Invalid email batch");

@@ -15,6 +15,7 @@
   "dependencies": {
     "@provide/contracts": "workspace:*",
     "jose": "6.1.0",
+    "nodemailer": "catalog:",
     "pg": "8.23.0",
     "web-push": "catalog:"
   },
@@ -22,6 +23,7 @@
     "@cloudflare/workers-types": "5.20260901.1",
     "@supabase/supabase-js": "catalog:",
     "@types/node": "26.4.0",
+    "@types/nodemailer": "catalog:",
     "@types/pg": "8.23.1",
     "@types/web-push": "catalog:",
     "eslint": "10.9.1",

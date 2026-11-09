@@ -166,5 +166,41 @@ select lives_ok(format($sql$select private.store_guest_checkout_snapshot('f20000
 select ok(private.read_public_guest_order_status('storefront-restaurant-a','storefront-a-mitte',:'legacy_order') is not null,'historical status remains readable');
 select private.claim_email_deliveries('fd100000-0000-0000-0000-000000000006',25,statement_timestamp()+interval '2 seconds');
 select is((select status from private.email_deliveries where order_id=:'legacy_order' and template_key='order_submitted'),'suppressed','historical order without email suppresses delivery');
+
+-- Preview claims may only reach the authorized inbox and orders created after opt-in.
+select ok(not has_function_privilege('authenticated',
+  'private.claim_email_deliveries(uuid,integer,timestamptz,timestamptz,text)','execute'),
+  'browser cannot claim scoped preview mail');
+select throws_ok($sql$ select private.claim_email_deliveries(gen_random_uuid(),25,statement_timestamp(),
+  statement_timestamp(),'preview.test@gmail.com') $sql$, 'P0001','invalid preview email scope',
+  'scoped email claims are rejected outside the preview');
+insert into private.synthetic_test_environment(project_ref,expires_at)
+values('abcdefghijklmnopqrst',statement_timestamp()+interval '1 day');
+
+set local role service_role;
+select private.submit_public_guest_pickup_order('storefront-restaurant-a','storefront-a-mitte',
+  'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001',
+  date_trunc('hour',now())+interval '3 hours','[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":1}]',
+  'email-preview-old-0001','{"contact_name":"Synthetic","email":"preview.test@gmail.com"}','preview-v1',30) as old_preview \gset
+select statement_timestamp() as mail_preview_cutoff \gset
+select private.submit_public_guest_pickup_order('storefront-restaurant-a','storefront-a-mitte',
+  'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001',
+  date_trunc('hour',now())+interval '4 hours','[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":1}]',
+  'email-preview-other-0001','{"contact_name":"Synthetic","email":"outside@example.invalid"}','preview-v1',30) as other_preview \gset
+select private.submit_public_guest_pickup_order('storefront-restaurant-a','storefront-a-mitte',
+  'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001',
+  date_trunc('hour',now())+interval '5 hours','[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":1}]',
+  'email-preview-new-0001','{"contact_name":"Synthetic","email":"preview.test@gmail.com"}','preview-v1',30) as new_preview \gset
+select private.claim_email_deliveries(gen_random_uuid(),25,statement_timestamp()+interval '1 second',
+  :'mail_preview_cutoff'::timestamptz,'preview.test@gmail.com') as scoped_mail \gset
+select is(jsonb_array_length(:'scoped_mail'::jsonb),1,'preview claim selects only one new allowed order');
+select is(:'scoped_mail'::jsonb#>>'{0,orderId}',:'new_preview'::jsonb->>'orderId',
+  'new eligible order is selected');
+reset role;
+select is((select status from private.email_deliveries where order_id=(:'old_preview'::jsonb->>'orderId')::uuid),
+  'queued','historical mail for the same recipient is untouched');
+select is((select status from private.email_deliveries where order_id=(:'other_preview'::jsonb->>'orderId')::uuid),
+  'queued','new mail for another recipient is untouched');
+
 select * from finish();
 rollback;

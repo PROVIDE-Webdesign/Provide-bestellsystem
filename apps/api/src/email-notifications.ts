@@ -24,8 +24,13 @@ export type EmailAdapterResult =
       readonly code: string;
     };
 export type EmailLookupResult = EmailAdapterResult | { readonly outcome: "not_found" };
+export interface EmailPreviewScope {
+  readonly recipient: string;
+  readonly createdSince: string;
+}
 export interface EmailAdapter {
   readonly configured: boolean;
+  readonly previewScope?: EmailPreviewScope;
   send(
     this: void,
     command: EmailMessage & { readonly destination: string; readonly idempotencyKey: string },
@@ -39,6 +44,7 @@ export interface EmailRepository {
     lock: string,
     limit: number,
     now: string,
+    previewScope?: EmailPreviewScope,
   ): Promise<readonly EmailDispatchJob[]>;
   finish(
     this: void,
@@ -191,6 +197,7 @@ export async function dispatchEmailNotifications(
       crypto.randomUUID(),
       25,
       new Date(claimedAt).toISOString(),
+      ...(adapter.previewScope ? [adapter.previewScope] : []),
     );
     for (const job of jobs) {
       // Do not start another provider request once the batch lease has expired.

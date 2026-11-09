@@ -80,6 +80,7 @@ import {
   type EmailRepository,
 } from "./email-notifications.js";
 import { postgresEmailRepository } from "./email-notifications-database.js";
+import { createGmailPreviewAdapter, type GmailPreviewEnvironment } from "./gmail-preview-email.js";
 
 interface HyperdriveBinding {
   readonly connectionString: string;
@@ -90,7 +91,8 @@ interface Env
     OnlineEnvironment,
     CheckoutProtectionEnvironment,
     OrderPushEnvironment,
-    DomainWebhookEnvironment {
+    DomainWebhookEnvironment,
+    GmailPreviewEnvironment {
   readonly SUPPORT_CASES_ENABLED?: string;
   readonly SUPPORT_RECONCILIATION_RESTAURANT_ID?: string;
   readonly SUPPORT_MONITOR_PING_URL?: string;
@@ -120,7 +122,6 @@ interface Env
   readonly DASHBOARD_AUTH_ENABLED?: string;
   readonly DASHBOARD_ORDER_OPERATIONS_ENABLED?: string;
   readonly NOTIFICATION_DISPATCH_ENABLED?: string;
-  readonly EMAIL_DISPATCH_ENABLED?: string;
   readonly EMAIL_STOREFRONT_ORIGIN?: string;
   readonly SUPABASE_AUTH_ISSUER?: string;
   readonly SUPABASE_AUTH_AUDIENCE?: string;
@@ -145,7 +146,7 @@ export function createApiWorker(
   onlineRepository: OnlineRepository = postgresOnlineRepository,
   onlineProvider: PaymentProvider = stripePaymentProvider,
   emailRepository: EmailRepository = postgresEmailRepository,
-  emailAdapter: EmailAdapter = unconfiguredEmailAdapter,
+  emailAdapter: EmailAdapter | undefined = undefined,
   cartQuoteReader: CartQuoteReader = postgresCartQuoteReader,
   menuAdmin: MenuAdminRepository = postgresMenuAdmin,
   locationOperations: LocationOperationsRepository = postgresLocationOperations,
@@ -443,7 +444,14 @@ export function createApiWorker(
           .catch(() => logger.error(createRequestContext(), "online_payment_dispatch_failed"))
           .finally(() => dispatchOrderPush(env, logger, true)),
       );
-      context.waitUntil(dispatchEmailNotifications(env, emailRepository, emailAdapter, logger));
+      context.waitUntil(
+        dispatchEmailNotifications(
+          env,
+          emailRepository,
+          emailAdapter ?? createGmailPreviewAdapter(env) ?? unconfiguredEmailAdapter,
+          logger,
+        ),
+      );
       context.waitUntil(dispatchDomainWebhooks(env, logger));
       context.waitUntil(reconcileSupportSources(env, logger));
       context.waitUntil(pingSupportMonitor(env, logger));

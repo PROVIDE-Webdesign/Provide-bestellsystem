@@ -12,9 +12,15 @@ catalogs:
     '@supabase/supabase-js':
       specifier: 2.116.0
       version: 2.116.0
+    '@types/nodemailer':
+      specifier: 8.0.2
+      version: 8.0.2
     '@types/web-push':
       specifier: 3.6.4
       version: 3.6.4
+    nodemailer:
+      specifier: 10.4.0
+      version: 10.4.0
     playwright:
       specifier: 1.62.1
       version: 1.62.1
@@ -76,6 +82,9 @@ importers:
       jose:
         specifier: 6.1.0
         version: 6.1.0
+      nodemailer:
+        specifier: 'catalog:'
+        version: 10.4.0
       pg:
         specifier: 8.23.0
         version: 8.23.0
@@ -92,6 +101,9 @@ importers:
       '@types/node':
         specifier: 26.4.0
         version: 26.4.0
+      '@types/nodemailer':
+        specifier: 'catalog:'
+        version: 8.0.2
       '@types/pg':
         specifier: 8.23.1
         version: 8.23.1
@@ -1011,6 +1023,9 @@ packages:
   '@types/node@26.4.0':
     resolution: {integrity: sha512-faiGnoIrLH/V8cibOMEAZ8pMw6oXqSukl29ra4mN8GdaB2ZewzeaLj+INpV5N+Z1eKWzY+IzaIZH2EIR6YZRNQ==}
 
+  '@types/nodemailer@8.0.2':
+    resolution: {integrity: sha512-c7M5ox8p0nEOfbJ2E9Qcmt8/QCu/VzsiAhzBiZbvky2PhKZDHpKB3sQHBM5MEZNkCfBOaS6S9//AGPRTNB7IaA==}
+
   '@types/pg@8.23.1':
     resolution: {integrity: sha512-fKVHpikPdg4GKks3JuLEhvwSyvwzF23hnabPy6DD8ljVbC7+6J5dQzdv4arV6jqq57djnMgs1HKBxX4P8aBI3A==}
 
@@ -1807,6 +1822,10 @@ packages:
   node-releases@2.0.54:
     resolution: {integrity: sha512-YHs7BmmcsdAI5Ozuf8JZo6PT0mv2GIWC9vMfvUC3dp65M8hn7Ux8CPL+2oBI7juNuj9d0ndhTcznq2ODBps9cQ==}
     engines: {node: '>=18'}
+
+  nodemailer@10.4.0:
+    resolution: {integrity: sha512-fyy6r4Q5euRJ9Qr3Cts9K7SZrfe9zmz9oLOYiAR02MEJRDRci+99y0OoYBYBgpLffOqkkjXrB/d26VfiMje/kA==}
+    engines: {node: '>=20.0.0'}
 
   obug@2.1.4:
     resolution: {integrity: sha512-4a+OsYv9UktOJKE+l1A4OufDgdRF9PifWj+tJnHURo/P+WOxpG4GzUFL9qCalmWauao6ogiG+QvnCovwPoyAWA==}
@@ -2851,6 +2870,10 @@ snapshots:
     dependencies:
       undici-types: 8.3.0
 
+  '@types/nodemailer@8.0.2':
+    dependencies:
+      '@types/node': 26.4.0
+
   '@types/pg@8.23.1':
     dependencies:
       '@types/node': 26.4.0
@@ -3635,6 +3658,8 @@ snapshots:
   neo-async@2.6.2: {}
 
   node-releases@2.0.54: {}
+
+  nodemailer@10.4.0: {}
 
   obug@2.1.4: {}
 
