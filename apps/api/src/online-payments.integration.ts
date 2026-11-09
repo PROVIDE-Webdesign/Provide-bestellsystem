@@ -283,43 +283,23 @@ export async function verifyOnlineIntegration(
     ).status,
   ).toBe(200);
   await run(confirmation.orderId);
-  expect(
-    (
-      await postgresOnlineRepository.read(
-        env.HYPERDRIVE!.connectionString,
-        config.account,
-        confirmation.orderId,
-      )
-    )?.refund_state,
-  ).toBe("failed");
-  expect((await dashboardPost(confirmation.orderId, "refund-retry", {})).status).toBe(404);
-  const recovery = await admin.query<{ outcome: string }>(
-    "select private.retry_online_refund($1,$2,$3,$4,$5)->>'outcome' as outcome",
-    [
-      "f1000000-0000-0000-0000-000000000001",
-      "aal2",
-      "f2000000-0000-0000-0000-000000000001",
-      "f3000000-0000-0000-0000-000000000001",
-      confirmation.orderId,
-    ],
+  const tillJob = await postgresOnlineRepository.read(
+    env.HYPERDRIVE!.connectionString,
+    config.account,
+    confirmation.orderId,
   );
-  expect(recovery.rows[0]?.outcome).toBe("allowed");
-  refundStatus = "succeeded";
-  await run(confirmation.orderId);
-  expect(
-    (
-      await postgresOnlineRepository.read(
-        env.HYPERDRIVE!.connectionString,
-        config.account,
-        confirmation.orderId,
-      )
-    )?.refund_state,
-  ).toBe("succeeded");
+  expect(tillJob).toMatchObject({
+    order_status: "cancelled",
+    refund_at_till: true,
+    refund_state: "none",
+  });
+  expect((await dashboardPost(confirmation.orderId, "refund-retry", {})).status).toBe(404);
   const payment = await admin.query<{ refunded_amount_minor: string }>(
     "select refunded_amount_minor from public.order_payments where order_id=$1",
     [confirmation.orderId],
   );
-  expect(payment.rows[0]?.refunded_amount_minor).toBe("2500");
+  expect(payment.rows[0]?.refunded_amount_minor).toBe("0");
+  refundStatus = "succeeded";
 
   // Delivery uses the exact quote, including the current 450-cent delivery fee.
   const requestedFor = when(7);
@@ -502,7 +482,7 @@ export async function verifyOnlineIntegration(
   const audit = await admin.query<{ count: string }>(
     "select count(*) from public.online_refund_retries",
   );
-  expect(audit.rows[0]?.count).toBe("1");
+  expect(audit.rows[0]?.count).toBe("0");
 
   const read = (id: string) =>
     postgresOnlineRepository.read(env.HYPERDRIVE!.connectionString, config.account, id);
@@ -568,7 +548,9 @@ export async function verifyOnlineIntegration(
   await run(accepted);
   expect(await read(accepted)).toMatchObject({
     order_status: "cancelled",
-    refund_state: "succeeded",
+    payment_status: "captured",
+    refund_at_till: true,
+    refund_state: "none",
   });
   const rejected = await authorizeFixture("reject", 11);
   expect(
@@ -599,7 +581,7 @@ export async function verifyOnlineIntegration(
   expect(captures).toBe(1);
   expect(releases).toBe(2);
   console.log(
-    "P2 matrix: authorized, no early acceptance, lost capture response, duplicate action, captured refund, rejected authorization, expired authorization",
+    "P2 matrix: authorized, no early acceptance, lost capture response, duplicate action, till refund after cancellation, rejected authorization, expired authorization",
   );
 
   return async function verifyLiveOnlineIntegration() {
@@ -786,7 +768,9 @@ export async function verifyOnlineIntegration(
     await dispatchOnlinePayments(noNewLiveOrders, postgresOnlineRepository, provider);
     expect(await readLive()).toMatchObject({
       order_status: "cancelled",
-      refund_state: "succeeded",
+      payment_status: "captured",
+      refund_at_till: true,
+      refund_state: "none",
     });
     expect(
       (
@@ -797,7 +781,7 @@ export async function verifyOnlineIntegration(
       ).rowCount,
     ).toBe(1);
     console.log(
-      "Live matrix: opt-in, atomic receipt replay, test isolation, signed Connect webhook, capture on acceptance, refund after disable",
+      "Live matrix: opt-in, atomic receipt replay, test isolation, signed Connect webhook, capture on acceptance, till refund after cancellation",
     );
     // An authorized acceptance can outlive the member's access. A confirmed
     // provider capture must remain in the ledger and be compensated, not rolled back.
