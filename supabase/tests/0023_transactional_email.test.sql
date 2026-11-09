@@ -182,7 +182,12 @@ select private.submit_public_guest_pickup_order('storefront-restaurant-a','store
   'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001',
   date_trunc('hour',now())+interval '3 hours','[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":1}]',
   'email-preview-old-0001','{"contact_name":"Synthetic","email":"preview.test@gmail.com"}','preview-v1',30) as old_preview \gset
-select statement_timestamp() as mail_preview_cutoff \gset
+reset role;
+-- Fixture inserts share one transaction timestamp. Give the historical order its own earlier timestamp.
+update public.orders set created_at=transaction_timestamp()-interval '1 minute'
+where id=(:'old_preview'::jsonb->>'orderId')::uuid;
+select transaction_timestamp() as mail_preview_cutoff \gset
+set local role service_role;
 select private.submit_public_guest_pickup_order('storefront-restaurant-a','storefront-a-mitte',
   'f4000000-0000-0000-0000-000000000001','f5000000-0000-0000-0000-000000000001',
   date_trunc('hour',now())+interval '4 hours','[{"menu_item_id":"f6000000-0000-0000-0000-000000000001","quantity":1}]',
