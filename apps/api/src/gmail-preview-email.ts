@@ -48,7 +48,7 @@ export function createGmailPreviewAdapter(env: GmailPreviewEnvironment): EmailAd
       );
       function onError(error: Error) {
         clearTimeout(timeout);
-        callback(error, null);
+        callback(error, false);
       }
       socket.once("error", onError);
       socket.once("secureConnect", () => {
