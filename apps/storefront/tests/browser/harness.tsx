@@ -1,3 +1,4 @@
+import { OrderSoundProvider } from "../../../dashboard/app/components/OrderSoundProvider";
 import { SupportCases } from "../../../dashboard/app/components/SupportCases";
 import { RecoveryPanel } from "../../../dashboard/app/components/RecoveryPanel";
 import { LocationOperations } from "../../../dashboard/app/components/LocationOperations";
@@ -176,20 +177,22 @@ createRoot(document.getElementById("root")!).render(
           </header>
           <div className="operator-content">
             <h1>Bestellungen</h1>
-            <OrderBoard
-              liveEnabled={live}
-              alertsEnabled={live}
-              {...(live ? { subscribeLive: syntheticLive } : {})}
-              restaurantId="f2000000-0000-0000-0000-000000000001"
-              role={viewer ? "viewer" : "owner"}
-              locations={[
-                {
-                  id: "f3000000-0000-0000-0000-000000000001",
-                  slug: "synthetic-mitte",
-                  displayName: "Synthetic Mitte",
-                },
-              ]}
-            />
+            <OrderSoundProvider>
+              <OrderBoard
+                liveEnabled={live}
+                alertsEnabled={live}
+                {...(live ? { subscribeLive: syntheticLive } : {})}
+                restaurantId="f2000000-0000-0000-0000-000000000001"
+                role={viewer ? "viewer" : "owner"}
+                locations={[
+                  {
+                    id: "f3000000-0000-0000-0000-000000000001",
+                    slug: "synthetic-mitte",
+                    displayName: "Synthetic Mitte",
+                  },
+                ]}
+              />
+            </OrderSoundProvider>
           </div>
         </div>
       </main>
