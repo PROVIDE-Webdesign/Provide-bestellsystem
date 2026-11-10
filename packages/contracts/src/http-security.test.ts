@@ -52,6 +52,64 @@ describe("public HTTP security boundary", () => {
     );
   });
 
+  it.each(["GET", "HEAD"])(
+    "serves and protects a static %s without invoking the application",
+    async (method) => {
+      const next = vi.fn(() => new Response("application"));
+      const assets = {
+        fetch: vi.fn(
+          async () =>
+            new Response(method === "HEAD" ? null : "asset", {
+              headers: {
+                "content-type": "text/javascript",
+                "cache-control": "public, max-age=31536000",
+              },
+            }),
+        ),
+      };
+      const response = await secureHttpResponse(
+        new Request("https://shop.example.test/assets/app.js", { method }),
+        "production",
+        next,
+        assets,
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toBe("text/javascript");
+      expect(response.headers.get("strict-transport-security")).toBe("max-age=31536000");
+      expect(response.headers.get("cache-control")).toBe("public, max-age=31536000");
+      expect(await response.text()).toBe(method === "HEAD" ? "" : "asset");
+      expect(assets.fetch).toHaveBeenCalledOnce();
+      expect(next).not.toHaveBeenCalled();
+    },
+  );
+
+  it("falls back to application routes when no static file exists", async () => {
+    const next = vi.fn(() => new Response("dynamic route"));
+    const assets = { fetch: vi.fn(async () => new Response("not found", { status: 404 })) };
+    const response = await secureHttpResponse(
+      new Request("https://shop.example.test/api/health"),
+      "production",
+      next,
+      assets,
+    );
+    expect(await response.text()).toBe("dynamic route");
+    expect(next).toHaveBeenCalledOnce();
+  });
+
+  it("preserves POST routes without passing them to the asset binding", async () => {
+    const next = vi.fn(() => new Response("accepted"));
+    const assets = { fetch: vi.fn(async () => new Response(null, { status: 405 })) };
+    const response = await secureHttpResponse(
+      new Request("https://shop.example.test/api/checkout", { method: "POST" }),
+      "production",
+      next,
+      assets,
+    );
+    expect(await response.text()).toBe("accepted");
+    expect(assets.fetch).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledOnce();
+  });
+
   it("allows an isolated local HTTP preview without an HTTPS redirect loop", async () => {
     const response = await secureHttpResponse(
       new Request("http://127.0.0.1:30092/"),

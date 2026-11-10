@@ -3,6 +3,7 @@ export async function secureHttpResponse(
   request: Request,
   environment: string | undefined,
   next: () => Response | Promise<Response>,
+  assets?: { fetch(request: Request): Promise<Response> },
 ): Promise<Response> {
   const url = new URL(request.url);
   if (environment === "production" && url.protocol === "http:") {
@@ -17,7 +18,13 @@ export async function secureHttpResponse(
     });
   }
 
-  const response = await next();
+  // run_worker_first bypasses Cloudflare's automatic asset serving. Restore that
+  // lookup explicitly while keeping redirects and security headers around it.
+  const assetResponse =
+    assets && (request.method === "GET" || request.method === "HEAD")
+      ? await assets.fetch(request)
+      : undefined;
+  const response = assetResponse && assetResponse.status !== 404 ? assetResponse : await next();
   // Preserve the development websocket upgrade; production routes use HTTP responses.
   if (response.status === 101) return response;
   const secured = new Response(response.body, response);
