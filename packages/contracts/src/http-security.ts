@@ -6,7 +6,8 @@ export async function secureHttpResponse(
   assets?: { fetch(request: Request): Promise<Response> },
 ): Promise<Response> {
   const url = new URL(request.url);
-  if (environment === "production" && url.protocol === "http:") {
+  const localPreviewHost = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (url.protocol === "http:" && (environment === "production" || !localPreviewHost)) {
     url.protocol = "https:";
     return new Response(null, {
       status: 308,

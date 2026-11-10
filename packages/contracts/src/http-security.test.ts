@@ -18,6 +18,63 @@ describe("public HTTP security boundary", () => {
     },
   );
 
+  it.each(["GET", "POST", "HEAD"])(
+    "redirects public preview %s before handlers or assets",
+    async (method) => {
+      const next = vi.fn(() => new Response("private preview"));
+      const assets = { fetch: vi.fn<() => Promise<Response>>() };
+      const response = await secureHttpResponse(
+        new Request("http://preview.example.test/login?next=orders", { method }),
+        "preview",
+        next,
+        assets,
+      );
+      expect(response.status).toBe(308);
+      expect(response.headers.get("location")).toBe(
+        "https://preview.example.test/login?next=orders",
+      );
+      expect(await response.text()).toBe("");
+      expect(next).not.toHaveBeenCalled();
+      expect(assets.fetch).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["development", undefined])(
+    "does not trust a public host with environment %s",
+    async (environment) => {
+      const next = vi.fn(() => new Response("must not run"));
+      const response = await secureHttpResponse(
+        new Request("http://preview.example.test/"),
+        environment,
+        next,
+      );
+      expect(response.status).toBe(308);
+      expect(next).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not treat a hostname containing localhost as loopback", async () => {
+    const next = vi.fn(() => new Response("must not run"));
+    const response = await secureHttpResponse(
+      new Request("http://localhost.attacker.invalid/"),
+      "preview",
+      next,
+    );
+    expect(response.status).toBe(308);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("keeps the production redirect even on loopback", async () => {
+    const next = vi.fn(() => new Response("must not run"));
+    const response = await secureHttpResponse(
+      new Request("http://127.0.0.1:30092/"),
+      "production",
+      next,
+    );
+    expect(response.status).toBe(308);
+    expect(next).not.toHaveBeenCalled();
+  });
+
   it.each([200, 401, 404, 503])("protects HTTPS responses including status %s", async (status) => {
     const response = await secureHttpResponse(
       new Request("https://shop.example.test/"),
@@ -117,14 +174,17 @@ describe("public HTTP security boundary", () => {
     expect(next).toHaveBeenCalledOnce();
   });
 
-  it("allows an isolated local HTTP preview without an HTTPS redirect loop", async () => {
-    const response = await secureHttpResponse(
-      new Request("http://127.0.0.1:30092/"),
-      "preview",
-      () => new Response("preview"),
-    );
-    expect(response.status).toBe(200);
-    expect(response.headers.has("strict-transport-security")).toBe(false);
-    expect(await response.text()).toBe("preview");
-  });
+  it.each(["127.0.0.1", "localhost", "[::1]"])(
+    "allows an isolated local HTTP preview at %s without a redirect loop",
+    async (host) => {
+      const response = await secureHttpResponse(
+        new Request("http://" + host + ":30092/"),
+        "preview",
+        () => new Response("preview"),
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.has("strict-transport-security")).toBe(false);
+      expect(await response.text()).toBe("preview");
+    },
+  );
 });
