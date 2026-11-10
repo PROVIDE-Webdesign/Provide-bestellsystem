@@ -2,12 +2,14 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { dashboardPublicConfig } from "./lib/config.js";
+import { dashboardAuthCookieOptions } from "./lib/auth-cookie-options.js";
 
 export async function proxy(request: NextRequest) {
   const config = dashboardPublicConfig();
   if (!config) return NextResponse.next({ request });
   let response = NextResponse.next({ request });
   const supabase = createServerClient(config.supabaseUrl, config.publishableKey, {
+    cookieOptions: dashboardAuthCookieOptions,
     auth: { flowType: "pkce" },
     cookies: {
       getAll: () => request.cookies.getAll(),

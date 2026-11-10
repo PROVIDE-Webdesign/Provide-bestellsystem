@@ -56,6 +56,8 @@ import { postgresCheckoutWriter } from "./checkout-database.js";
 import { handleStorefront, type StorefrontReader } from "./storefront.js";
 import { postgresStorefrontReader } from "./storefront-database.js";
 import { probeDatabase } from "./database.js";
+import { databaseHealthAuthorized, databaseHealthConfigured } from "./database-health-auth.js";
+import { secureHttpResponse } from "@provide/contracts";
 import { handlePublicOrderStatus, type OrderStatusReader } from "./order-status.js";
 import { postgresOrderStatusReader } from "./order-status-database.js";
 import { handleDashboardAccess, type DashboardAccessReader } from "./dashboard-access.js";
@@ -127,6 +129,7 @@ interface Env
   readonly SUPABASE_AUTH_AUDIENCE?: string;
   readonly HYPERDRIVE_CACHE_DISABLED?: string;
   readonly HYPERDRIVE?: HyperdriveBinding;
+  readonly DATABASE_HEALTH_TOKEN?: string;
 }
 
 type DatabaseProbe = (connectionString: string) => Promise<void>;
@@ -159,7 +162,7 @@ export function createApiWorker(
   checkoutProtection: CheckoutProtectionRepository = postgresCheckoutProtection,
   checkoutChallenge: CheckoutChallengeVerifier = turnstileCheckoutChallenge,
 ) {
-  return {
+  const worker = {
     async fetch(request: Request, env: Env, execution?: ExecutionContext): Promise<Response> {
       const context = createRequestContext();
       const cors = corsHeaders(request, parseAllowedOrigins(env.API_ALLOWED_ORIGINS));
@@ -391,12 +394,22 @@ export function createApiWorker(
         );
       }
 
-      if (!env.HYPERDRIVE) {
+      if (!env.HYPERDRIVE || !databaseHealthConfigured(env.DATABASE_HEALTH_TOKEN)) {
         return jsonError(
           "service_unavailable",
           "Database health probe is not available.",
           context.requestId,
           503,
+          cors,
+        );
+      }
+
+      if (!databaseHealthAuthorized(request, env.DATABASE_HEALTH_TOKEN)) {
+        return jsonError(
+          "unauthorized",
+          "Authentication is required.",
+          context.requestId,
+          401,
           cors,
         );
       }
@@ -459,6 +472,11 @@ export function createApiWorker(
         dispatchOrderNotifications(env, notificationRepository, notificationAdapter, logger),
       );
     },
+  };
+  return {
+    ...worker,
+    fetch: (...args: Parameters<typeof worker.fetch>) =>
+      secureHttpResponse(args[0], args[1].APP_ENV, () => worker.fetch(...args)),
   };
 }
 
