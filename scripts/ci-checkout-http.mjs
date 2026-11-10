@@ -387,10 +387,12 @@ try {
     await page.goto(
       browserOrigin + `/?restaurant=${scope.restaurantSlug}&location=${scope.locationSlug}`,
     );
+    await page.getByRole("button", { name: "Speisekarte", exact: true }).click();
     await page
       .getByRole("navigation", { name: "Speisekategorien" })
       .getByRole("button")
-      .nth(1)
+      .filter({ hasNotText: /^Beliebt$/ })
+      .first()
       .click();
     const dish = page
       .locator("li.shop-dish")
