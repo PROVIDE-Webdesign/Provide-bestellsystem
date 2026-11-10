@@ -19,11 +19,12 @@ export async function verifyUnifiedDashboardBrowser(browser: Browser, output: st
         Object.defineProperty(navigator, "serviceWorker", {
           configurable: true,
           value: {
-            getRegistration: async () => ({
-              active: { scriptURL: location.origin + "/dashboard-push-sw.js" },
-              update: async () => undefined,
-              pushManager: { getSubscription: async () => null },
-            }),
+            getRegistration: () =>
+              Promise.resolve({
+                active: { scriptURL: location.origin + "/dashboard-push-sw.js" },
+                update: () => Promise.resolve(),
+                pushManager: { getSubscription: () => Promise.resolve(null) },
+              }),
           },
         });
         if (!("PushManager" in window))
