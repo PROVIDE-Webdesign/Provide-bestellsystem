@@ -18,6 +18,7 @@
     "app/**/*.tsx",
     "next-env.d.ts",
     "next.config.ts",
+    "worker.ts",
     "vite.config.ts",
     "vitest.config.ts",
     "tests/**/*.ts",

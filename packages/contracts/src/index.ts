@@ -75,3 +75,4 @@ export * from "./support.js";
 export * from "./checkout-protection.js";
 
 export * from "./cart-handoff.js";
+export * from "./http-security.js";
