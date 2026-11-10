@@ -14,7 +14,18 @@ export async function verifyUnifiedDashboardBrowser(browser: Browser, output: st
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
       await page.addInitScript((denied) => {
-        // Normalize capability presence only. No service worker or notification is sent.
+        // Simulate an already installed registration; this test checks shell/API wiring.
+        // Real service-worker installation and notification delivery are separate checks.
+        Object.defineProperty(navigator, "serviceWorker", {
+          configurable: true,
+          value: {
+            getRegistration: async () => ({
+              active: { scriptURL: location.origin + "/dashboard-push-sw.js" },
+              update: async () => undefined,
+              pushManager: { getSubscription: async () => null },
+            }),
+          },
+        });
         if (!("PushManager" in window))
           Object.defineProperty(window, "PushManager", { value: class {} });
         Object.defineProperty(window, "Notification", {
@@ -74,10 +85,20 @@ export async function verifyUnifiedDashboardBrowser(browser: Browser, output: st
         await page.getByText("Bestelleingang & Alarm", { exact: true }).click();
         if (mode === "owner-push") {
           await page
-            .getByText("Hintergrundalarm derzeit nicht verfügbar.", { exact: true })
+            .getByText("Hintergrundalarm konnte nicht geprüft werden. Bitte erneut prüfen.", {
+              exact: true,
+            })
             .waitFor();
           assert.ok(requests.length > 0, "The new shell forwards the push flag to its inbox");
           assert.ok(requests.every((request) => JSON.stringify(request) === '{"action":"status"}'));
+          const beforeRetry = requests.length;
+          await page.getByRole("button", { name: "Status erneut prüfen", exact: true }).click();
+          await page
+            .getByText("Hintergrundalarm konnte nicht geprüft werden. Bitte erneut prüfen.", {
+              exact: true,
+            })
+            .waitFor();
+          assert.ok(requests.length > beforeRetry, "A failed status check can be retried");
           await page.screenshot({
             path: output + `unified-owner-push-${width}.png`,
             fullPage: true,
@@ -89,14 +110,22 @@ export async function verifyUnifiedDashboardBrowser(browser: Browser, output: st
             0,
             "Disabled features and viewers never access push management",
           );
-          if (mode === "owner-denied")
+          if (mode === "owner-denied") {
             await page
               .getByText(
                 "Mitteilungen sind blockiert. Erlaube sie in den Einstellungen des Geräts oder Browsers.",
                 { exact: true },
               )
               .waitFor();
-          assert.equal(await page.getByText(/Hintergrundalarm/).count(), 0);
+            assert.equal(
+              await page
+                .getByRole("button", { name: "Hintergrundalarm aktivieren", exact: true })
+                .count(),
+              0,
+            );
+          } else {
+            assert.equal(await page.getByText(/Hintergrundalarm/).count(), 0);
+          }
         }
         assert.equal(
           await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1),
