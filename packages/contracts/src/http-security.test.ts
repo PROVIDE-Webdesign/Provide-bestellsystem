@@ -57,14 +57,13 @@ describe("public HTTP security boundary", () => {
     async (method) => {
       const next = vi.fn(() => new Response("application"));
       const assets = {
-        fetch: vi.fn(
-          async () =>
-            new Response(method === "HEAD" ? null : "asset", {
-              headers: {
-                "content-type": "text/javascript",
-                "cache-control": "public, max-age=31536000",
-              },
-            }),
+        fetch: vi.fn<() => Promise<Response>>().mockResolvedValue(
+          new Response(method === "HEAD" ? null : "asset", {
+            headers: {
+              "content-type": "text/javascript",
+              "cache-control": "public, max-age=31536000",
+            },
+          }),
         ),
       };
       const response = await secureHttpResponse(
@@ -85,7 +84,11 @@ describe("public HTTP security boundary", () => {
 
   it("falls back to application routes when no static file exists", async () => {
     const next = vi.fn(() => new Response("dynamic route"));
-    const assets = { fetch: vi.fn(async () => new Response("not found", { status: 404 })) };
+    const assets = {
+      fetch: vi
+        .fn<() => Promise<Response>>()
+        .mockResolvedValue(new Response("not found", { status: 404 })),
+    };
     const response = await secureHttpResponse(
       new Request("https://shop.example.test/api/health"),
       "production",
@@ -98,7 +101,11 @@ describe("public HTTP security boundary", () => {
 
   it("preserves POST routes without passing them to the asset binding", async () => {
     const next = vi.fn(() => new Response("accepted"));
-    const assets = { fetch: vi.fn(async () => new Response(null, { status: 405 })) };
+    const assets = {
+      fetch: vi
+        .fn<() => Promise<Response>>()
+        .mockResolvedValue(new Response(null, { status: 405 })),
+    };
     const response = await secureHttpResponse(
       new Request("https://shop.example.test/api/checkout", { method: "POST" }),
       "production",
